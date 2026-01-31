@@ -107,10 +107,10 @@ def build_stub_deps() -> tuple[Deps, dict[str, int]]:
             return SimpleNamespace(content="hello")
 
         def bind_tools(self, tools):
-            def invoke(_):
+            async def ainvoke(_):
                 return [AIMessage(content="ok", tool_calls=[])]
 
-            return SimpleNamespace(invoke=invoke)
+            return SimpleNamespace(ainvoke=ainvoke)
 
         def with_structured_output(self, model_cls):
             async def ainvoke(_):

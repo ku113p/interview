@@ -18,18 +18,18 @@ class State(TypedDict):
 def build_llm_node(deps: Deps):
     tools_llm = deps["build_llm"](temperature=0).bind_tools(deps["get_area_tools"]())
 
-    def llm_node(state: State):
+    async def llm_node(state: State):
         loop_state = state["loop_step"]
-        tools_messages = tools_llm.invoke(state["messages"])
+        tools_messages = await tools_llm.ainvoke(state["messages"])
         return {"messages": tools_messages, "loop_step": loop_state}
 
     return llm_node
 
 
 def build_tool_node(deps: Deps):
-    def tool_node(state: State):
+    async def tool_node(state: State):
         last_message = state["messages"][-1]
-        tools_messages = build_tool_messages(last_message, deps)
+        tools_messages = await build_tool_messages(last_message, deps)
         loop_step = state["loop_step"] + 1
         return {"messages": tools_messages, "loop_step": loop_step}
 
@@ -51,10 +51,10 @@ def threashold_node(*args, **kwargs):
     return {"messages": [ai_msg]}
 
 
-def build_tool_messages(last_message: BaseMessage, deps: Deps):
+async def build_tool_messages(last_message: BaseMessage, deps: Deps):
     tools_messages = []
     for tool_call in get_tool_calls(last_message):
-        tool_result = run_tool_call(tool_call, deps)
+        tool_result = await run_tool_call(tool_call, deps)
         tools_messages.append(
             ToolMessage(
                 content=str(tool_result),
@@ -65,12 +65,12 @@ def build_tool_messages(last_message: BaseMessage, deps: Deps):
     return tools_messages
 
 
-def run_tool_call(tool_call, deps: Deps):
+async def run_tool_call(tool_call, deps: Deps):
     name = tool_call["name"]
     args = tool_call["args"]
     for tool in deps["get_area_tools"]():
         if tool.name == name:
-            return tool.invoke(args)
+            return await tool.ainvoke(args)
     raise ValueError(f"Unknown tool: {name}")
 
 
