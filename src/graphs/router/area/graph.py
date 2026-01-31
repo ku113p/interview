@@ -7,14 +7,22 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import START, StateGraph, END
 from langgraph.graph.message import add_messages
 
-from .methods import AREA_TOOLS, call_tool
+from .methods import AREA_TOOLS
 
 MAX_LOOP_STEPS = 3
 
+
+def get_api_key() -> str:
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if api_key is None:
+        raise ValueError("OPENROUTER_API_KEY is required")
+    return api_key
+
+
 model = ChatOpenAI(
     model="google/gemini-2.0-flash-001",
-    openai_api_key=os.environ.get("OPENROUTER_API_KEY"),
-    openai_api_base="https://openrouter.ai/api/v1",
+    api_key=get_api_key,
+    base_url="https://openrouter.ai/api/v1",
 )
 model_with_tools = model.bind_tools(AREA_TOOLS)
 
@@ -29,25 +37,15 @@ def llm_node(state: State):
 
 
 def tool_node(state: State):
-    last_message: AIMessage = state["messages"][-1]
-
-    tools_messages = []
-    for tool_call in last_message.tool_calls:
-        tool_result = call_tool(tool_call)
-        t_msg = ToolMessage(
-            content=str(tool_result),
-            tool_call_id=tool_call["id"],
-            name=tool_call["name"]
-        )
-        tools_messages.append(t_msg)
-
+    last_message = state["messages"][-1]
+    tools_messages = build_tool_messages(last_message)
     return {"messages": tools_messages, "loop_step": state["loop_step"] + 1}
 
 
 def router(state: State):
     if state["loop_step"] > MAX_LOOP_STEPS:
         return "threashold_node"
-    if state["messages"][-1].tool_calls:
+    if get_tool_calls(state["messages"][-1]):
         return "tools"
     return END
 
@@ -56,6 +54,33 @@ def threashold_node(*args, **kwargs):
     content = "Can you say this differently? (answer generation error)"
     ai_msg = AIMessage(content=content)
     return {"messages": [ai_msg]}
+
+
+def build_tool_messages(last_message: BaseMessage):
+    tools_messages = []
+    for tool_call in get_tool_calls(last_message):
+        tool_result = run_tool_call(tool_call)
+        tools_messages.append(
+            ToolMessage(
+                content=str(tool_result),
+                tool_call_id=tool_call["id"],
+                name=tool_call["name"],
+            )
+        )
+    return tools_messages
+
+
+def run_tool_call(tool_call):
+    name = tool_call["name"]
+    args = tool_call["args"]
+    for tool in AREA_TOOLS:
+        if tool.name == name:
+            return tool.invoke(args)
+    raise ValueError(f"Unknown tool: {name}")
+
+
+def get_tool_calls(message: BaseMessage):
+    return getattr(message, "tool_calls", [])
 
 
 def get_subgraph():
@@ -69,4 +94,4 @@ def get_subgraph():
     graph_builder.add_edge("tools", "chatbot")
     graph_builder.add_edge("threashold_node", END)
 
-    return graph_builder.build()
+    return graph_builder.compile()

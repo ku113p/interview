@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 import os
-from typing_extensions import TypedDict
+from typing import cast
+from typing_extensions import NotRequired, TypedDict
 from pydantic import BaseModel, Field
 
 from langchain_openai import ChatOpenAI
@@ -10,33 +10,44 @@ from src.domain import user
 from src.graphs.router.graph import Target
 
 
-@dataclass
-class Result:
-    last_messages: list[BaseMessage]
-    target: Target
-
-
 class State(TypedDict):
     user: user.User
     text: str
-    last_messages: list[BaseMessage] | None
-    target: Target | None
+    messages: NotRequired[list[BaseMessage]]
+    target: NotRequired[Target]
 
 
 async def extract_target(state: State):
     user_obj = state["user"]
     text = state["text"]
+    prev_messages, use_history = resolve_messages(state, user_obj)
+    new_message = HumanMessage(content=text)
+    full_context = prev_messages + [new_message]
+    target = await get_target(user_obj, full_context)
+    return build_updates(use_history, full_context, new_message, target)
 
-    prev_messages = get_formatted_history(user_obj)
-    full_context = prev_messages + [HumanMessage(content=text)]
 
-    target = (
-        Target.from_user_mode(user_obj.mode)
-        if user_obj.mode != user.InputMode.auto
-        else await extract_target_from_messages(full_context)
-    )
+def resolve_messages(state: State, user_obj: user.User):
+    existing_messages = state.get("messages")
+    if existing_messages is None:
+        return get_formatted_history(user_obj), True
+    return existing_messages, False
 
-    return {"last_messages": full_context, "target": target}
+
+async def get_target(user_obj: user.User, messages: list[BaseMessage]):
+    if user_obj.mode != user.InputMode.auto:
+        return Target.from_user_mode(user_obj.mode)
+    return await extract_target_from_messages(messages)
+
+
+def build_updates(
+    use_history: bool,
+    full_context: list[BaseMessage],
+    new_message: BaseMessage,
+    target: Target,
+):
+    messages_update = full_context if use_history else [new_message]
+    return {"target": target, "messages": messages_update}
 
 
 class IntentClassification(BaseModel):
@@ -44,12 +55,8 @@ class IntentClassification(BaseModel):
 
 
 def get_formatted_history(user_obj: user.User, limit: int = 10) -> list[BaseMessage]:
-    domain_msgs = [
-        msg.data
-        for msg
-        in db.History.list_by_user(user_obj.id)
-    ][-limit:]
-    
+    domain_msgs = [msg.data for msg in db.History.list_by_user(user_obj.id)][-limit:]
+
     formatted_messages = []
     for msg in domain_msgs:
         if msg["role"] == "user":
@@ -58,28 +65,40 @@ def get_formatted_history(user_obj: user.User, limit: int = 10) -> list[BaseMess
             formatted_messages.append(AIMessage(content=msg["content"]))
         else:
             raise NotImplementedError()
-            
+
     return formatted_messages
 
 
 async def extract_target_from_messages(messages: list[BaseMessage]) -> Target:
+    structured_llm = build_structured_llm()
+    system_prompt = build_system_prompt()
+    result = await structured_llm.ainvoke([system_prompt] + messages)
+    parsed = cast(IntentClassification, result)
+    return parsed.target
+
+
+def build_structured_llm():
     llm = ChatOpenAI(
         model="google/gemini-2.0-flash-001",
-        openai_api_key=os.environ.get("OPENROUTER_API_KEY"),
-        openai_api_base="https://openrouter.ai/api/v1",
-        temperature=0
+        api_key=get_api_key,
+        base_url="https://openrouter.ai/api/v1",
+        temperature=0,
     )
-    
-    structured_llm = llm.with_structured_output(IntentClassification)
+    return llm.with_structured_output(IntentClassification)
 
-    system_prompt = SystemMessage(content=(
-        "Classify the user intent based on conversation context.\n"
-        "Return 'interview' for answering questions or continuing discussion.\n"
-        "Return 'areas' for changing topics, settings, or stopping."
-    ))
 
-    messages_with_system = [system_prompt] + messages
+def get_api_key() -> str:
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if api_key is None:
+        raise ValueError("OPENROUTER_API_KEY is required")
+    return api_key
 
-    result = await structured_llm.ainvoke(messages_with_system)
-    
-    return result.target
+
+def build_system_prompt():
+    return SystemMessage(
+        content=(
+            "Classify the user intent based on conversation context.\n"
+            "Return 'interview' for answering questions or continuing discussion.\n"
+            "Return 'areas' for changing topics, settings, or stopping."
+        )
+    )

@@ -1,59 +1,78 @@
-from dataclasses import dataclass
-import enum
-from typing_extensions import TypedDict
+import tempfile
+import uuid
+from pathlib import Path
+from tempfile import _TemporaryFileWrapper
+from typing import Annotated
 
-from langgraph.graph import StateGraph, MessagesState, START, END
+from langchain_core.messages import BaseMessage
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
+from typing_extensions import NotRequired, TypedDict
 
-from .domain import message, user
-
-
-class Direction(enum.Enum):
-    interview = 'interview'
-    areas = 'areas'
+from src.domain import message, user
+from src.graphs.client_message.graph import get_subgraph as client_message_subgraph
+from src.graphs.router.graph import Target
+from src.graphs.router.graph import get_subgraph as router_subgraph
 
 
 class State(TypedDict):
     user: user.User
     message: message.ClientMessage
-    direction: Direction
-    text: str
+    messages: Annotated[list[BaseMessage], add_messages]
+    loop_step: int
+    extract_data_dir: str
+    was_covered: bool
+    text: NotRequired[str]
+    target: NotRequired[Target]
+    area_id: NotRequired[uuid.UUID]
+    media_file: NotRequired[_TemporaryFileWrapper[bytes]]
+    audio_file: NotRequired[_TemporaryFileWrapper[bytes]]
 
 
-def extract_direction_and_text(state: State):
-    message = state["message"]
-
-    text, filepath = extract_message_text(message, agent)
-
-    match mode := state["user"]["mode"]:
-        case user.InputMode.interview:
-            direction = Direction.interview
-        case user.InputMode.areas:
-            direction = Direction.areas
-        case user.InputMode.auto:
-            direction = extract_direction(text, agent)
-        case _:
-            raise NotImplementedError()
-    
-    media_type = None if isinstance(message.data, str) else message.data.type
-    save_user_message(state["user"], text, filepath, media_type)
-
-    return state | {"direction": direction}
+DEFAULT_SIGNAL_DIR = "signals"
 
 
-def extract_message_text(msg: message.ClientMessage, agent) -> tuple[str, str]:
-    if isinstance(msg.data, str):
-        return msg.data, None
-    
-    audio_
-    if msg.data.type == message.MessageType.video:
-
-    
-    return agent.extract_text(msg.data)
+def init_state(state: State):
+    updates = missing_state_defaults(state)
+    ensure_signal_dir(updates.get("extract_data_dir", state.get("extract_data_dir")))
+    return updates
 
 
-def extract_direction(text: str, agent) -> Direction:
-    return agent.extract_direction(text)
+def missing_state_defaults(state: State):
+    updates = {}
+    if "messages" not in state:
+        updates["messages"] = []
+    if "media_file" not in state:
+        updates["media_file"] = build_temp_file()
+    if "audio_file" not in state:
+        updates["audio_file"] = build_temp_file()
+    if "loop_step" not in state:
+        updates["loop_step"] = 0
+    if "was_covered" not in state:
+        updates["was_covered"] = False
+    if "extract_data_dir" not in state:
+        updates["extract_data_dir"] = DEFAULT_SIGNAL_DIR
+    return updates
 
 
-def save_user_message(user: user.User, text: str, filepath: str, media_type: message.MessageType):
-    ...
+def build_temp_file() -> _TemporaryFileWrapper[bytes]:
+    return tempfile.NamedTemporaryFile()
+
+
+def ensure_signal_dir(path: str | None) -> str:
+    if path is None:
+        raise ValueError("Signal directory is required")
+    Path(path).mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def get_graph():
+    builder = StateGraph(State)
+    builder.add_node("init", init_state)
+    builder.add_node("client_message", client_message_subgraph())
+    builder.add_node("router", router_subgraph())
+    builder.add_edge(START, "init")
+    builder.add_edge("init", "client_message")
+    builder.add_edge("client_message", "router")
+    builder.add_edge("router", END)
+    return builder.compile()

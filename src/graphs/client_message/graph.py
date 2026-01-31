@@ -1,9 +1,12 @@
-from typing import Literal
-from typing_extensions import TypedDict
+from typing import Annotated, Literal
+from typing_extensions import NotRequired, TypedDict
 
-from langgraph.graph import START, StateGraph, END
+from langchain_core.messages import BaseMessage
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
 
 from src.domain import message, user
+from src.graphs.router.graph import Target
 from .audio_extractor import extract_audio
 from .target_extractor import extract_target
 from .text_extractor import extract_text
@@ -12,6 +15,9 @@ from .text_extractor import extract_text
 class State(TypedDict):
     user: user.User
     message: message.ClientMessage
+    text: NotRequired[str]
+    target: NotRequired[Target]
+    messages: Annotated[list[BaseMessage], add_messages]
 
 
 def route_message(state: State) -> Literal["extract_audio", "extract_text"]:
@@ -29,9 +35,7 @@ def get_subgraph():
     builder.add_node("extract_target", extract_target)
 
     builder.add_conditional_edges(
-        START,
-        route_message,
-        ["extract_audio", "extract_text"]
+        START, route_message, ["extract_audio", "extract_text"]
     )
     builder.add_edge("extract_audio", "extract_text")
     builder.add_edge("extract_text", "extract_target")
