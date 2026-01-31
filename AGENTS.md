@@ -2,7 +2,7 @@
 # Guidance for agentic coding tools in this repo.
 
 Project snapshot
-- Language: Python (requires >=3.14 per pyproject.toml)
+- Language: Python (requires >=3.12 per pyproject.toml)
 - Package layout: `src/` (import from `src.*` or relative modules)
 - Entry point: `main.py`
 - Domain: LangChain/LangGraph-based flows for interview routing

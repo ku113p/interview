@@ -16,7 +16,7 @@ def test_root_init_seeds_defaults():
     state = cast(
         graph.State,
         {
-            "user": user.User(id=uuid.uuid7(), mode=user.InputMode.auto),
+            "user": user.User(id=uuid.uuid4(), mode=user.InputMode.auto),
             "message": message.ClientMessage(data="hello"),
         },
     )
@@ -54,9 +54,9 @@ def test_message_flow_accumulates_messages():
 
 def build_base_state(mode: user.InputMode):
     base_state = {
-        "user": user.User(id=uuid.uuid7(), mode=mode),
+        "user": user.User(id=uuid.uuid4(), mode=mode),
         "message": message.ClientMessage(data="hello"),
-        "area_id": uuid.uuid7(),
+        "area_id": uuid.uuid4(),
     }
     init_updates = graph.init_state(cast(graph.State, base_state))
     merged = base_state | init_updates

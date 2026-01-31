@@ -56,7 +56,7 @@ def build_interview_node(deps: Deps):
 def persist_latest_message(messages: list[BaseMessage], area_id: uuid.UUID) -> None:
     last_content = get_last_content(messages[-1])
     last_area_msg = db.LifeAreaMessageObject(
-        id=uuid.uuid7(),
+        id=uuid.uuid4(),
         data=last_content,
         area_id=area_id,
         created_ts=0,

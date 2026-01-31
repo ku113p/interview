@@ -38,7 +38,7 @@ class LifeAreaMethods:
     ) -> db.LifeAreaObject:
         u_id = parse_uuid(user_id)
         p_id = parse_uuid(parent_id) if parent_id is not None else None
-        area_id = uuid.uuid7()
+        area_id = uuid.uuid4()
         area = db.LifeAreaObject(
             id=area_id,
             title=title,
@@ -87,7 +87,7 @@ class CriteriaMethods:
     @staticmethod
     def create(user_id: str, area_id: str, title: str) -> db.CriteriaObject:
         area = LifeAreaMethods.get.invoke({"user_id": user_id, "area_id": area_id})
-        criteria_id = uuid.uuid7()
+        criteria_id = uuid.uuid4()
         criteria = db.CriteriaObject(id=criteria_id, title=title, area_id=area.id)
         db.Criteria.create(criteria_id, criteria)
         return criteria
