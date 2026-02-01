@@ -4,19 +4,20 @@ import uuid
 
 
 class InputMode(enum.Enum):
-    auto = 'auto'
-    interview = 'interview'
-    areas = 'areas'
+    auto = "auto"
+    interview = "interview"
+    areas = "areas"
 
 
 @dataclass
 class User:
     id: uuid.UUID
     mode: InputMode
+    current_life_area_id: uuid.UUID | None = None
 
 
 class AccountGate(enum.Enum):
-    telegram = 'telegram'
+    telegram = "telegram"
 
 
 @dataclass

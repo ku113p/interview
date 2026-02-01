@@ -1,53 +1,56 @@
 import asyncio
+import asyncio
 import io
-from tempfile import NamedTemporaryFile
+from typing import BinaryIO
 from typing_extensions import TypedDict
+
 from src.domain import message
 
 
 class State(TypedDict):
-    client_message: message.MediaMessage
-    media_file: NamedTemporaryFile
-    audio_file: NamedTemporaryFile
+    message: message.MediaMessage
+    media_file: BinaryIO
+    audio_file: BinaryIO
 
 
 async def extract_audio(state: State):
-    c_msg = state["client_message"]
+    c_msg = state["message"]
     m_file = state["media_file"]
 
     await write_file(m_file, c_msg.content)
-    
+
     if c_msg.type == message.MessageType.audio:
         return {"audio_file": m_file}
-    
-    await extract_audio_from_video(m_file, state["audio_file"])
 
-    return
+    audio_file = state["audio_file"]
+    await extract_audio_from_video(m_file, audio_file)
+
+    return {"audio_file": audio_file}
 
 
-async def write_file(tmp_file: NamedTemporaryFile, stream: io.BytesIO):
+async def write_file(tmp_file: BinaryIO, stream: io.BytesIO):
     tmp_file.seek(0)
     tmp_file.write(stream.read())
     tmp_file.seek(0)
     return tmp_file
 
 
-async def extract_audio_from_video(media_tmp_file: NamedTemporaryFile, audio_tmp_file: NamedTemporaryFile):
+async def extract_audio_from_video(media_tmp_file: BinaryIO, audio_tmp_file: BinaryIO):
     media_tmp_file.flush()
 
     cmd = [
         "ffmpeg",
         "-y",
-        "-i", media_tmp_file.name,
+        "-i",
+        media_tmp_file.name,
         "-vn",
-        "-c:a", "copy",
-        audio_tmp_file.name
+        "-c:a",
+        "copy",
+        audio_tmp_file.name,
     ]
 
     process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
 
     _, stderr = await process.communicate()

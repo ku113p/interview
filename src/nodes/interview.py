@@ -1,6 +1,6 @@
+import json
 import asyncio
 import json
-import os
 from typing import Annotated, TypedDict
 import uuid
 
@@ -13,8 +13,7 @@ from src import db
 
 model = ChatOpenAI(
     model="google/gemini-2.0-flash-001",
-    openai_api_key=os.environ.get("OPENROUTER_API_KEY"),
-    openai_api_base="https://openrouter.ai/api/v1",
+    base_url="https://openrouter.ai/api/v1",
 )
 
 
@@ -27,20 +26,24 @@ class State(TypedDict):
 
 async def interview(state: State):
     area_id = state["area_id"]
-    last_area_msg = db.LifeAreaMessages(
-        id=uuid.uuid7(),
-        data=state["messages"][-1].content,
+    message_content = state["messages"][-1].content
+    if isinstance(message_content, list):
+        message_content = "".join(str(part) for part in message_content)
+    elif not isinstance(message_content, str):
+        message_content = str(message_content)
+
+    last_area_msg = db.LifeAreaMessageObject(
+        id=uuid.uuid4(),
+        data=message_content,
         area_id=area_id,
+        created_ts=0,
     )
     db.LifeAreaMessages.create(last_area_msg.id, last_area_msg)
 
     area_msgs: list[str] = [
-        msg.data
-        for msg in db.LifeAreaMessages.list_by_area(area_id)
+        msg.data for msg in db.LifeAreaMessages.list_by_area(area_id)
     ]
-    area_criteria: list[str] = [
-        c.title for c in db.Criteria.list_by_area(area_id)
-    ]
+    area_criteria: list[str] = [c.title for c in db.Criteria.list_by_area(area_id)]
 
     ai_answer, was_covered = await check_criteria_covered(area_msgs, area_criteria)
     if was_covered:
@@ -53,13 +56,6 @@ async def check_criteria_covered(
     interview_messages: list[str],
     area_criteria: list[str],
 ) -> tuple[str, bool]:
-    """
-    The agent:
-    - Evaluates each criterion
-    - Decides whether all are covered
-    - Generates the NEXT assistant message (question or thank-you)
-    """
-
     system_prompt = (
         "You are an interview agent.\n"
         "Your task:\n"
@@ -92,6 +88,9 @@ async def check_criteria_covered(
             {"role": "user", "content": json.dumps(user_prompt)},
         ]
     )
+
+    if not isinstance(response.content, str):
+        raise ValueError("Unexpected response content type")
 
     data = json.loads(response.content)
 
