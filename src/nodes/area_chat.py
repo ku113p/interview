@@ -14,6 +14,6 @@ class State(BaseModel):
 
 
 async def area_chat(state: State, llm: ChatOpenAI):
-    llm.bind_tools(AREA_TOOLS)
+    llm = llm.bind_tools(AREA_TOOLS)
     message = await llm.ainvoke(state.messages)
     return {"messages": [message]}
