@@ -3,7 +3,7 @@
 - [x] Fix tool binding so tools are actually available to the model (src/nodes/area_chat.py)
 - [x] Align audio pipeline formats or transcode to known format (src/nodes/extract_audio.py, src/nodes/extract_text.py)
 - [ ] Add error handling around tool execution (src/nodes/area_tools.py)
-- [ ] Clarify loop behavior and increment logic for loop_step (src/routers/area_router.py, src/nodes/area_chat.py, src/nodes/area_tools.py)
+- [x] Clarify loop behavior and increment logic for loop_step (src/routers/area_router.py, src/nodes/area_chat.py, src/nodes/area_tools.py)
 - [ ] Normalize or consolidate State models to avoid divergence (src/graph.py, src/routers/message_router.py)
 - [ ] Replace placeholder timestamps with real values (src/nodes/interview.py)
 - [ ] Clean up minor inconsistencies (duplicate imports, unused types) (src/routers/area_router.py)
