@@ -1,26 +1,40 @@
 import json
 import asyncio
-import json
-from typing import Annotated, TypedDict
+from typing import Annotated
 import uuid
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel
 
 from src import db
 
 
-class State(TypedDict):
+class State(BaseModel):
     area_id: uuid.UUID
     extract_data_tasks: asyncio.Queue[uuid.UUID]
     messages: Annotated[list[BaseMessage], add_messages]
     was_covered: bool
 
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class CriterionCoverage(BaseModel):
+    title: str
+    covered: bool
+
+
+class CriteriaCoverageResult(BaseModel):
+    criteria: list[CriterionCoverage]
+    all_covered: bool
+    final_answer: str
+
 
 async def interview(state: State, llm: ChatOpenAI):
-    area_id = state["area_id"]
-    message_content = state["messages"][-1].content
+    area_id = state.area_id
+    message_content = state.messages[-1].content
     if isinstance(message_content, list):
         message_content = "".join(str(part) for part in message_content)
     elif not isinstance(message_content, str):
@@ -41,7 +55,7 @@ async def interview(state: State, llm: ChatOpenAI):
 
     ai_answer, was_covered = await check_criteria_covered(area_msgs, area_criteria, llm)
     if was_covered:
-        await state["extract_data_tasks"].put(area_id)
+        await state.extract_data_tasks.put(area_id)
 
     return {"messages": [AIMessage(content=ai_answer)], "was_covered": was_covered}
 
@@ -61,15 +75,6 @@ async def check_criteria_covered(
         "- Be strict: unclear or partial answers = NOT covered\n"
         "- Ask only ONE question\n"
         "- Be polite, natural, and conversational\n"
-        "- Respond ONLY with valid JSON\n\n"
-        "JSON format:\n"
-        "{\n"
-        '  "criteria": [\n'
-        '    {"title": "<criterion>", "covered": true | false}\n'
-        "  ],\n"
-        '  "all_covered": true | false,\n'
-        '  "final_answer": "<assistant message to send to user>"\n'
-        "}\n"
     )
 
     user_prompt = {
@@ -77,19 +82,19 @@ async def check_criteria_covered(
         "criteria": area_criteria,
     }
 
-    response = await llm.ainvoke(
+    structured_llm = llm.with_structured_output(CriteriaCoverageResult)
+
+    result = await structured_llm.ainvoke(
         [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps(user_prompt)},
         ]
     )
 
-    if not isinstance(response.content, str):
-        raise ValueError("Unexpected response content type")
+    if not isinstance(result, CriteriaCoverageResult):
+        result = CriteriaCoverageResult.model_validate(result)
 
-    data = json.loads(response.content)
-
-    final_answer: str = data.get("final_answer", "")
-    all_covered: bool = data.get("all_covered", False)
+    final_answer = result.final_answer
+    all_covered = result.all_covered
 
     return final_answer, all_covered
