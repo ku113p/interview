@@ -1,22 +1,23 @@
 import asyncio
 import uuid
+from functools import partial
 from typing import Annotated, BinaryIO
 
 from langchain_core.messages import BaseMessage
+from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, ConfigDict
 
 from langgraph.graph import START, END, StateGraph
 
-from functools import partial
-
 from src.ai import NewAI
 from src.domain import message, user
+from src.nodes.extract_audio import State as ExtractAudioState, extract_audio
 from src.nodes.extract_target import extract_target
+from src.nodes.extract_text import extract_text_from_message
 from src.nodes.interview import interview
 from src.subgraph.area_loop.flow import MAX_AREA_RECURSION
 from src.subgraph.area_loop.graph import build_area_graph
-from src.subgraph.extract_flow.graph import build_extract_graph
 from src.routers.message_router import route_message, Target
 
 
@@ -37,11 +38,29 @@ class State(BaseModel):
     was_covered: bool
 
 
+async def extract_text(state: State, llm: ChatOpenAI):
+    c_msg = state.message
+    if isinstance(c_msg.data, str):
+        return {"text": c_msg.data}
+
+    audio_state = await extract_audio(
+        ExtractAudioState(
+            message=c_msg.data,
+            media_file=state.media_file,
+            audio_file=state.audio_file,
+        )
+    )
+    text = await extract_text_from_message(audio_state["audio_file"], llm)
+    return {"text": text}
+
+
 def get_graph():
     builder = StateGraph(State)
 
-    extract_graph = build_extract_graph(NewAI(MODEL_NAME_FLASH, 0).build())
-    builder.add_node("extract_text", extract_graph)
+    builder.add_node(
+        "extract_text",
+        partial(extract_text, llm=NewAI(MODEL_NAME_FLASH, 0).build()),
+    )
     builder.add_node(
         "extract_target",
         partial(extract_target, llm=NewAI(MODEL_NAME_FLASH, 0).build()),

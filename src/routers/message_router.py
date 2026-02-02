@@ -25,11 +25,11 @@ class State(BaseModel):
     target: Target
 
 
-def route_message(state: State) -> Literal["area_chat", "interview"]:
+def route_message(state: State) -> Literal["area_loop", "interview"]:
     target = state.target
     if target == Target.interview:
         return "interview"
     if target == Target.areas:
-        return "area_chat"
+        return "area_loop"
 
     raise ValueError(f"Unknown target: {target}")

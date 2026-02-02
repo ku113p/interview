@@ -1,22 +1,23 @@
-from typing import Annotated
+from typing import Annotated, cast
 from pydantic import BaseModel
 
-from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
+from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.messages.tool import ToolCall
 from langgraph.graph.message import add_messages
 
-from src.routers.area_router import call_tool
+from src.subgraph.area_loop.tools import call_tool
 
 
 class State(BaseModel):
-    loop_step: int
     messages: Annotated[list[BaseMessage], add_messages]
 
 
 async def area_tools(state: State):
-    last_message: AIMessage = state.messages[-1]
+    last_message = state.messages[-1]
 
     tools_messages = []
-    for tool_call in last_message.tool_calls:
+    tool_calls = cast(list[ToolCall], getattr(last_message, "tool_calls", None) or [])
+    for tool_call in tool_calls:
         tool_result = await call_tool(tool_call)
         t_msg = ToolMessage(
             content=str(tool_result),
@@ -25,4 +26,4 @@ async def area_tools(state: State):
         )
         tools_messages.append(t_msg)
 
-    return {"messages": tools_messages, "loop_step": state.loop_step + 1}
+    return {"messages": tools_messages}

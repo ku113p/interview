@@ -1,13 +1,9 @@
-from langchain.tools import tool
-from typing import Literal
 import uuid
-
 from langchain.tools import tool
+
 from langchain_core.messages.tool import ToolCall
 
 from src import db
-
-MAX_LOOP_STEPS = 3
 
 
 def _str_to_uuid(value: str | None) -> uuid.UUID | None:
@@ -175,11 +171,3 @@ AREA_TOOLS = [
     delete_criteria,
     list_criteria,
 ]
-
-
-def route_area(state: dict) -> Literal["area_threshold", "area_tools", "area_end"]:
-    if state["loop_step"] > MAX_LOOP_STEPS:
-        return "area_threshold"
-    if state["messages"][-1].tool_calls:
-        return "area_tools"
-    return "area_end"

@@ -1,1 +1,1 @@
-__all__ = ["area_router", "message_router"]
+__all__ = ["message_router"]

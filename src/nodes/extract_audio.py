@@ -2,12 +2,13 @@ import asyncio
 import io
 from typing import BinaryIO
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from src.domain import message
 
 
 class State(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     message: message.MediaMessage
     media_file: BinaryIO
     audio_file: BinaryIO
