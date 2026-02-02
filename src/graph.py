@@ -1,9 +1,11 @@
 import asyncio
 import uuid
 from functools import partial
-from typing import BinaryIO
+from typing import Annotated, BinaryIO
 
+from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
+from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
 from langgraph.graph import START, END, StateGraph
@@ -31,10 +33,9 @@ class State(BaseModel):
     media_file: BinaryIO
     audio_file: BinaryIO
     text: str
-    last_messages: list
     target: Target
     loop_step: int
-    messages: list
+    messages: Annotated[list[BaseMessage], add_messages]
     area_id: uuid.UUID
     extract_data_tasks: asyncio.Queue[uuid.UUID]
     was_covered: bool

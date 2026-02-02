@@ -1,10 +1,12 @@
+from typing import Annotated
 from pydantic import BaseModel
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, BaseMessage
+from langgraph.graph.message import add_messages
 
 
 class State(BaseModel):
-    messages: list
+    messages: Annotated[list[BaseMessage], add_messages]
 
 
 async def area_threshold(*args, **kwargs):

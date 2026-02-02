@@ -1,25 +1,20 @@
-from dataclasses import dataclass
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
+from langgraph.graph.message import add_messages
 
 from src import db
 from src.domain import user
 from src.routers.message_router import Target
 
 
-@dataclass
-class Result:
-    last_messages: list[BaseMessage]
-    target: Target
-
-
 class State(BaseModel):
     user: user.User
     text: str
-    last_messages: list[BaseMessage] | None
+    messages: Annotated[list[BaseMessage], add_messages]
     target: Target | None
 
 
@@ -37,7 +32,7 @@ async def extract_target(state: State, llm: ChatOpenAI):
     else:
         target = await extract_target_from_messages(full_context, llm)
 
-    return {"last_messages": full_context, "target": target}
+    return {"messages": full_context, "target": target}
 
 
 class IntentClassification(BaseModel):

@@ -3,6 +3,7 @@ from typing import Literal
 import uuid
 
 from langchain.tools import tool
+from langchain_core.messages.tool import ToolCall
 
 from src import db
 
@@ -18,7 +19,7 @@ def _str_to_uuid(value: str | None) -> uuid.UUID | None:
         raise ValueError(f"Invalid UUID string format: {value}")
 
 
-def call_tool(tool_call: dict):
+async def call_tool(tool_call: ToolCall):
     tool_name = tool_call["name"]
     tool_args = tool_call.get("args", {})
 
