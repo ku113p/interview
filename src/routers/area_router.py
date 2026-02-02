@@ -123,11 +123,13 @@ class CriteriaMethods:
 
 @tool
 def list_life_areas(user_id: str) -> list[db.LifeAreaObject]:
+    """List all life areas for a user."""
     return LifeAreaMethods.list(user_id)
 
 
 @tool
 def get_life_area(user_id: str, area_id: str) -> db.LifeAreaObject:
+    """Fetch a single life area by id for a user."""
     return LifeAreaMethods.get(user_id, area_id)
 
 
@@ -135,26 +137,31 @@ def get_life_area(user_id: str, area_id: str) -> db.LifeAreaObject:
 def create_life_area(
     user_id: str, title: str, parent_id: str | None = None
 ) -> db.LifeAreaObject:
+    """Create a new life area for a user."""
     return LifeAreaMethods.create(user_id, title, parent_id)
 
 
 @tool
 def delete_life_area(user_id: str, area_id: str) -> None:
+    """Delete a life area by id for a user."""
     LifeAreaMethods.delete(user_id, area_id)
 
 
 @tool
 def list_criteria(user_id: str, area_id: str) -> list[db.CriteriaObject]:
+    """List criteria belonging to a life area."""
     return CriteriaMethods.list(user_id, area_id)
 
 
 @tool
 def delete_criteria(user_id: str, criteria_id: str) -> None:
+    """Delete a criteria item by id for a user."""
     CriteriaMethods.delete(user_id, criteria_id)
 
 
 @tool
 def create_criteria(user_id: str, area_id: str, title: str) -> db.CriteriaObject:
+    """Create a criteria item under a life area."""
     return CriteriaMethods.create(user_id, area_id, title)
 
 

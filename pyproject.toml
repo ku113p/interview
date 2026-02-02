@@ -3,9 +3,15 @@ name = "interview"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "langchain>=1.2.7",
     "langchain-openai>=1.1.7",
     "langgraph>=1.0.7",
+]
+
+[dependency-groups]
+dev = [
+    "grandalf>=0.8",
+    "ipykernel>=7.1.0",
 ]
