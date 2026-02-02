@@ -18,13 +18,8 @@ async def extract_audio(state: State):
     m_file = state.media_file
 
     await write_file(m_file, c_msg.content)
-
-    if c_msg.type == message.MessageType.audio:
-        return {"audio_file": m_file}
-
     audio_file = state.audio_file
-    await extract_audio_from_video(m_file, audio_file)
-
+    await extract_audio_to_wav(m_file, audio_file)
     return {"audio_file": audio_file}
 
 
@@ -35,7 +30,7 @@ async def write_file(tmp_file: BinaryIO, stream: io.BytesIO):
     return tmp_file
 
 
-async def extract_audio_from_video(media_tmp_file: BinaryIO, audio_tmp_file: BinaryIO):
+async def extract_audio_to_wav(media_tmp_file: BinaryIO, audio_tmp_file: BinaryIO):
     media_tmp_file.flush()
 
     cmd = [
@@ -44,8 +39,12 @@ async def extract_audio_from_video(media_tmp_file: BinaryIO, audio_tmp_file: Bin
         "-i",
         media_tmp_file.name,
         "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
         "-c:a",
-        "copy",
+        "pcm_s16le",
         audio_tmp_file.name,
     ]
 
