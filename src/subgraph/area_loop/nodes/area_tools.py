@@ -18,9 +18,14 @@ async def area_tools(state: State):
     tools_messages = []
     tool_calls = cast(list[ToolCall], getattr(last_message, "tool_calls", None) or [])
     for tool_call in tool_calls:
-        tool_result = await call_tool(tool_call)
+        try:
+            tool_result = await call_tool(tool_call)
+            content = str(tool_result)
+        except Exception as exc:
+            content = f"tool_error: {type(exc).__name__}: {exc}"
+
         t_msg = ToolMessage(
-            content=str(tool_result),
+            content=content,
             tool_call_id=tool_call["id"],
             name=tool_call["name"],
         )
