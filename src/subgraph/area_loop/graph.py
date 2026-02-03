@@ -1,11 +1,11 @@
 from functools import partial
 from typing import Annotated
-from pydantic import BaseModel
 
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel
 
 from src.subgraph.area_loop.flow import route_area
 from src.subgraph.area_loop.nodes.area_chat import area_chat

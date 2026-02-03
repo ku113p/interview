@@ -1,8 +1,8 @@
-import os
 import base64
 from typing import BinaryIO
-from langchain_openai import ChatOpenAI
+
 from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
 
 
 async def extract_text_from_audio(audio_file: BinaryIO, llm: ChatOpenAI) -> str:

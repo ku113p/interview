@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 import enum
 import uuid
+from dataclasses import dataclass
 
 
 class InputMode(enum.Enum):
