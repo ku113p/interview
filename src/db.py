@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar, Type
+import time
 import uuid
 
 # Define a TypeVar that represents our Data Objects
@@ -18,19 +19,19 @@ class BaseModel(Generic[T]):
     @classmethod
     def get_by_id(cls, id: uuid.UUID) -> T | None:
         return cls._get_storage().get(id)
-    
+
     @classmethod
     def list(cls) -> list[T]:
         return list(cls._get_storage().values())
-    
+
     @classmethod
     def create(cls, id: uuid.UUID, data: T):
         cls._get_storage()[id] = data
-    
+
     @classmethod
     def update(cls, id: uuid.UUID, data: T):
         cls.create(id, data)
-    
+
     @classmethod
     def delete(cls, id: uuid.UUID):
         cls._get_storage().pop(id, None)
@@ -39,13 +40,13 @@ class BaseModel(Generic[T]):
 class UserFilterMixin(Generic[T]):
     @classmethod
     def list_by_user(cls, user_id: uuid.UUID) -> list[T]:
-        return [obj for obj in cls.list() if getattr(obj, 'user_id') == user_id]
+        return [obj for obj in cls.list() if getattr(obj, "user_id") == user_id]
 
 
 class AreaFilterMixin(Generic[T]):
     @classmethod
     def list_by_area(cls, area_id: uuid.UUID) -> list[T]:
-        return [obj for obj in cls.list() if getattr(obj, 'area_id') == area_id]
+        return [obj for obj in cls.list() if getattr(obj, "area_id") == area_id]
 
 
 @dataclass
@@ -101,5 +102,10 @@ class Criteria(BaseModel[CriteriaObject], AreaFilterMixin[CriteriaObject]):
     pass
 
 
-class LifeAreaMessages(BaseModel[LifeAreaMessageObject], AreaFilterMixin[LifeAreaMessageObject]):
-    pass
+class LifeAreaMessages(
+    BaseModel[LifeAreaMessageObject], AreaFilterMixin[LifeAreaMessageObject]
+):
+    @classmethod
+    def create(cls, id: uuid.UUID, data: LifeAreaMessageObject):
+        data.created_ts = int(time.time())
+        super().create(id, data)
