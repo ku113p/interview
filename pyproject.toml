@@ -15,4 +15,23 @@ dependencies = [
 dev = [
     "grandalf>=0.8",
     "ipykernel>=7.1.0",
+    "pre-commit>=3.7.0",
+    "ruff>=0.6.9",
+    "vulture>=2.11",
+]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["F", "I"]
+
+[tool.vulture]
+min_confidence = 80
+paths = ["src"]
+exclude = [
+    ".ipynb_checkpoints",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
 ]

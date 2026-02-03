@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        name: ruff-imports
+        args: ["check", "--select", "I", "--fix"]
+      - id: ruff
+        name: ruff-unused
+        args: ["check", "--select", "F"]
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.11
+    hooks:
+      - id: vulture
+        args: ["src"]

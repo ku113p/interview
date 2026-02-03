@@ -1,10 +1,9 @@
 from typing import Annotated
 
-from pydantic import BaseModel, Field
-
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel, Field
 
 from src import db
 from src.domain import user

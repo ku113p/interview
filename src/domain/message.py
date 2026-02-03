@@ -1,7 +1,6 @@
-from dataclasses import dataclass
 import enum
-from functools import cached_property
 import io
+from dataclasses import dataclass
 
 
 class MessageType(enum.Enum):

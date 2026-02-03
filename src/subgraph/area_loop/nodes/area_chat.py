@@ -1,8 +1,8 @@
 from typing import Annotated
-from pydantic import BaseModel
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel
 
 from src.subgraph.area_loop.tools import AREA_TOOLS
 

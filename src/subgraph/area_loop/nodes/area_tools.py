@@ -1,9 +1,9 @@
 from typing import Annotated, cast
-from pydantic import BaseModel
 
 from langchain_core.messages import BaseMessage, ToolMessage
 from langchain_core.messages.tool import ToolCall
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel
 
 from src.subgraph.area_loop.tools import call_tool
 

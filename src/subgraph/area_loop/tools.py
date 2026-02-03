@@ -1,6 +1,6 @@
 import uuid
-from langchain.tools import tool
 
+from langchain.tools import tool
 from langchain_core.messages.tool import ToolCall
 
 from src import db

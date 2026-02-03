@@ -1,6 +1,5 @@
 from typing import Literal
 
-
 MAX_LOOP_STEPS = 3
 MAX_AREA_RECURSION = 2 * (MAX_LOOP_STEPS + 1) + 1
 
