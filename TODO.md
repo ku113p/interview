@@ -6,5 +6,5 @@
 - [x] Clarify loop behavior and increment logic for loop_step (src/routers/area_router.py, src/nodes/area_chat.py, src/nodes/area_tools.py)
 - [x] Normalize or consolidate State models to avoid divergence (src/graph.py, src/routers/message_router.py)
 - [x] Replace placeholder timestamps with real values (src/nodes/interview.py)
-- [ ] Clean up minor inconsistencies (duplicate imports, unused types) (src/routers/area_router.py)
+- [x] Clean up minor inconsistencies (duplicate imports, unused types) (src/routers/area_router.py)
 - [ ] Wire a minimal runnable entrypoint or note it’s a stub (main.py)
