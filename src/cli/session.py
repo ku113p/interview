@@ -92,6 +92,7 @@ def _create_state_with_tempfiles(
         target=Target.interview,
         messages=[],
         messages_to_save=[],
+        success=None,
         area_id=uuid.uuid4(),
         extract_data_tasks=asyncio.Queue(),
         was_covered=False,

@@ -7,7 +7,11 @@ from pydantic import BaseModel
 
 class State(BaseModel):
     messages: Annotated[list[BaseMessage], add_messages]
+    messages_to_save: Annotated[list[BaseMessage], add_messages]
+    success: bool | None = None
 
 
 def area_end(state: State):
-    return state
+    if state.success is None:
+        return {"success": True}
+    return {}

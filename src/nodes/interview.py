@@ -15,6 +15,8 @@ class State(BaseModel):
     area_id: uuid.UUID
     extract_data_tasks: asyncio.Queue[uuid.UUID]
     messages: Annotated[list[BaseMessage], add_messages]
+    messages_to_save: Annotated[list[BaseMessage], add_messages]
+    success: bool | None = None
     was_covered: bool
 
     class Config:
@@ -58,7 +60,13 @@ async def interview(state: State, llm: ChatOpenAI):
     if was_covered:
         await state.extract_data_tasks.put(area_id)
 
-    return {"messages": [AIMessage(content=ai_answer)], "was_covered": was_covered}
+    ai_msg = AIMessage(content=ai_answer)
+    return {
+        "messages": [ai_msg],
+        "messages_to_save": [ai_msg],
+        "success": True,
+        "was_covered": was_covered,
+    }
 
 
 async def check_criteria_covered(

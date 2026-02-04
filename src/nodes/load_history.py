@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
@@ -29,7 +29,17 @@ def get_formatted_history(user_obj: user.User, limit: int = 10) -> list[BaseMess
         if msg["role"] == "user":
             formatted_messages.append(HumanMessage(content=msg["content"]))
         elif msg["role"] == "ai":
-            formatted_messages.append(AIMessage(content=msg["content"]))
+            formatted_messages.append(
+                AIMessage(content=msg["content"], tool_calls=msg.get("tool_calls"))
+            )
+        elif msg["role"] == "tool":
+            formatted_messages.append(
+                ToolMessage(
+                    content=msg["content"],
+                    tool_call_id=msg.get("tool_call_id", "history"),
+                    name=msg.get("name", "history"),
+                )
+            )
         else:
             raise NotImplementedError()
 

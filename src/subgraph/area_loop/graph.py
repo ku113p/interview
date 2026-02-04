@@ -16,6 +16,8 @@ from src.subgraph.area_loop.nodes.area_tools import area_tools
 
 class AreaState(BaseModel):
     messages: Annotated[list[BaseMessage], add_messages]
+    messages_to_save: Annotated[list[BaseMessage], add_messages]
+    success: bool | None = None
 
 
 def build_area_graph(llm: ChatOpenAI):
