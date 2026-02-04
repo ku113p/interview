@@ -11,3 +11,6 @@ wheels/
 .env
 
 *.ipynb
+
+# SQLite database files
+interview.db*

@@ -48,6 +48,7 @@ async def interview(state: State, llm: ChatOpenAI):
         id=uuid.uuid4(),
         data=message_content,
         area_id=area_id,
+        created_ts=time.time(),
     )
     db.LifeAreaMessagesManager.create(last_area_msg.id, last_area_msg)
 
