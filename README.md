@@ -12,12 +12,12 @@ Requirements
 - Python 3.12
 - uv
 - ffmpeg (for audio/video input)
-- `OPENAI_API_KEY` (used via OpenRouter)
+- `OPENROUTER_API_KEY` (used via OpenRouter)
 
 How to run
 ```bash
 make install
-export OPENAI_API_KEY=...  # required
+export OPENROUTER_API_KEY=...  # required
 make run-cli
 ```
 
@@ -30,5 +30,5 @@ Main make commands
 - `make clean` removes `.venv`, cache, and `__pycache__`
 
 Configuration
-- `OPENAI_API_KEY` is required
+- `OPENROUTER_API_KEY` is required
 - `INTERVIEW_DB_PATH` (optional) sets the SQLite file path; default is `interview.db`

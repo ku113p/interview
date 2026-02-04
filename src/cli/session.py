@@ -112,7 +112,7 @@ async def _handle_message(user_obj: user.User, user_input: str) -> str:
         result = await run_graph(state)
     except KeyError as exc:
         raise RuntimeError(
-            "Missing required environment variable. Set OPENAI_API_KEY."
+            "Missing required environment variable. Set OPENROUTER_API_KEY."
         ) from exc
     finally:
         _close_tempfiles(tempfiles)

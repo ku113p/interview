@@ -16,5 +16,5 @@ class NewAI:
             model=self.model,
             base_url=self.base_url,
             temperature=self.temperature,
-            api_key=os.environ["OPENAI_API_KEY"],
+            api_key=os.environ["OPENROUTER_API_KEY"],
         )
