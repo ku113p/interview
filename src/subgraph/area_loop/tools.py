@@ -1,3 +1,4 @@
+import sqlite3
 import uuid
 
 from langchain.tools import tool
@@ -15,34 +16,38 @@ def _str_to_uuid(value: str | None) -> uuid.UUID | None:
         raise ValueError(f"Invalid UUID string format: {value}")
 
 
-async def call_tool(tool_call: ToolCall):
+async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None):
     tool_name = tool_call["name"]
-    tool_args = tool_call.get("args", {})
+    tool_args = dict(tool_call.get("args", {}) or {})
+    tool_args.pop("conn", None)
 
-    tool_map = {t.name: t for t in AREA_TOOLS}
-    tool_fn = tool_map.get(tool_name)
+    tool_fn = TOOL_METHODS.get(tool_name)
 
     if tool_fn is None:
         raise KeyError(f"Unknown tool: {tool_name}")
 
-    return tool_fn.invoke(tool_args)
+    return tool_fn(**tool_args, conn=conn)
 
 
 class LifeAreaMethods:
     @staticmethod
-    def list(user_id: str) -> list[db.LifeArea]:
+    def list(user_id: str, conn: sqlite3.Connection | None = None) -> list[db.LifeArea]:
         u_id = _str_to_uuid(user_id)
-        return [obj for obj in db.LifeAreaManager.list() if obj.user_id == u_id]
+        return [
+            obj for obj in db.LifeAreaManager.list(conn=conn) if obj.user_id == u_id
+        ]
 
     @staticmethod
-    def get(user_id: str, area_id: str) -> db.LifeArea:
+    def get(
+        user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+    ) -> db.LifeArea:
         u_id = _str_to_uuid(user_id)
         a_id = _str_to_uuid(area_id)
 
         if u_id is None or a_id is None:
             raise KeyError
 
-        area = db.LifeAreaManager.get_by_id(a_id)
+        area = db.LifeAreaManager.get_by_id(a_id, conn=conn)
         if area is None:
             raise KeyError(f"LifeArea {area_id} not found")
 
@@ -52,7 +57,12 @@ class LifeAreaMethods:
         return area
 
     @staticmethod
-    def create(user_id: str, title: str, parent_id: str | None = None) -> db.LifeArea:
+    def create(
+        user_id: str,
+        title: str,
+        parent_id: str | None = None,
+        conn: sqlite3.Connection | None = None,
+    ) -> db.LifeArea:
         u_id = _str_to_uuid(user_id)
         p_id = _str_to_uuid(parent_id)
 
@@ -61,54 +71,67 @@ class LifeAreaMethods:
 
         area_id = uuid.uuid4()
         area = db.LifeArea(id=area_id, title=title, parent_id=p_id, user_id=u_id)
-        db.LifeAreaManager.create(area_id, area)
+        db.LifeAreaManager.create(area_id, area, conn=conn)
         return area
 
     @staticmethod
-    def delete(user_id: str, area_id: str) -> None:
+    def delete(
+        user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+    ) -> None:
         u_id = _str_to_uuid(user_id)
         a_id = _str_to_uuid(area_id)
 
         if u_id is None or a_id is None:
             raise KeyError
 
-        area = db.LifeAreaManager.get_by_id(a_id)
+        area = db.LifeAreaManager.get_by_id(a_id, conn=conn)
         if area is None:
             raise KeyError
         if area.user_id != u_id:
             raise KeyError
 
-        db.LifeAreaManager.delete(a_id)
+        db.LifeAreaManager.delete(a_id, conn=conn)
 
 
 class CriteriaMethods:
     @staticmethod
-    def list(user_id: str, area_id: str) -> list[db.Criteria]:
-        area = LifeAreaMethods.get(user_id, area_id)
+    def list(
+        user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+    ) -> list[db.Criteria]:
+        area = LifeAreaMethods.get(user_id, area_id, conn=conn)
 
-        return [obj for obj in db.CriteriaManager.list() if obj.area_id == area.id]
+        return [
+            obj for obj in db.CriteriaManager.list(conn=conn) if obj.area_id == area.id
+        ]
 
     @staticmethod
-    def delete(user_id: str, criteria_id: str) -> None:
+    def delete(
+        user_id: str, criteria_id: str, conn: sqlite3.Connection | None = None
+    ) -> None:
         u_id = _str_to_uuid(user_id)
         c_id = _str_to_uuid(criteria_id)
         if u_id is None or c_id is None:
             raise KeyError
-        criteria = db.CriteriaManager.get_by_id(c_id)
+        criteria = db.CriteriaManager.get_by_id(c_id, conn=conn)
         if criteria is None:
             raise KeyError
-        area = LifeAreaMethods.get(user_id, str(criteria.area_id))
+        area = LifeAreaMethods.get(user_id, str(criteria.area_id), conn=conn)
         if area.user_id != u_id:
             raise KeyError
-        db.CriteriaManager.delete(c_id)
+        db.CriteriaManager.delete(c_id, conn=conn)
 
     @staticmethod
-    def create(user_id: str, area_id: str, title: str) -> db.Criteria:
-        area = LifeAreaMethods.get(user_id, area_id)
+    def create(
+        user_id: str,
+        area_id: str,
+        title: str,
+        conn: sqlite3.Connection | None = None,
+    ) -> db.Criteria:
+        area = LifeAreaMethods.get(user_id, area_id, conn=conn)
 
         criteria_id = uuid.uuid4()
         criteria = db.Criteria(id=criteria_id, title=title, area_id=area.id)
-        db.CriteriaManager.create(criteria_id, criteria)
+        db.CriteriaManager.create(criteria_id, criteria, conn=conn)
         return criteria
 
 
@@ -165,3 +188,13 @@ AREA_TOOLS = [
     delete_criteria,
     list_criteria,
 ]
+
+TOOL_METHODS = {
+    "list_life_areas": LifeAreaMethods.list,
+    "get_life_area": LifeAreaMethods.get,
+    "create_life_area": LifeAreaMethods.create,
+    "delete_life_area": LifeAreaMethods.delete,
+    "list_criteria": CriteriaMethods.list,
+    "delete_criteria": CriteriaMethods.delete,
+    "create_criteria": CriteriaMethods.create,
+}

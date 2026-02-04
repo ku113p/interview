@@ -8,6 +8,7 @@
 - [x] Replace placeholder timestamps with real values (src/nodes/interview.py)
 - [x] Clean up minor inconsistencies (duplicate imports, unused types) (src/routers/area_router.py)
 - [x] Wire a minimal runnable entrypoint or note it’s a stub (main.py)
-- [ ] Any tool call fail - need revert prev and stop continue and return success false
+- [x] Any tool call fail - need revert prev and stop continue and return success false
 - [x] Timestamps for messages to save
 - [ ] Use only uuid7 as ids
+- [x] SQLite
