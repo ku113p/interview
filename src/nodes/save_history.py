@@ -1,4 +1,3 @@
-import uuid
 from typing import Annotated
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
@@ -6,6 +5,7 @@ from pydantic import BaseModel
 
 from src import db
 from src.domain import user
+from src.ids import new_id
 from src.message_buckets import MessageBuckets, merge_message_buckets
 
 
@@ -55,7 +55,7 @@ def save_history(state: State) -> dict:
 
     for created_ts, messages in messages_by_ts.items():
         for msg in messages:
-            history_id = uuid.uuid4()
+            history_id = new_id()
             db.HistoryManager.create(
                 history_id,
                 db.History(

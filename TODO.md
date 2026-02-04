@@ -10,5 +10,5 @@
 - [x] Wire a minimal runnable entrypoint or note it’s a stub (main.py)
 - [x] Any tool call fail - need revert prev and stop continue and return success false
 - [x] Timestamps for messages to save
-- [ ] Use only uuid7 as ids
+- [x] Use only uuid7 as ids
 - [x] SQLite

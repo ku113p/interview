@@ -5,6 +5,7 @@ from langchain.tools import tool
 from langchain_core.messages.tool import ToolCall
 
 from src import db
+from src.ids import new_id
 
 
 def _str_to_uuid(value: str | None) -> uuid.UUID | None:
@@ -69,7 +70,7 @@ class LifeAreaMethods:
         if u_id is None:
             raise KeyError
 
-        area_id = uuid.uuid4()
+        area_id = new_id()
         area = db.LifeArea(id=area_id, title=title, parent_id=p_id, user_id=u_id)
         db.LifeAreaManager.create(area_id, area, conn=conn)
         return area
@@ -129,7 +130,7 @@ class CriteriaMethods:
     ) -> db.Criteria:
         area = LifeAreaMethods.get(user_id, area_id, conn=conn)
 
-        criteria_id = uuid.uuid4()
+        criteria_id = new_id()
         criteria = db.Criteria(id=criteria_id, title=title, area_id=area.id)
         db.CriteriaManager.create(criteria_id, criteria, conn=conn)
         return criteria

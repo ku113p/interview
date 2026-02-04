@@ -8,6 +8,7 @@ from langchain_core.messages import BaseMessage
 from src import db
 from src.domain import message, user
 from src.graph import get_graph
+from src.ids import new_id
 from src.state import State, Target
 
 HELP_TEXT = """Commands:
@@ -20,7 +21,7 @@ Type your message and press Enter to continue.
 
 def parse_user_id(value: str | None) -> uuid.UUID:
     if value is None:
-        return uuid.uuid4()
+        return new_id()
     return uuid.UUID(value)
 
 
@@ -93,7 +94,7 @@ def _create_state_with_tempfiles(
         messages=[],
         messages_to_save={},
         success=None,
-        area_id=uuid.uuid4(),
+        area_id=new_id(),
         extract_data_tasks=asyncio.Queue(),
         was_covered=False,
     )
