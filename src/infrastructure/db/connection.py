@@ -32,6 +32,7 @@ def get_connection() -> Generator[sqlite3.Connection, None, None]:  # noqa: PLR0
     except Exception:
         if conn is not None:
             conn.close()
+            conn = None  # Prevent double-close in finally block
         logger.exception("Database connection setup failed", extra={"db_path": db_path})
         raise
     try:
@@ -65,6 +66,7 @@ def transaction() -> Generator[sqlite3.Connection, None, None]:  # noqa: PLR0915
     except Exception:
         if conn is not None:
             conn.close()
+            conn = None  # Prevent double-close in finally block
         logger.exception(
             "Database transaction setup failed", extra={"db_path": db_path}
         )
@@ -73,10 +75,16 @@ def transaction() -> Generator[sqlite3.Connection, None, None]:  # noqa: PLR0915
         conn.execute("BEGIN")
         yield conn
         conn.commit()
-    except Exception:
-        conn.rollback()
+    except Exception as original_exc:
+        try:
+            conn.rollback()
+        except Exception:
+            logger.exception(
+                "Rollback failed (original error will be raised)",
+                extra={"db_path": db_path},
+            )
         logger.exception("Database transaction failed", extra={"db_path": db_path})
-        raise
+        raise original_exc
     finally:
         if conn is not None:
             conn.close()
