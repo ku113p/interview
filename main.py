@@ -2,8 +2,8 @@ import argparse
 import asyncio
 import logging
 
-from src.cli.session import parse_user_id, run_cli_async
-from src.logging_config import configure_logging
+from src.adapters.cli.session import parse_user_id, run_cli_async
+from src.config.logging import configure_logging
 from src.subgraph.extract_flow.nodes.extract_audio import check_ffmpeg_availability
 
 
