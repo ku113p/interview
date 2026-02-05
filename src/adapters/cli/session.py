@@ -3,7 +3,6 @@ import logging
 import tempfile
 import unicodedata
 import uuid
-from typing import BinaryIO, cast
 
 from langchain_core.messages import BaseMessage
 
@@ -102,15 +101,13 @@ def _create_state_with_tempfiles(
     user_obj: User,
     user_input: str,
 ) -> tuple[State, list]:
-    media_tmp = tempfile.NamedTemporaryFile()
-    audio_tmp = tempfile.NamedTemporaryFile()
-    media_file = cast(BinaryIO, media_tmp.file)
-    audio_file = cast(BinaryIO, audio_tmp.file)
+    media_tmp = tempfile.NamedTemporaryFile(delete=False)
+    audio_tmp = tempfile.NamedTemporaryFile(delete=False)
     state = State(
         user=user_obj,
         message=ClientMessage(data=user_input),
-        media_file=media_file,
-        audio_file=audio_file,
+        media_file=media_tmp.name,
+        audio_file=audio_tmp.name,
         text=user_input,
         target=Target.interview,
         messages=[],

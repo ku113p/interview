@@ -1,11 +1,12 @@
 import asyncio
 import io
 import shutil
-from typing import BinaryIO
 
 from pydantic import BaseModel, ConfigDict
 
 from src.domain.models import MediaMessage
+
+from ..file_utils import write_file_bytes
 
 
 def check_ffmpeg_availability():
@@ -21,40 +22,31 @@ def check_ffmpeg_availability():
 class State(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     message: MediaMessage
-    media_file: BinaryIO | None = None
-    audio_file: BinaryIO | None = None
+    media_file: str
+    audio_file: str
 
 
 async def extract_audio(state: State):
     c_msg = state.message
     m_file = state.media_file
     audio_file = state.audio_file
-    assert m_file is not None and audio_file is not None
 
     await write_file(m_file, c_msg.content)
     await extract_audio_to_wav(m_file, audio_file)
     return {"audio_file": audio_file}
 
 
-async def write_file(tmp_file: BinaryIO | None, stream: io.BytesIO):
-    assert tmp_file is not None
-    tmp_file.seek(0)
-    tmp_file.write(stream.read())
-    tmp_file.seek(0)
-    return tmp_file
+async def write_file(file_path: str, stream: io.BytesIO):
+    await write_file_bytes(file_path, stream)
+    return file_path
 
 
-async def extract_audio_to_wav(
-    media_tmp_file: BinaryIO | None, audio_tmp_file: BinaryIO | None
-):
-    assert media_tmp_file is not None and audio_tmp_file is not None
-    media_tmp_file.flush()
-
+async def extract_audio_to_wav(media_file_path: str, audio_file_path: str):
     cmd = [
         "ffmpeg",
         "-y",  # Overwrite without prompt
         "-i",
-        media_tmp_file.name,
+        media_file_path,
         "-vn",  # No video
         "-ac",
         "1",  # Mono audio
@@ -62,7 +54,7 @@ async def extract_audio_to_wav(
         "16000",  # 16kHz sample rate (speech recognition standard)
         "-c:a",
         "pcm_s16le",  # 16-bit PCM codec
-        audio_tmp_file.name,
+        audio_file_path,
     ]
 
     process = await asyncio.create_subprocess_exec(
@@ -73,5 +65,3 @@ async def extract_audio_to_wav(
 
     if process.returncode != 0:
         raise RuntimeError(f"FFmpeg failed: {stderr.decode()}")
-
-    audio_tmp_file.seek(0)
