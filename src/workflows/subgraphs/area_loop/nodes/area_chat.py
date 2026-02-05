@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 from src.shared.timestamp import get_timestamp
-from src.subgraph.area_loop.tools import AREA_TOOLS
+from src.workflows.subgraphs.area_loop.tools import AREA_TOOLS
 
 logger = logging.getLogger(__name__)
 

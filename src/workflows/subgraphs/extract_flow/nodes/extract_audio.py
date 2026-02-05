@@ -5,7 +5,7 @@ from typing import BinaryIO
 
 from pydantic import BaseModel, ConfigDict
 
-from src.domain import message
+from src.domain.models import MediaMessage
 
 
 def check_ffmpeg_availability():
@@ -20,7 +20,7 @@ def check_ffmpeg_availability():
 
 class State(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    message: message.MediaMessage
+    message: MediaMessage
     media_file: BinaryIO | None = None
     audio_file: BinaryIO | None = None
 

@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict
 
-from src.domain import message
+from src.domain.models import ClientMessage
 
 from .nodes.extract_audio import State as ExtractAudioState
 from .nodes.extract_audio import extract_audio
@@ -14,7 +14,7 @@ from .nodes.extract_text import extract_text_from_message
 
 class ExtractState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    message: message.ClientMessage
+    message: ClientMessage
     media_file: BinaryIO
     audio_file: BinaryIO
     text: str

@@ -4,7 +4,7 @@ from typing import Annotated
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from pydantic import BaseModel
 
-from src.domain import user
+from src.domain.models import User
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.message_buckets import MessageBuckets, merge_message_buckets
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class State(BaseModel):
-    user: user.User
+    user: User
     messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
     success: bool | None = None
 

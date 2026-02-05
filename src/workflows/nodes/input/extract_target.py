@@ -6,11 +6,11 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
 from src.application.state import Target
-from src.domain import user
+from src.domain.models import InputMode, User
 
 
 class State(BaseModel):
-    user: user.User
+    user: User
     messages: Annotated[list[BaseMessage], add_messages]
     target: Target | None
 
@@ -18,7 +18,7 @@ class State(BaseModel):
 async def extract_target(state: State, llm: ChatOpenAI):
     user_obj = state.user
 
-    if user_obj.mode != user.InputMode.auto:
+    if user_obj.mode != InputMode.auto:
         target = Target.from_user_mode(user_obj.mode)
     elif user_obj.current_life_area_id is not None:
         target = Target.interview
