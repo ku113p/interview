@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
@@ -7,6 +8,8 @@ from src import db
 from src.domain import user
 from src.ids import new_id
 from src.message_buckets import MessageBuckets, merge_message_buckets
+
+logger = logging.getLogger(__name__)
 
 
 class State(BaseModel):
@@ -51,7 +54,14 @@ def _message_to_dict(msg: BaseMessage) -> dict[str, object]:
 def save_history(state: State) -> dict:
     messages_by_ts = state.messages_to_save or {}
     if not messages_by_ts:
+        logger.debug("No messages to save", extra={"user_id": str(state.user.id)})
         return {}
+
+    message_count = sum(len(messages) for messages in messages_by_ts.values())
+    logger.info(
+        "Saving history",
+        extra={"user_id": str(state.user.id), "count": message_count},
+    )
 
     for created_ts, messages in messages_by_ts.items():
         for msg in messages:

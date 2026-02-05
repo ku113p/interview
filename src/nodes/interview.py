@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import uuid
 from typing import Annotated
 
@@ -12,6 +13,8 @@ from src import db
 from src.ids import new_id
 from src.message_buckets import MessageBuckets, merge_message_buckets
 from src.timestamp import get_timestamp
+
+logger = logging.getLogger(__name__)
 
 
 class State(BaseModel):
@@ -63,6 +66,16 @@ async def interview(state: State, llm: ChatOpenAI):
     ai_answer, was_covered = await check_criteria_covered(area_msgs, area_criteria, llm)
     if was_covered:
         await state.extract_data_tasks.put(area_id)
+
+    logger.info(
+        "Interview criteria evaluated",
+        extra={
+            "area_id": str(area_id),
+            "message_count": len(area_msgs),
+            "criteria_count": len(area_criteria),
+            "was_covered": was_covered,
+        },
+    )
 
     ai_msg = AIMessage(content=ai_answer)
     return {

@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 from typing import Annotated, cast
 
@@ -10,6 +11,8 @@ from src import db
 from src.message_buckets import MessageBuckets, merge_message_buckets
 from src.subgraph.area_loop.tools import call_tool
 from src.timestamp import get_timestamp
+
+logger = logging.getLogger(__name__)
 
 
 class State(BaseModel):
@@ -64,12 +67,13 @@ async def _execute_tool_call(call: ToolCall, conn: sqlite3.Connection) -> ToolMe
     )
 
 
-async def _run_tool_calls(
+async def _run_tool_calls(  # noqa: PLR0915
     tool_calls: list[dict[str, object]],
 ) -> tuple[list[ToolMessage], MessageBuckets, bool]:
     tools_messages: list[ToolMessage] = []
     messages_to_save: MessageBuckets = {}
     try:
+        logger.info("Executing tool calls", extra={"count": len(tool_calls)})
         with db.transaction() as conn:
             conn = cast(sqlite3.Connection, conn)
             for tool_call in tool_calls:
@@ -78,9 +82,11 @@ async def _run_tool_calls(
                 tools_messages.append(t_msg)
                 _record_message(messages_to_save, t_msg)
     except ToolExecutionError as exc:
+        logger.warning("Tool execution error")
         failed_message = exc.message
         return [failed_message], {get_timestamp(): [failed_message]}, False
     except Exception:
+        logger.exception("Unexpected tool execution failure")
         fallback = _fallback_tool_failure()
         return [fallback], {get_timestamp(): [fallback]}, False
     return tools_messages, messages_to_save, True
@@ -95,12 +101,14 @@ async def area_tools(state: State):
     tools_messages: list[ToolMessage] = []
     messages_to_save: MessageBuckets = {}
     if tool_calls:
+        logger.info("Handling tool calls", extra={"count": len(tool_calls)})
         tools_messages, messages_to_save, call_success = await _run_tool_calls(
             tool_calls
         )
         if not call_success:
             success = False
 
+    logger.info("Tool handling completed", extra={"success": success})
     return {
         "messages": tools_messages,
         "messages_to_save": messages_to_save,

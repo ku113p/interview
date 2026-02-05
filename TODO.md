@@ -24,12 +24,12 @@
 
 ## Medium Priority Improvements
 - [x] Add empty list check for tool_calls in area_loop flow router (src/subgraph/area_loop/flow.py:8-9)
-- [ ] Review database connection handling - ensure all connections properly closed (src/db.py:42-44)
-- [ ] Remove or implement area_threshold node - currently unreachable dead code (src/subgraph/area_loop/flow.py:7-10, nodes/area_threshold.py)
-- [ ] Add input validation for user messages (length limits, sanitization) (src/cli/session.py:109)
-- [ ] Add UUID format validation in tool methods before casting (src/subgraph/area_loop/tools.py:11-17)
-- [ ] Add structured logging throughout the application for debugging
-- [ ] Implement proper secrets management instead of plain text API keys
+- [x] Review database connection handling - ensure all connections properly closed (src/db.py:42-44)
+- [x] Remove or implement area_threshold node - currently unreachable dead code (src/subgraph/area_loop/flow.py:7-10, nodes/area_threshold.py)
+- [x] Add input validation for user messages (length limits, sanitization) (src/cli/session.py:109)
+- [x] Add UUID format validation in tool methods before casting (src/subgraph/area_loop/tools.py:11-17)
+- [x] Add structured logging throughout the application for debugging
+- [x] Implement proper secrets management instead of plain text API keys
 
 ## Low Priority / Technical Debt
 - [ ] Extract repeated content normalization logic to shared utility function (appears in 4+ files)

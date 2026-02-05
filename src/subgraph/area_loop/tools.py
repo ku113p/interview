@@ -1,5 +1,9 @@
+import inspect
+import logging
 import sqlite3
 import uuid
+from functools import wraps
+from typing import Callable
 
 from langchain.tools import tool
 from langchain_core.messages.tool import ToolCall
@@ -7,14 +11,47 @@ from langchain_core.messages.tool import ToolCall
 from src import db
 from src.ids import new_id
 
+logger = logging.getLogger(__name__)
+
 
 def _str_to_uuid(value: str | None) -> uuid.UUID | None:
     if value is None:
         return None
+    return uuid.UUID(value)
+
+
+def _validate_uuid(value: str | None, name: str) -> None:
+    if value is None:
+        return
     try:
-        return uuid.UUID(value)
-    except ValueError:
-        raise ValueError(f"Invalid UUID string format: {value}")
+        uuid.UUID(value)
+    except ValueError as exc:
+        logger.warning("Invalid UUID input", extra={"param": name})
+        raise ValueError(f"Invalid UUID for {name}: {value}") from exc
+
+
+def validate_uuid_args(*param_names: str) -> Callable:
+    def decorator(func: Callable) -> Callable:
+        sig = inspect.signature(func)
+        param_list = list(sig.parameters.keys())
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Validate keyword arguments
+            for name in param_names:
+                if name in kwargs:
+                    _validate_uuid(kwargs[name], name)
+
+            # Validate positional arguments
+            for i, arg in enumerate(args):
+                if i < len(param_list) and param_list[i] in param_names:
+                    _validate_uuid(arg, param_list[i])
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None):
@@ -26,7 +63,10 @@ async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None)
 
     if tool_fn is None:
         raise KeyError(f"Unknown tool: {tool_name}")
-
+    logger.info(
+        "Calling tool",
+        extra={"tool_name": tool_name, "arg_keys": list(tool_args.keys())},
+    )
     return tool_fn(**tool_args, conn=conn)
 
 
@@ -137,18 +177,21 @@ class CriteriaMethods:
 
 
 @tool
+@validate_uuid_args("user_id")
 def list_life_areas(user_id: str) -> list[db.LifeArea]:
     """List all life areas for a user."""
     return LifeAreaMethods.list(user_id)
 
 
 @tool
+@validate_uuid_args("user_id", "area_id")
 def get_life_area(user_id: str, area_id: str) -> db.LifeArea:
     """Fetch a single life area by id for a user."""
     return LifeAreaMethods.get(user_id, area_id)
 
 
 @tool
+@validate_uuid_args("user_id", "parent_id")
 def create_life_area(
     user_id: str, title: str, parent_id: str | None = None
 ) -> db.LifeArea:
@@ -157,24 +200,28 @@ def create_life_area(
 
 
 @tool
+@validate_uuid_args("user_id", "area_id")
 def delete_life_area(user_id: str, area_id: str) -> None:
     """Delete a life area by id for a user."""
     LifeAreaMethods.delete(user_id, area_id)
 
 
 @tool
+@validate_uuid_args("user_id", "area_id")
 def list_criteria(user_id: str, area_id: str) -> list[db.Criteria]:
     """List criteria belonging to a life area."""
     return CriteriaMethods.list(user_id, area_id)
 
 
 @tool
+@validate_uuid_args("user_id", "criteria_id")
 def delete_criteria(user_id: str, criteria_id: str) -> None:
     """Delete a criteria item by id for a user."""
     CriteriaMethods.delete(user_id, criteria_id)
 
 
 @tool
+@validate_uuid_args("user_id", "area_id")
 def create_criteria(user_id: str, area_id: str, title: str) -> db.Criteria:
     """Create a criteria item under a life area."""
     return CriteriaMethods.create(user_id, area_id, title)
