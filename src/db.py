@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sqlite3
 import uuid
@@ -8,6 +9,8 @@ from typing import Any, Generator, Generic, Protocol, TypeVar, cast
 
 # Define a TypeVar that represents our Data Objects
 T = TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 class _ColumnFilterable(Protocol[T]):
@@ -32,16 +35,28 @@ class BaseModel(Generic[T]):
 
     @classmethod
     @contextmanager
-    def _connect(cls) -> Generator[sqlite3.Connection, None, None]:
+    def _connect(cls) -> Generator[sqlite3.Connection, None, None]:  # noqa: PLR0915
         db_path = cls._get_db_path()
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        cls._init_db(conn, db_path)
+        conn: sqlite3.Connection | None = None
         try:
+            conn = sqlite3.connect(db_path, timeout=10.0)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            cls._init_db(conn, db_path)
+        except Exception:
+            if conn is not None:
+                conn.close()
+            logger.exception(
+                "Database connection setup failed", extra={"db_path": db_path}
+            )
+            raise
+        try:
+            logger.debug("Opened database connection", extra={"db_path": db_path})
             yield conn
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
+                logger.debug("Closed database connection", extra={"db_path": db_path})
 
     @classmethod
     def _init_db(cls, conn: sqlite3.Connection, db_path: str) -> None:
@@ -205,21 +220,33 @@ class BaseModel(Generic[T]):
 
 
 @contextmanager
-def transaction() -> Generator[sqlite3.Connection, None, None]:
+def transaction() -> Generator[sqlite3.Connection, None, None]:  # noqa: PLR0915
     db_path = os.environ.get("INTERVIEW_DB_PATH", "interview.db")
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    BaseModel._init_db(conn, db_path)
+    conn: sqlite3.Connection | None = None
+    try:
+        conn = sqlite3.connect(db_path, timeout=10.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        BaseModel._init_db(conn, db_path)
+    except Exception:
+        if conn is not None:
+            conn.close()
+        logger.exception(
+            "Database transaction setup failed", extra={"db_path": db_path}
+        )
+        raise
     try:
         conn.execute("BEGIN")
         yield conn
         conn.commit()
     except Exception:
         conn.rollback()
+        logger.exception("Database transaction failed", extra={"db_path": db_path})
         raise
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
+            logger.debug("Closed database connection", extra={"db_path": db_path})
 
 
 class UserFilterMixin(Generic[T]):

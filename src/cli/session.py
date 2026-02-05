@@ -1,5 +1,7 @@
 import asyncio
+import logging
 import tempfile
+import unicodedata
 import uuid
 from typing import BinaryIO, cast
 
@@ -10,6 +12,11 @@ from src.domain import message, user
 from src.graph import get_graph
 from src.ids import new_id
 from src.state import State, Target
+
+logger = logging.getLogger(__name__)
+
+MAX_MESSAGE_LENGTH = 10_000
+MIN_PRINTABLE_CHAR = 32  # ASCII space character
 
 HELP_TEXT = """Commands:
   /help  Show this help
@@ -76,6 +83,23 @@ def _handle_command(user_input: str) -> bool | None:
     return False
 
 
+def _normalize_user_input(user_input: str) -> str:
+    return unicodedata.normalize("NFKC", user_input)
+
+
+def _validate_user_input(user_input: str) -> str | None:
+    if not user_input:
+        return "Message cannot be empty."
+    if len(user_input) > MAX_MESSAGE_LENGTH:
+        return f"Message too long (max {MAX_MESSAGE_LENGTH} characters)."
+    if "\x00" in user_input:
+        return "Message contains invalid characters."
+    for char in user_input:
+        if ord(char) < MIN_PRINTABLE_CHAR and char not in {"\n", "\r", "\t"}:
+            return "Message contains control characters."
+    return None
+
+
 def _create_state_with_tempfiles(
     user_obj: user.User,
     user_input: str,
@@ -107,10 +131,23 @@ def _close_tempfiles(tempfiles: list) -> None:
 
 
 async def _handle_message(user_obj: user.User, user_input: str) -> str:
-    state, tempfiles = _create_state_with_tempfiles(user_obj, user_input)
+    normalized_input = _normalize_user_input(user_input).strip()
+    error = _validate_user_input(normalized_input)
+    if error is not None:
+        logger.info(
+            "Rejected user input",
+            extra={"user_id": str(user_obj.id), "length": len(normalized_input)},
+        )
+        return f"Error: {error}"
+
+    state, tempfiles = _create_state_with_tempfiles(user_obj, normalized_input)
     try:
+        logger.info(
+            "Processing user message",
+            extra={"user_id": str(user_obj.id), "length": len(normalized_input)},
+        )
         result = await run_graph(state)
-    except KeyError as exc:
+    except (KeyError, RuntimeError, ValueError) as exc:
         raise RuntimeError(
             "Missing required environment variable. Set OPENROUTER_API_KEY."
         ) from exc
@@ -124,6 +161,7 @@ async def _handle_message(user_obj: user.User, user_input: str) -> str:
 
 async def run_cli_async(user_id: uuid.UUID) -> None:
     user_obj = ensure_user(user_id)
+    logger.info("Starting CLI session", extra={"user_id": str(user_obj.id)})
     print(f"User: {user_obj.id}")
     print("Type /help for commands.\n")
 

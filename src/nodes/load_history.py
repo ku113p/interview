@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
@@ -7,6 +8,8 @@ from pydantic import BaseModel
 from src import db
 from src.domain import user
 
+logger = logging.getLogger(__name__)
+
 
 class State(BaseModel):
     user: user.User
@@ -15,6 +18,10 @@ class State(BaseModel):
 
 async def load_history(state: State):
     msgs = get_formatted_history(state.user)
+    logger.info(
+        "Loaded history",
+        extra={"user_id": str(state.user.id), "count": len(msgs)},
+    )
     return {"messages": msgs}
 
 

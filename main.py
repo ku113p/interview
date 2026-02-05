@@ -1,11 +1,14 @@
 import argparse
 import asyncio
+import logging
 
 from src.cli.session import parse_user_id, run_cli_async
+from src.logging_config import configure_logging
 from src.subgraph.extract_flow.nodes.extract_audio import check_ffmpeg_availability
 
 
 def main() -> None:
+    configure_logging(level=logging.INFO, use_json=True)
     check_ffmpeg_availability()
     parser = argparse.ArgumentParser(description="Interview CLI")
     parser.add_argument(
