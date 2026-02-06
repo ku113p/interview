@@ -14,6 +14,7 @@ class NewAI:
 
     model: str
     temperature: int | float | None = None
+    max_tokens: int | None = None
     base_url: str = "https://openrouter.ai/api/v1"
     api_key: str | None = None
 
@@ -29,5 +30,6 @@ class NewAI:
             model=self.model,
             base_url=self.base_url,
             temperature=self.temperature,
+            max_tokens=self.max_tokens,
             api_key=api_key,
         )

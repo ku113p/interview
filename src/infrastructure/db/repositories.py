@@ -165,6 +165,7 @@ class User:
     id: uuid.UUID
     name: str
     mode: str
+    current_area_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -203,15 +204,28 @@ class LifeAreaMessage:
 
 class UsersManager(BaseModel[User]):
     _table = "users"
-    _columns = ("id", "name", "mode")
+    _columns = ("id", "name", "mode", "current_area_id")
 
     @classmethod
     def _row_to_obj(cls, row: sqlite3.Row) -> User:
-        return User(id=uuid.UUID(row["id"]), name=row["name"], mode=row["mode"])
+        current_area_id = row["current_area_id"]
+        return User(
+            id=uuid.UUID(row["id"]),
+            name=row["name"],
+            mode=row["mode"],
+            current_area_id=uuid.UUID(current_area_id) if current_area_id else None,
+        )
 
     @classmethod
     def _obj_to_row(cls, data: User) -> dict[str, Any]:
-        return {"id": str(data.id), "name": data.name, "mode": data.mode}
+        return {
+            "id": str(data.id),
+            "name": data.name,
+            "mode": data.mode,
+            "current_area_id": str(data.current_area_id)
+            if data.current_area_id
+            else None,
+        }
 
 
 class HistoryManager(BaseModel[History], UserFilterMixin[History]):

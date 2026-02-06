@@ -208,10 +208,10 @@ class TestGetFormattedHistory:
                 get_formatted_history(user)
 
     def test_limit_parameter_default(self):
-        """Should respect default limit of 10 messages."""
+        """Should respect default limit of 15 messages (HISTORY_LIMIT_GLOBAL)."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
-        # Create 15 messages
+        # Create 20 messages
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
@@ -219,7 +219,7 @@ class TestGetFormattedHistory:
                 user_id=user.id,
                 created_ts=time.time() + i,  # Different timestamps
             )
-            for i in range(15)
+            for i in range(20)
         ]
 
         with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
@@ -227,10 +227,10 @@ class TestGetFormattedHistory:
             messages = get_formatted_history(user)
 
         # Assert
-        assert len(messages) == 10  # noqa: PLR2004
-        # Should get the last 10 messages (5-14)
+        assert len(messages) == 15  # noqa: PLR2004
+        # Should get the last 15 messages (5-19)
         assert messages[0].content == "Message 5"
-        assert messages[-1].content == "Message 14"
+        assert messages[-1].content == "Message 19"
 
     def test_limit_parameter_custom(self):
         """Should respect custom limit parameter."""

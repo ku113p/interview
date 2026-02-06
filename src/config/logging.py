@@ -4,7 +4,7 @@ import re
 import sys
 from typing import Iterable
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.json import JsonFormatter as jsonlogger_JsonFormatter
 
 REDACT_PATTERNS: Iterable[re.Pattern[str]] = (re.compile(r"sk-or-v1-[A-Za-z0-9]+"),)
 
@@ -24,7 +24,7 @@ def _redact(text: str) -> str:
     return redacted
 
 
-class RedactingJsonFormatter(jsonlogger.JsonFormatter):
+class RedactingJsonFormatter(jsonlogger_JsonFormatter):
     """JSON formatter that redacts sensitive information from logs."""
 
     def format(self, record: logging.LogRecord) -> str:

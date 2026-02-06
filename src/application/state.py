@@ -8,6 +8,7 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, ConfigDict
 
 from src.domain import ClientMessage, InputMode, User
+from src.shared.interview_models import CriteriaAnalysis
 from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 
 
@@ -61,3 +62,4 @@ class State(BaseModel):
     area_id: uuid.UUID
     extract_data_tasks: asyncio.Queue[uuid.UUID]
     was_covered: bool
+    criteria_analysis: CriteriaAnalysis | None = None

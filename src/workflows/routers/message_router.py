@@ -3,10 +3,10 @@ from typing import Literal
 from src.application.state import State, Target
 
 
-def route_message(state: State) -> Literal["area_loop", "interview"]:
+def route_message(state: State) -> Literal["area_loop", "interview_analysis"]:
     target = state.target
     if target == Target.interview:
-        return "interview"
+        return "interview_analysis"
     if target == Target.areas:
         return "area_loop"
 

@@ -4,13 +4,14 @@ import logging
 import uuid
 from typing import Annotated
 
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
+from src.shared.interview_models import CriteriaAnalysis
 from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 from src.shared.timestamp import get_timestamp
 from src.shared.utils.content import normalize_content
@@ -19,32 +20,23 @@ logger = logging.getLogger(__name__)
 
 
 class State(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     area_id: uuid.UUID
     extract_data_tasks: asyncio.Queue[uuid.UUID]
     messages: Annotated[list[BaseMessage], add_messages]
     messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
     success: bool | None = None
     was_covered: bool
-
-    class Config:
-        arbitrary_types_allowed = True
+    criteria_analysis: CriteriaAnalysis | None = None
 
 
-class CriterionCoverage(BaseModel):
-    title: str
-    covered: bool
-
-
-class CriteriaCoverageResult(BaseModel):
-    criteria: list[CriterionCoverage]
-    all_covered: bool
-    final_answer: str
-
-
-async def interview(state: State, llm: ChatOpenAI):
+async def interview_analysis(state: State, llm: ChatOpenAI):
+    """Analyze criteria coverage without generating response."""
     area_id = state.area_id
     message_content = normalize_content(state.messages[-1].content)
 
+    # Save user message to area messages
     last_area_msg = db.LifeAreaMessage(
         id=new_id(),
         data=message_content,
@@ -53,6 +45,7 @@ async def interview(state: State, llm: ChatOpenAI):
     )
     db.LifeAreaMessagesManager.create(last_area_msg.id, last_area_msg)
 
+    # Get area data
     area_msgs: list[str] = [
         msg.data for msg in db.LifeAreaMessagesManager.list_by_area(area_id)
     ]
@@ -60,45 +53,44 @@ async def interview(state: State, llm: ChatOpenAI):
         c.title for c in db.CriteriaManager.list_by_area(area_id)
     ]
 
-    ai_answer, was_covered = await check_criteria_covered(area_msgs, area_criteria, llm)
-    if was_covered:
+    # Analyze coverage (structured output)
+    analysis = await _analyze_coverage(area_msgs, area_criteria, llm)
+
+    if analysis.all_covered:
         await state.extract_data_tasks.put(area_id)
 
     logger.info(
-        "Interview criteria evaluated",
+        "Interview criteria analyzed",
         extra={
             "area_id": str(area_id),
             "message_count": len(area_msgs),
             "criteria_count": len(area_criteria),
-            "was_covered": was_covered,
+            "all_covered": analysis.all_covered,
+            "next_uncovered": analysis.next_uncovered,
         },
     )
 
-    ai_msg = AIMessage(content=ai_answer)
     return {
-        "messages": [ai_msg],
-        "messages_to_save": {get_timestamp(): [ai_msg]},
-        "success": True,
-        "was_covered": was_covered,
+        "criteria_analysis": analysis,
+        "was_covered": analysis.all_covered,
     }
 
 
-async def check_criteria_covered(
+async def _analyze_coverage(
     interview_messages: list[str],
     area_criteria: list[str],
     llm: ChatOpenAI,
-) -> tuple[str, bool]:
+) -> CriteriaAnalysis:
+    """Analyze which criteria are covered by the interview messages."""
     system_prompt = (
-        "You are an interview agent.\n"
-        "Your task:\n"
-        "1. If NO criteria exist yet → ask the user to create at least one criterion before proceeding\n"
-        "2. Decide for EACH criterion whether it is clearly covered by the interview\n"
-        "3. If ALL criteria are covered → thank the interviewee and close politely\n"
-        "4. If NOT all covered → ask about ONE uncovered criterion (the most logical next one)\n\n"
+        "You are an interview analysis agent.\n"
+        "Your task is to analyze the interview messages and determine:\n"
+        "1. For EACH criterion, whether it is clearly covered by the interview\n"
+        "2. Which criterion should be asked about next (if any remain uncovered)\n\n"
         "Rules:\n"
         "- Be strict: unclear or partial answers = NOT covered\n"
-        "- Ask only ONE question\n"
-        "- Be polite, natural, and conversational\n"
+        "- If NO criteria exist, set all_covered=false and next_uncovered=null\n"
+        "- Pick the most logical next criterion to ask about\n"
     )
 
     user_prompt = {
@@ -106,7 +98,7 @@ async def check_criteria_covered(
         "criteria": area_criteria,
     }
 
-    structured_llm = llm.with_structured_output(CriteriaCoverageResult)
+    structured_llm = llm.with_structured_output(CriteriaAnalysis)
 
     result = await structured_llm.ainvoke(
         [
@@ -115,10 +107,7 @@ async def check_criteria_covered(
         ]
     )
 
-    if not isinstance(result, CriteriaCoverageResult):
-        result = CriteriaCoverageResult.model_validate(result)
+    if not isinstance(result, CriteriaAnalysis):
+        result = CriteriaAnalysis.model_validate(result)
 
-    final_answer = result.final_answer
-    all_covered = result.all_covered
-
-    return final_answer, all_covered
+    return result

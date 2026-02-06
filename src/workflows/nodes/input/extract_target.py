@@ -7,6 +7,7 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
 from src.application.state import Target
+from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET
 from src.domain.models import InputMode, User
 from src.workflows.subgraphs.area_loop.tools import AREA_TOOLS
 
@@ -73,7 +74,9 @@ async def extract_target_from_messages(
         )
     )
 
-    messages_with_system = [system_prompt] + messages
+    # Use only last N messages for classification (limit context for extract_target)
+    recent_messages = messages[-HISTORY_LIMIT_EXTRACT_TARGET:]
+    messages_with_system = [system_prompt] + recent_messages
 
     result = await structured_llm.ainvoke(messages_with_system)
 

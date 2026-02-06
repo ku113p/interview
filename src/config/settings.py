@@ -9,8 +9,31 @@ MIN_API_KEY_LENGTH = 20
 DB_PATH_ENV = "INTERVIEW_DB_PATH"
 DEFAULT_DB_PATH = "interview.db"
 
-# Model Configuration
-MODEL_NAME_FLASH = "google/gemini-2.0-flash-001"
+# Model Configuration (OpenRouter model identifiers - verified 2026-02)
+MODEL_NAME_FLASH_LITE = "google/gemini-2.5-flash-lite"
+MODEL_NAME_FLASH = "google/gemini-2.5-flash"
+MODEL_NAME_INTERVIEW = "openai/gpt-5.1"
+MODEL_NAME_AUDIO = "google/gemini-2.5-flash-lite"
+
+# Model Assignments (which model to use for each node)
+MODEL_EXTRACT_TARGET = MODEL_NAME_FLASH_LITE  # Fast classification
+MODEL_INTERVIEW = MODEL_NAME_INTERVIEW  # Reasoning-focused conversations
+MODEL_AUDIO_TRANSCRIPTION = MODEL_NAME_AUDIO  # Audio processing
+MODEL_AREA_CHAT = MODEL_NAME_FLASH  # Area management conversations
+
+# History Limits
+HISTORY_LIMIT_GLOBAL = 15  # Default history limit for most nodes
+HISTORY_LIMIT_EXTRACT_TARGET = 5  # Limited context for target extraction
+HISTORY_LIMIT_INTERVIEW = 8  # History limit for interview response
+
+# Token Limits (max output tokens per node type)
+MAX_TOKENS_STRUCTURED = 1024  # For structured output (classification, analysis)
+MAX_TOKENS_CHAT = 4096  # For conversational responses
+MAX_TOKENS_TRANSCRIPTION = 8192  # For audio transcription
+
+# Model Assignments - Interview Nodes
+MODEL_INTERVIEW_ANALYSIS = MODEL_NAME_FLASH  # Fast analysis for criteria coverage
+MODEL_INTERVIEW_RESPONSE = MODEL_NAME_INTERVIEW  # Reasoning response generation
 
 
 def load_api_key() -> str:
