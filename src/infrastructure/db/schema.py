@@ -67,6 +67,12 @@ def init_schema(conn: sqlite3.Connection, db_path: str) -> None:
         "created_ts",
         "created_ts REAL NOT NULL DEFAULT 0",
     )
+    ensure_column(
+        conn,
+        "users",
+        "current_area_id",
+        "current_area_id TEXT",
+    )
     conn.commit()
     _db_initialized_path = db_path
 
