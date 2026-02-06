@@ -9,13 +9,14 @@ MIN_API_KEY_LENGTH = 20
 DB_PATH_ENV = "INTERVIEW_DB_PATH"
 DEFAULT_DB_PATH = "interview.db"
 
-# Model Configuration
-MODEL_NAME_FLASH = "google/gemini-2.0-flash-001"
-MODEL_NAME_INTERVIEW = "deepseek/deepseek-v3.2-speciale"  # Mid-tier reasoning model
-MODEL_NAME_AUDIO = "google/gemini-2.0-flash-001"  # Audio transcription model
+# Model Configuration (OpenRouter model identifiers - verified 2026-02)
+MODEL_NAME_FLASH_LITE = "google/gemini-2.5-flash-lite"
+MODEL_NAME_FLASH = "google/gemini-2.5-flash"
+MODEL_NAME_INTERVIEW = "openai/gpt-5.1"
+MODEL_NAME_AUDIO = "google/gemini-2.5-flash-lite"
 
 # Model Assignments (which model to use for each node)
-MODEL_EXTRACT_TARGET = MODEL_NAME_FLASH  # Fast classification
+MODEL_EXTRACT_TARGET = MODEL_NAME_FLASH_LITE  # Fast classification
 MODEL_INTERVIEW = MODEL_NAME_INTERVIEW  # Reasoning-focused conversations
 MODEL_AUDIO_TRANSCRIPTION = MODEL_NAME_AUDIO  # Audio processing
 MODEL_AREA_CHAT = MODEL_NAME_FLASH  # Area management conversations

@@ -34,17 +34,24 @@ def parse_user_id(value: str | None) -> uuid.UUID:
     return uuid.UUID(value)
 
 
-def ensure_user(user_id: uuid.UUID) -> User:
+def ensure_user(user_id: uuid.UUID) -> tuple[User, uuid.UUID | None]:
+    """Get or create user, returning the user and their current_area_id.
+
+    Returns:
+        Tuple of (User, current_area_id). current_area_id is None if not set.
+    """
     existing = db.UsersManager.get_by_id(user_id)
     if existing is not None:
-        return User(id=existing.id, mode=InputMode(existing.mode))
+        return User(
+            id=existing.id, mode=InputMode(existing.mode)
+        ), existing.current_area_id
 
     user_obj = User(id=user_id, mode=InputMode.auto)
     db.UsersManager.create(
         user_obj.id,
         db.User(id=user_obj.id, name="cli", mode=user_obj.mode.value),
     )
-    return user_obj
+    return user_obj, None
 
 
 def format_ai_response(messages: list[BaseMessage]) -> str:
@@ -100,9 +107,12 @@ def _validate_user_input(user_input: str) -> str | None:
 def _create_state_with_tempfiles(
     user_obj: User,
     user_input: str,
+    current_area_id: uuid.UUID | None,
 ) -> tuple[State, list]:
     media_tmp = tempfile.NamedTemporaryFile(delete=False)
     audio_tmp = tempfile.NamedTemporaryFile(delete=False)
+    # Use current_area_id if set, otherwise generate a new one
+    area_id = current_area_id if current_area_id is not None else new_id()
     state = State(
         user=user_obj,
         message=ClientMessage(data=user_input),
@@ -113,7 +123,7 @@ def _create_state_with_tempfiles(
         messages=[],
         messages_to_save={},
         success=None,
-        area_id=new_id(),
+        area_id=area_id,
         extract_data_tasks=asyncio.Queue(),
         was_covered=False,
     )
@@ -125,7 +135,9 @@ def _close_tempfiles(tempfiles: list) -> None:
         temp_file.close()
 
 
-async def _handle_message(user_obj: User, user_input: str) -> str:
+async def _handle_message(
+    user_obj: User, user_input: str, current_area_id: uuid.UUID | None
+) -> str:
     normalized_input = _normalize_user_input(user_input).strip()
     validation_error = _validate_user_input(normalized_input)
     if validation_error:
@@ -135,11 +147,15 @@ async def _handle_message(user_obj: User, user_input: str) -> str:
         )
         return f"Error: {validation_error}"
 
-    return await _process_validated_message(user_obj, normalized_input)
+    return await _process_validated_message(user_obj, normalized_input, current_area_id)
 
 
-async def _process_validated_message(user_obj: User, user_input: str) -> str:
-    state, tempfiles = _create_state_with_tempfiles(user_obj, user_input)
+async def _process_validated_message(
+    user_obj: User, user_input: str, current_area_id: uuid.UUID | None
+) -> str:
+    state, tempfiles = _create_state_with_tempfiles(
+        user_obj, user_input, current_area_id
+    )
     try:
         logger.info(
             "Processing user message",
@@ -158,7 +174,7 @@ async def _process_validated_message(user_obj: User, user_input: str) -> str:
 
 
 async def run_cli_async(user_id: uuid.UUID) -> None:
-    user_obj = ensure_user(user_id)
+    user_obj, current_area_id = ensure_user(user_id)
     logger.info("Starting CLI session", extra={"user_id": str(user_obj.id)})
     print(f"User: {user_obj.id}")
     print("Type /help for commands.\n")
@@ -172,5 +188,5 @@ async def run_cli_async(user_id: uuid.UUID) -> None:
             break
         if command_result is None:
             continue
-        ai_response = await _handle_message(user_obj, user_input)
+        ai_response = await _handle_message(user_obj, user_input, current_area_id)
         print(ai_response)

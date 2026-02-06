@@ -133,6 +133,18 @@ class DeleteCriteriaArgs(BaseModel):
     criteria_id: str = Field(..., description="UUID of the criteria item to delete")
 
 
+class SetCurrentAreaArgs(BaseModel):
+    """Arguments for setting the current area for interview."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    area_id: str = Field(
+        ...,
+        description="UUID of the life area to set as current for interview",
+    )
+
+
 # ============================================================================
 # Tool execution
 # ============================================================================
@@ -315,6 +327,41 @@ def create_criteria(user_id: str, area_id: str, title: str) -> db.Criteria:
     return CriteriaMethods.create(user_id, area_id, title)
 
 
+class CurrentAreaMethods:
+    @staticmethod
+    def set_current(
+        user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+    ) -> db.LifeArea:
+        """Set an area as the current area for interview."""
+        # Verify area exists and belongs to user
+        area = LifeAreaMethods.get(user_id, area_id, conn=conn)
+
+        u_id = _str_to_uuid(user_id)
+        if u_id is None:
+            raise KeyError("Invalid user_id")
+
+        # Get existing user and update current_area_id
+        user = db.UsersManager.get_by_id(u_id, conn=conn)
+        if user is None:
+            raise KeyError(f"User {user_id} not found")
+
+        updated_user = db.User(
+            id=user.id,
+            name=user.name,
+            mode=user.mode,
+            current_area_id=area.id,
+        )
+        db.UsersManager.update(u_id, updated_user, conn=conn)
+        return area
+
+
+@tool(args_schema=SetCurrentAreaArgs)
+@validate_uuid_args("user_id", "area_id")
+def set_current_area(user_id: str, area_id: str) -> db.LifeArea:
+    """Set a life area as the current area for interview. Call this after creating an area when the user wants to be interviewed about it."""
+    return CurrentAreaMethods.set_current(user_id, area_id)
+
+
 AREA_TOOLS = [
     create_life_area,
     delete_life_area,
@@ -323,6 +370,7 @@ AREA_TOOLS = [
     create_criteria,
     delete_criteria,
     list_criteria,
+    set_current_area,
 ]
 
 TOOL_METHODS = {
@@ -333,4 +381,5 @@ TOOL_METHODS = {
     "list_criteria": CriteriaMethods.list,
     "delete_criteria": CriteriaMethods.delete,
     "create_criteria": CriteriaMethods.create,
+    "set_current_area": CurrentAreaMethods.set_current,
 }
