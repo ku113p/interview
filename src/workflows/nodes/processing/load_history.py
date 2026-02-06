@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
+from src.config.settings import HISTORY_LIMIT_GLOBAL
 from src.domain.models import User
 from src.infrastructure.db import repositories as db
 
@@ -25,7 +26,9 @@ async def load_history(state: State):
     return {"messages": msgs}
 
 
-def get_formatted_history(user_obj: User, limit: int = 30) -> list[BaseMessage]:
+def get_formatted_history(
+    user_obj: User, limit: int = HISTORY_LIMIT_GLOBAL
+) -> list[BaseMessage]:
     msgs = sorted(
         db.HistoryManager.list_by_user(user_obj.id), key=lambda x: x.created_ts
     )

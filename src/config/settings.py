@@ -11,6 +11,18 @@ DEFAULT_DB_PATH = "interview.db"
 
 # Model Configuration
 MODEL_NAME_FLASH = "google/gemini-2.0-flash-001"
+MODEL_NAME_INTERVIEW = "deepseek/deepseek-v3.2-speciale"  # Mid-tier reasoning model
+MODEL_NAME_AUDIO = "google/gemini-2.0-flash-001"  # Audio transcription model
+
+# Model Assignments (which model to use for each node)
+MODEL_EXTRACT_TARGET = MODEL_NAME_FLASH  # Fast classification
+MODEL_INTERVIEW = MODEL_NAME_INTERVIEW  # Reasoning-focused conversations
+MODEL_AUDIO_TRANSCRIPTION = MODEL_NAME_AUDIO  # Audio processing
+MODEL_AREA_CHAT = MODEL_NAME_FLASH  # Area management conversations
+
+# History Limits
+HISTORY_LIMIT_GLOBAL = 15  # Default history limit for most nodes
+HISTORY_LIMIT_EXTRACT_TARGET = 5  # Limited context for target extraction
 
 
 def load_api_key() -> str:
