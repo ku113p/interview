@@ -26,9 +26,12 @@ async def area_chat(state: State, llm):
     system_message = SystemMessage(
         f"You are helping a user manage their life areas (also called topics). "
         f"You have access to tools to create, view, modify, and delete life areas and their criteria. "
-        f"User ID: {state.user.id}\n"
-        f"When the user mentions topics, areas, or wants to see/manage their life areas, "
-        f"use the appropriate tools to help them. Choose tools based on the user's intent."
+        f"User ID: {state.user.id}\n\n"
+        f"Use the available tools for area CRUD operations when the user wants to:\n"
+        f"- Create, edit, delete, or view life areas\n"
+        f"- Create, edit, delete, or list criteria for a life area\n"
+        f"- Switch to or discuss a specific life area\n\n"
+        f"Choose the appropriate tools based on the user's intent."
     )
     message = await model.ainvoke([system_message, *state.messages])
     return {"messages": [message], "messages_to_save": {get_timestamp(): [message]}}

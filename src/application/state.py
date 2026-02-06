@@ -1,7 +1,7 @@
 import asyncio
 import enum
 import uuid
-from typing import Annotated, BinaryIO
+from typing import Annotated
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
@@ -40,14 +40,19 @@ class Target(enum.Enum):
 
 
 class State(BaseModel):
-    """Main LangGraph workflow state."""
+    """Main LangGraph workflow state.
+
+    Attributes:
+        media_file: Path to temporary media file (e.g., uploaded video/audio)
+        audio_file: Path to temporary extracted audio file (WAV format)
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     user: User
     message: ClientMessage
-    media_file: BinaryIO | None = None
-    audio_file: BinaryIO | None = None
+    media_file: str | None = None
+    audio_file: str | None = None
     text: str
     target: Target
     messages: Annotated[list[BaseMessage], add_messages]

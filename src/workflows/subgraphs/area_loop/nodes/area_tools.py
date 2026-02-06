@@ -7,7 +7,7 @@ from langchain_core.messages.tool import ToolCall
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import transaction
 from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 from src.shared.timestamp import get_timestamp
 from src.workflows.subgraphs.area_loop.tools import call_tool
@@ -74,7 +74,7 @@ async def _run_tool_calls(  # noqa: PLR0915
     messages_to_save: MessageBuckets = {}
     try:
         logger.info("Executing tool calls", extra={"count": len(tool_calls)})
-        with db.transaction() as conn:
+        with transaction() as conn:
             conn = cast(sqlite3.Connection, conn)
             for tool_call in tool_calls:
                 call = cast(ToolCall, tool_call)

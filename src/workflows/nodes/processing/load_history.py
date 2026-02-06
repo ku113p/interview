@@ -37,7 +37,9 @@ def get_formatted_history(user_obj: User, limit: int = 10) -> list[BaseMessage]:
             formatted_messages.append(HumanMessage(content=msg["content"]))
         elif msg["role"] == "ai":
             formatted_messages.append(
-                AIMessage(content=msg["content"], tool_calls=msg.get("tool_calls"))
+                AIMessage(
+                    content=msg["content"], tool_calls=msg.get("tool_calls") or []
+                )
             )
         elif msg["role"] == "tool":
             formatted_messages.append(

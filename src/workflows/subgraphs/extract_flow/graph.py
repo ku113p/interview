@@ -1,5 +1,4 @@
 from functools import partial
-from typing import BinaryIO
 
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
@@ -15,8 +14,8 @@ from .nodes.extract_text import extract_text_from_message
 class ExtractState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     message: ClientMessage
-    media_file: BinaryIO
-    audio_file: BinaryIO
+    media_file: str
+    audio_file: str
     text: str
 
 

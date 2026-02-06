@@ -91,9 +91,10 @@ async def check_criteria_covered(
     system_prompt = (
         "You are an interview agent.\n"
         "Your task:\n"
-        "1. Decide for EACH criterion whether it is clearly covered by the interview\n"
-        "2. If ALL criteria are covered → thank the interviewee and close politely\n"
-        "3. If NOT all covered → ask about ONE uncovered criterion (the most logical next one)\n\n"
+        "1. If NO criteria exist yet → ask the user to create at least one criterion before proceeding\n"
+        "2. Decide for EACH criterion whether it is clearly covered by the interview\n"
+        "3. If ALL criteria are covered → thank the interviewee and close politely\n"
+        "4. If NOT all covered → ask about ONE uncovered criterion (the most logical next one)\n\n"
         "Rules:\n"
         "- Be strict: unclear or partial answers = NOT covered\n"
         "- Ask only ONE question\n"
