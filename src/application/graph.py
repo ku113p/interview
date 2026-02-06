@@ -4,6 +4,9 @@ from langgraph.graph import END, START, StateGraph
 
 from src.application.state import State
 from src.config.settings import (
+    MAX_TOKENS_CHAT,
+    MAX_TOKENS_STRUCTURED,
+    MAX_TOKENS_TRANSCRIPTION,
     MODEL_AREA_CHAT,
     MODEL_AUDIO_TRANSCRIPTION,
     MODEL_EXTRACT_TARGET,
@@ -31,15 +34,28 @@ def _add_nodes(builder: StateGraph, extract_graph, area_graph) -> None:
     builder.add_node("build_user_message", build_user_message)
     builder.add_node(
         "extract_target",
-        partial(extract_target, llm=NewAI(MODEL_EXTRACT_TARGET, 0).build()),
+        partial(
+            extract_target,
+            llm=NewAI(
+                MODEL_EXTRACT_TARGET, temperature=0, max_tokens=MAX_TOKENS_STRUCTURED
+            ).build(),
+        ),
     )
     builder.add_node(
         "interview_analysis",
-        partial(interview_analysis, llm=NewAI(MODEL_INTERVIEW_ANALYSIS).build()),
+        partial(
+            interview_analysis,
+            llm=NewAI(
+                MODEL_INTERVIEW_ANALYSIS, max_tokens=MAX_TOKENS_STRUCTURED
+            ).build(),
+        ),
     )
     builder.add_node(
         "interview_response",
-        partial(interview_response, llm=NewAI(MODEL_INTERVIEW_RESPONSE).build()),
+        partial(
+            interview_response,
+            llm=NewAI(MODEL_INTERVIEW_RESPONSE, max_tokens=MAX_TOKENS_CHAT).build(),
+        ),
     )
     builder.add_node("save_history", save_history)
     builder.add_node("area_loop", area_graph)
@@ -69,10 +85,16 @@ def get_graph():
         Compiled LangGraph workflow
     """
     builder = StateGraph(State)
-    extract_graph = build_extract_graph(NewAI(MODEL_AUDIO_TRANSCRIPTION, 0).build())
-    area_graph = build_area_graph(NewAI(MODEL_AREA_CHAT).build()).with_config(
-        {"recursion_limit": MAX_AREA_RECURSION}
+    extract_graph = build_extract_graph(
+        NewAI(
+            MODEL_AUDIO_TRANSCRIPTION,
+            temperature=0,
+            max_tokens=MAX_TOKENS_TRANSCRIPTION,
+        ).build()
     )
+    area_graph = build_area_graph(
+        NewAI(MODEL_AREA_CHAT, max_tokens=MAX_TOKENS_CHAT).build()
+    ).with_config({"recursion_limit": MAX_AREA_RECURSION})
     _add_nodes(builder, extract_graph, area_graph)
     _add_edges(builder)
     return builder.compile()

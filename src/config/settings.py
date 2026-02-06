@@ -26,6 +26,11 @@ HISTORY_LIMIT_GLOBAL = 15  # Default history limit for most nodes
 HISTORY_LIMIT_EXTRACT_TARGET = 5  # Limited context for target extraction
 HISTORY_LIMIT_INTERVIEW = 8  # History limit for interview response
 
+# Token Limits (max output tokens per node type)
+MAX_TOKENS_STRUCTURED = 1024  # For structured output (classification, analysis)
+MAX_TOKENS_CHAT = 4096  # For conversational responses
+MAX_TOKENS_TRANSCRIPTION = 8192  # For audio transcription
+
 # Model Assignments - Interview Nodes
 MODEL_INTERVIEW_ANALYSIS = MODEL_NAME_FLASH  # Fast analysis for criteria coverage
 MODEL_INTERVIEW_RESPONSE = MODEL_NAME_INTERVIEW  # Reasoning response generation
