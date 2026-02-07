@@ -190,7 +190,7 @@ class TestGetFormattedHistory:
         assert messages[0].name == "history"
 
     def test_unsupported_role(self):
-        """Unknown role should raise NotImplementedError."""
+        """Unknown role should be skipped with a warning (not raise)."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
         mock_history = [
@@ -203,9 +203,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
-            # Act & Assert
-            with pytest.raises(NotImplementedError):
-                get_formatted_history(user)
+            # Act - should skip the unknown role and return empty list
+            messages = get_formatted_history(user)
+
+        # Assert - message with unknown role is skipped
+        assert messages == []
 
     def test_limit_parameter_default(self):
         """Should respect default limit of 15 messages (HISTORY_LIMIT_GLOBAL)."""
@@ -227,7 +229,7 @@ class TestGetFormattedHistory:
             messages = get_formatted_history(user)
 
         # Assert
-        assert len(messages) == 15  # noqa: PLR2004
+        assert len(messages) == 15
         # Should get the last 15 messages (5-19)
         assert messages[0].content == "Message 5"
         assert messages[-1].content == "Message 19"
@@ -251,7 +253,7 @@ class TestGetFormattedHistory:
             messages = get_formatted_history(user, limit=3)
 
         # Assert
-        assert len(messages) == 3  # noqa: PLR2004
+        assert len(messages) == 3
         assert messages[0].content == "Message 7"
         assert messages[-1].content == "Message 9"
 
@@ -287,7 +289,7 @@ class TestGetFormattedHistory:
             messages = get_formatted_history(user)
 
         # Assert
-        assert len(messages) == 3  # noqa: PLR2004
+        assert len(messages) == 3
         assert messages[0].content == "First"
         assert messages[1].content == "Second"
         assert messages[2].content == "Third"
@@ -340,7 +342,7 @@ class TestGetFormattedHistory:
             messages = get_formatted_history(user)
 
         # Assert
-        assert len(messages) == 4  # noqa: PLR2004
+        assert len(messages) == 4
         assert isinstance(messages[0], HumanMessage)
         assert isinstance(messages[1], AIMessage)
         assert messages[1].tool_calls == []

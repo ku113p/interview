@@ -10,6 +10,8 @@ MAX_AREA_RECURSION = 2 * (MAX_LOOP_STEPS + 1) + 1
 
 
 def route_area(state: AreaState) -> Literal["area_tools", "area_end"]:
+    if not state.messages:
+        return "area_end"
     tool_calls = getattr(state.messages[-1], "tool_calls", None)
     if tool_calls and len(tool_calls) > 0:
         return "area_tools"

@@ -1,5 +1,6 @@
 import logging
-from typing import Annotated
+import uuid
+from typing import Annotated, Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langgraph.graph.message import add_messages
@@ -26,6 +27,34 @@ async def load_history(state: State):
     return {"messages": msgs}
 
 
+def _validate_tool_calls(tool_calls: list, user_id: uuid.UUID) -> list[dict]:
+    """Filter and validate tool_calls, returning only valid ones."""
+    valid = []
+    for tc in tool_calls:
+        if isinstance(tc, dict) and "id" in tc and "name" in tc:
+            valid.append(tc)
+        else:
+            logger.warning(
+                "Skipping malformed tool_call", extra={"user_id": str(user_id)}
+            )
+    return valid
+
+
+def _convert_ai_message(msg: dict[str, Any], user_id: uuid.UUID) -> AIMessage:
+    """Convert a raw AI message dict to AIMessage."""
+    tool_calls = _validate_tool_calls(msg.get("tool_calls") or [], user_id)
+    return AIMessage(content=msg["content"], tool_calls=tool_calls)
+
+
+def _convert_tool_message(msg: dict[str, Any]) -> ToolMessage:
+    """Convert a raw tool message dict to ToolMessage."""
+    return ToolMessage(
+        content=msg["content"],
+        tool_call_id=msg.get("tool_call_id", "history"),
+        name=msg.get("name", "history"),
+    )
+
+
 def get_formatted_history(
     user_obj: User, limit: int = HISTORY_LIMIT_GLOBAL
 ) -> list[BaseMessage]:
@@ -36,23 +65,14 @@ def get_formatted_history(
 
     formatted_messages = []
     for msg in domain_msgs:
-        if msg["role"] == "user":
+        role = msg.get("role")
+        if role == "user":
             formatted_messages.append(HumanMessage(content=msg["content"]))
-        elif msg["role"] == "ai":
-            formatted_messages.append(
-                AIMessage(
-                    content=msg["content"], tool_calls=msg.get("tool_calls") or []
-                )
-            )
-        elif msg["role"] == "tool":
-            formatted_messages.append(
-                ToolMessage(
-                    content=msg["content"],
-                    tool_call_id=msg.get("tool_call_id", "history"),
-                    name=msg.get("name", "history"),
-                )
-            )
+        elif role == "ai":
+            formatted_messages.append(_convert_ai_message(msg, user_obj.id))
+        elif role == "tool":
+            formatted_messages.append(_convert_tool_message(msg))
         else:
-            raise NotImplementedError()
+            logger.warning("Skipping unknown role", extra={"role": role})
 
     return formatted_messages

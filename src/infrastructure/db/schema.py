@@ -1,80 +1,98 @@
 import sqlite3
+import threading
 
 # Track which database file has been initialized to avoid redundant initialization
-_db_initialized_path: str | None = None
+_db_initialized_paths: set[str] = set()
+_init_lock = threading.Lock()
 
 
 def init_schema(conn: sqlite3.Connection, db_path: str) -> None:
     """Initialize database schema if not already done for this path.
 
+    Thread-safe: uses a lock to prevent concurrent initialization of the same database.
+
     Args:
         conn: Active database connection
         db_path: Path to the database file
     """
-    global _db_initialized_path
-
-    if _db_initialized_path == db_path:
+    # Fast path: check without lock if already initialized
+    if db_path in _db_initialized_paths:
         return
 
-    conn.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            mode TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS histories (
-            id TEXT PRIMARY KEY,
-            data TEXT NOT NULL,
-            user_id TEXT NOT NULL,
-            created_ts REAL NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS life_areas (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            parent_id TEXT,
-            user_id TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS criteria (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            area_id TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS life_area_messages (
-            id TEXT PRIMARY KEY,
-            data TEXT NOT NULL,
-            area_id TEXT NOT NULL,
-            created_ts REAL NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS histories_user_id_idx
-            ON histories(user_id);
-        CREATE INDEX IF NOT EXISTS histories_created_ts_idx
-            ON histories(created_ts);
-        CREATE INDEX IF NOT EXISTS life_areas_user_id_idx
-            ON life_areas(user_id);
-        CREATE INDEX IF NOT EXISTS criteria_area_id_idx
-            ON criteria(area_id);
-        CREATE INDEX IF NOT EXISTS life_area_messages_area_id_idx
-            ON life_area_messages(area_id);
-        CREATE INDEX IF NOT EXISTS life_area_messages_created_ts_idx
-            ON life_area_messages(created_ts);
-        """
-    )
+    with _init_lock:
+        # Double-check after acquiring lock
+        if db_path in _db_initialized_paths:
+            return
 
-    ensure_column(
-        conn,
-        "life_area_messages",
-        "created_ts",
-        "created_ts REAL NOT NULL DEFAULT 0",
-    )
-    ensure_column(
-        conn,
-        "users",
-        "current_area_id",
-        "current_area_id TEXT",
-    )
-    conn.commit()
-    _db_initialized_path = db_path
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                mode TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS histories (
+                id TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                created_ts REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS life_areas (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                parent_id TEXT,
+                user_id TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS criteria (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                area_id TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS life_area_messages (
+                id TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                area_id TEXT NOT NULL,
+                created_ts REAL NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS histories_user_id_idx
+                ON histories(user_id);
+            CREATE INDEX IF NOT EXISTS histories_created_ts_idx
+                ON histories(created_ts);
+            CREATE INDEX IF NOT EXISTS life_areas_user_id_idx
+                ON life_areas(user_id);
+            CREATE INDEX IF NOT EXISTS criteria_area_id_idx
+                ON criteria(area_id);
+            CREATE INDEX IF NOT EXISTS life_area_messages_area_id_idx
+                ON life_area_messages(area_id);
+            CREATE INDEX IF NOT EXISTS life_area_messages_created_ts_idx
+                ON life_area_messages(created_ts);
+            CREATE TABLE IF NOT EXISTS extracted_data (
+                id TEXT PRIMARY KEY,
+                area_id TEXT NOT NULL,
+                data TEXT NOT NULL,
+                created_ts REAL NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS extracted_data_area_id_idx
+                ON extracted_data(area_id);
+            CREATE INDEX IF NOT EXISTS extracted_data_created_ts_idx
+                ON extracted_data(created_ts);
+            """
+        )
+
+        ensure_column(
+            conn,
+            "life_area_messages",
+            "created_ts",
+            "created_ts REAL NOT NULL DEFAULT 0",
+        )
+        ensure_column(
+            conn,
+            "users",
+            "current_area_id",
+            "current_area_id TEXT",
+        )
+        conn.commit()
+        _db_initialized_paths.add(db_path)
 
 
 def ensure_column(

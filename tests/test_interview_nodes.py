@@ -71,7 +71,7 @@ class TestInterviewAnalysis:
         assert saved_messages[0].data == "I have 5 years of Python experience"
 
     @pytest.mark.asyncio
-    async def test_interview_analysis_returns_criteria_analysis(self, temp_db):  # noqa: PLR0915
+    async def test_interview_analysis_returns_criteria_analysis(self, temp_db):
         """Verify structured CriteriaAnalysis is returned."""
         # Arrange
         area_id = new_id()
@@ -114,7 +114,7 @@ class TestInterviewAnalysis:
         # Assert
         assert "criteria_analysis" in result
         assert isinstance(result["criteria_analysis"], CriteriaAnalysis)
-        assert len(result["criteria_analysis"].criteria) == 2  # noqa: PLR2004
+        assert len(result["criteria_analysis"].criteria) == 2
         assert result["criteria_analysis"].next_uncovered == "Criterion B"
         assert result["was_covered"] is False
 
@@ -160,7 +160,7 @@ class TestInterviewResponse:
         mock_llm.ainvoke.assert_called_once()
         call_args = mock_llm.ainvoke.call_args[0][0]
         # First message is system prompt, rest should be history
-        assert len(call_args) == 4  # noqa: PLR2004 - 1 system + 3 history messages
+        assert len(call_args) == 4  # 1 system + 3 history messages
 
     @pytest.mark.asyncio
     async def test_interview_response_requires_analysis(self):
