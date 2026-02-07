@@ -9,24 +9,8 @@ from src.application.workers.runtime import _run_worker_pool
 from src.application.workers.workers import (
     Channels,
     ExtractTask,
-    _build_knowledge_extraction_graph,
     create_extract_worker,
 )
-
-
-class TestBuildKnowledgeExtractionGraph:
-    """Test the _build_knowledge_extraction_graph function."""
-
-    def test_build_knowledge_extraction_graph_returns_compiled_graph(self):
-        """Should return a compiled LangGraph."""
-        with patch("src.application.workers.workers.NewAI") as mock_ai:
-            mock_llm = MagicMock()
-            mock_ai.return_value.build.return_value = mock_llm
-
-            graph = _build_knowledge_extraction_graph()
-
-            assert graph is not None
-            mock_ai.assert_called_once()
 
 
 class TestCreateExtractWorker:
@@ -39,9 +23,13 @@ class TestCreateExtractWorker:
         task = ExtractTask(area_id=uuid.uuid4(), user_id=uuid.uuid4())
         await channels.extract.put(task)
 
-        with patch(
-            "src.application.workers.workers._build_knowledge_extraction_graph"
-        ) as mock_build:
+        with (
+            patch("src.application.workers.workers.NewAI") as mock_ai,
+            patch(
+                "src.application.workers.workers.build_knowledge_extraction_graph"
+            ) as mock_build,
+        ):
+            mock_ai.return_value.build.return_value = MagicMock()
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock()
             mock_build.return_value = mock_graph
@@ -69,9 +57,13 @@ class TestCreateExtractWorker:
         await channels.extract.put(task1)
         await channels.extract.put(task2)
 
-        with patch(
-            "src.application.workers.workers._build_knowledge_extraction_graph"
-        ) as mock_build:
+        with (
+            patch("src.application.workers.workers.NewAI") as mock_ai,
+            patch(
+                "src.application.workers.workers.build_knowledge_extraction_graph"
+            ) as mock_build,
+        ):
+            mock_ai.return_value.build.return_value = MagicMock()
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock(
                 side_effect=[Exception("First failed"), None]
@@ -99,9 +91,13 @@ class TestCreateExtractWorker:
         user_id = uuid.uuid4()
         await channels.extract.put(ExtractTask(area_id=area_id, user_id=user_id))
 
-        with patch(
-            "src.application.workers.workers._build_knowledge_extraction_graph"
-        ) as mock_build:
+        with (
+            patch("src.application.workers.workers.NewAI") as mock_ai,
+            patch(
+                "src.application.workers.workers.build_knowledge_extraction_graph"
+            ) as mock_build,
+        ):
+            mock_ai.return_value.build.return_value = MagicMock()
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock()
             mock_build.return_value = mock_graph

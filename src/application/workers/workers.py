@@ -7,6 +7,7 @@ import tempfile
 import uuid
 from dataclasses import dataclass, field
 from functools import partial
+from typing import Any
 
 from src.application.graph import get_graph
 from src.application.state import State, Target
@@ -89,15 +90,8 @@ def _build_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]:
     return state, temp_files
 
 
-def _format_response(messages: list[object]) -> str:
-    """Extract response string from graph output messages."""
-    if not messages:
-        return "(no response)"
-    return normalize_content(messages[-1].content) or "(no response)"
-
-
 def _cleanup_tempfiles(temp_files: list[str]) -> None:
-    """Delete temporary files."""
+    """Delete temporary files, ignoring errors."""
     for path in temp_files:
         try:
             os.unlink(path)
@@ -128,8 +122,9 @@ async def _process_message(
         if not isinstance(result, dict):
             result = result.model_dump()
 
-        response = _format_response(result.get("messages", []))
-        await channels.client_response.put(response)
+        messages: list[Any] = result.get("messages", [])
+        response = normalize_content(messages[-1].content) if messages else ""
+        await channels.client_response.put(response or "(no response)")
         await _enqueue_extract_if_covered(result, user, channels)
     finally:
         _cleanup_tempfiles(temp_files)
@@ -138,7 +133,7 @@ async def _process_message(
 async def _graph_worker_loop(
     worker_id: int, graph, channels: Channels, user: User
 ) -> None:
-    """Single graph worker loop processing messages from queue."""
+    """Process messages through the main graph."""
     while True:
         msg = await channels.client_message.get()
         try:
@@ -156,13 +151,6 @@ async def _graph_worker_loop(
 # -----------------------------------------------------------------------------
 
 
-def _build_knowledge_extraction_graph():
-    """Build the knowledge extraction graph with configured LLM."""
-    return build_knowledge_extraction_graph(
-        NewAI(MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_STRUCTURED).build()
-    )
-
-
 async def _process_extract_task(task: ExtractTask, graph, worker_id: int) -> None:
     """Process a single extract task."""
     extra = {
@@ -177,7 +165,7 @@ async def _process_extract_task(task: ExtractTask, graph, worker_id: int) -> Non
 
 
 async def _extract_worker_loop(worker_id: int, graph, channels: Channels) -> None:
-    """Single extract worker loop processing tasks from queue."""
+    """Process knowledge extraction tasks."""
     while True:
         task = await channels.extract.get()
         try:
@@ -191,6 +179,11 @@ async def _extract_worker_loop(worker_id: int, graph, channels: Channels) -> Non
             channels.extract.task_done()
 
 
+# -----------------------------------------------------------------------------
+# Worker Factories
+# -----------------------------------------------------------------------------
+
+
 def create_graph_worker(channels: Channels, user: User):
     """Create a graph worker function using partial application."""
     graph = get_graph()
@@ -199,5 +192,7 @@ def create_graph_worker(channels: Channels, user: User):
 
 def create_extract_worker(channels: Channels):
     """Create an extract worker function using partial application."""
-    graph = _build_knowledge_extraction_graph()
+    graph = build_knowledge_extraction_graph(
+        NewAI(MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_STRUCTURED).build()
+    )
     return partial(_extract_worker_loop, graph=graph, channels=channels)
