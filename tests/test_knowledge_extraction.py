@@ -1,11 +1,11 @@
-"""Unit tests for extract_data workflow."""
+"""Unit tests for knowledge_extraction workflow."""
 
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from src.infrastructure.db import repositories as db
-from src.workflows.subgraphs.extract_data.nodes import (
+from src.workflows.subgraphs.knowledge_extraction.nodes import (
     CriterionSummary,
     ExtractionResult,
     KnowledgeExtractionResult,
@@ -17,11 +17,11 @@ from src.workflows.subgraphs.extract_data.nodes import (
     save_knowledge,
     save_summary,
 )
-from src.workflows.subgraphs.extract_data.routers import (
+from src.workflows.subgraphs.knowledge_extraction.routers import (
     route_extraction_success,
     route_has_data,
 )
-from src.workflows.subgraphs.extract_data.state import ExtractDataState
+from src.workflows.subgraphs.knowledge_extraction.state import KnowledgeExtractionState
 
 
 class TestLoadAreaData:
@@ -32,7 +32,7 @@ class TestLoadAreaData:
         """Should return success=False when area is not found."""
         # Arrange
         area_id = uuid.uuid4()
-        state = ExtractDataState(area_id=area_id)
+        state = KnowledgeExtractionState(area_id=area_id)
 
         with patch.object(db.LifeAreaManager, "get_by_id", return_value=None):
             # Act
@@ -47,7 +47,7 @@ class TestLoadAreaData:
         # Arrange
         area_id = uuid.uuid4()
         user_id = uuid.uuid4()
-        state = ExtractDataState(area_id=area_id)
+        state = KnowledgeExtractionState(area_id=area_id)
 
         mock_area = db.LifeArea(
             id=area_id,
@@ -100,7 +100,7 @@ class TestLoadAreaData:
         # Arrange
         area_id = uuid.uuid4()
         user_id = uuid.uuid4()
-        state = ExtractDataState(area_id=area_id)
+        state = KnowledgeExtractionState(area_id=area_id)
 
         mock_area = db.LifeArea(
             id=area_id,
@@ -131,7 +131,7 @@ class TestExtractSummaries:
         """Should extract summaries successfully."""
         # Arrange
         area_id = uuid.uuid4()
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=area_id,
             area_title="Career",
             criteria_titles=["Skills", "Goals"],
@@ -169,7 +169,7 @@ class TestExtractSummaries:
         """Should return success=False when LLM raises exception."""
         # Arrange
         area_id = uuid.uuid4()
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=area_id,
             area_title="Career",
             criteria_titles=["Skills"],
@@ -195,7 +195,7 @@ class TestRouters:
 
     def test_route_has_data_returns_end_when_no_criteria(self):
         """Should return __end__ when criteria_titles is empty."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             criteria_titles=[],
             messages=["Some message"],
@@ -204,7 +204,7 @@ class TestRouters:
 
     def test_route_has_data_returns_end_when_no_messages(self):
         """Should return __end__ when messages is empty."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             criteria_titles=["Skills"],
             messages=[],
@@ -213,7 +213,7 @@ class TestRouters:
 
     def test_route_has_data_returns_extract_summaries_when_data_exists(self):
         """Should return extract_summaries when both criteria and messages exist."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             criteria_titles=["Skills"],
             messages=["Some message"],
@@ -222,7 +222,7 @@ class TestRouters:
 
     def test_route_extraction_success_returns_end_when_not_successful(self):
         """Should return __end__ when success is False."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             success=False,
             extracted_summary={"Skills": "Summary"},
@@ -231,7 +231,7 @@ class TestRouters:
 
     def test_route_extraction_success_returns_end_when_no_summary(self):
         """Should return __end__ when extracted_summary is empty."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             success=True,
             extracted_summary={},
@@ -240,7 +240,7 @@ class TestRouters:
 
     def test_route_extraction_success_returns_save_summary_when_successful(self):
         """Should return save_summary when successful with summary."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             success=True,
             extracted_summary={"Skills": "Summary"},
@@ -287,7 +287,7 @@ class TestSaveSummary:
     @pytest.mark.asyncio
     async def test_save_summary_skips_when_no_content(self):
         """Should skip saving when no meaningful content."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             success=True,
             extracted_summary={"Skills": "No response provided"},
@@ -307,7 +307,7 @@ class TestSaveSummary:
     async def test_save_summary_success(self):
         """Should save summary with embedding."""
         area_id = uuid.uuid4()
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=area_id,
             success=True,
             extracted_summary={"Skills": "Knows Python"},
@@ -343,7 +343,7 @@ class TestExtractKnowledge:
     @pytest.mark.asyncio
     async def test_extract_knowledge_skips_when_no_content(self):
         """Should skip extraction when no summary content."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             summary_content="",
         )
@@ -357,7 +357,7 @@ class TestExtractKnowledge:
     @pytest.mark.asyncio
     async def test_extract_knowledge_success(self):
         """Should extract knowledge items from summary."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             area_title="Career",
             summary_content="Skills: Python programming, JavaScript",
@@ -387,7 +387,7 @@ class TestExtractKnowledge:
     @pytest.mark.asyncio
     async def test_extract_knowledge_handles_exception(self):
         """Should return empty list on LLM exception."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             summary_content="Some content",
         )
@@ -405,7 +405,7 @@ class TestExtractKnowledge:
     @pytest.mark.asyncio
     async def test_extract_knowledge_fallback_to_extracted_summary(self):
         """Should compute summary_content from extracted_summary when empty."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             area_title="Career",
             summary_content="",  # Empty - fallback should kick in
@@ -447,7 +447,7 @@ class TestSaveKnowledge:
     @pytest.mark.asyncio
     async def test_save_knowledge_skips_when_no_user_id(self):
         """Should skip saving when no user_id."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             user_id=None,
             extracted_knowledge=[
@@ -464,7 +464,7 @@ class TestSaveKnowledge:
     @pytest.mark.asyncio
     async def test_save_knowledge_skips_when_no_knowledge(self):
         """Should skip saving when no extracted knowledge."""
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
             user_id=uuid.uuid4(),
             extracted_knowledge=[],
@@ -481,7 +481,7 @@ class TestSaveKnowledge:
         """Should save knowledge items and links."""
         area_id = uuid.uuid4()
         user_id = uuid.uuid4()
-        state = ExtractDataState(
+        state = KnowledgeExtractionState(
             area_id=area_id,
             user_id=user_id,
             extracted_knowledge=[
@@ -551,13 +551,15 @@ def _create_mock_llm_for_extraction(summary_result, knowledge_result):
     return mock_llm
 
 
-class TestExtractDataGraphIntegration:
-    """Integration tests for the full extract_data graph."""
+class TestKnowledgeExtractionGraphIntegration:
+    """Integration tests for the full knowledge_extraction graph."""
 
     @pytest.mark.asyncio
     async def test_full_graph_extracts_and_saves_data(self, temp_db):
         """Test full graph flow from load_area_data to save_knowledge."""
-        from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
+        from src.workflows.subgraphs.knowledge_extraction.graph import (
+            build_knowledge_extraction_graph,
+        )
 
         area_id, user_id = uuid.uuid4(), uuid.uuid4()
         _create_area_with_data(
@@ -599,8 +601,10 @@ class TestExtractDataGraphIntegration:
             "src.infrastructure.embeddings.get_embedding_client",
             return_value=mock_embed_client,
         ):
-            graph = build_extract_data_graph(llm=mock_llm)
-            await graph.ainvoke(ExtractDataState(area_id=area_id, user_id=user_id))
+            graph = build_knowledge_extraction_graph(llm=mock_llm)
+            await graph.ainvoke(
+                KnowledgeExtractionState(area_id=area_id, user_id=user_id)
+            )
 
         summaries = db.AreaSummariesManager.list_by_area(area_id)
         assert len(summaries) == 1
@@ -615,7 +619,9 @@ class TestExtractDataGraphIntegration:
     @pytest.mark.asyncio
     async def test_graph_handles_embedding_failure_gracefully(self, temp_db):
         """Test that graph continues when embedding fails."""
-        from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
+        from src.workflows.subgraphs.knowledge_extraction.graph import (
+            build_knowledge_extraction_graph,
+        )
 
         area_id, user_id = uuid.uuid4(), uuid.uuid4()
         _create_area_with_data(area_id, user_id, ["Skills"], ["I know Python"])
@@ -635,8 +641,10 @@ class TestExtractDataGraphIntegration:
             "src.infrastructure.embeddings.get_embedding_client",
             return_value=mock_embed_client,
         ):
-            graph = build_extract_data_graph(llm=mock_llm)
-            await graph.ainvoke(ExtractDataState(area_id=area_id, user_id=user_id))
+            graph = build_knowledge_extraction_graph(llm=mock_llm)
+            await graph.ainvoke(
+                KnowledgeExtractionState(area_id=area_id, user_id=user_id)
+            )
 
         assert len(db.AreaSummariesManager.list_by_area(area_id)) == 0
         assert len(db.UserKnowledgeManager.list()) == 0
@@ -644,15 +652,17 @@ class TestExtractDataGraphIntegration:
     @pytest.mark.asyncio
     async def test_graph_skips_when_no_data(self, temp_db):
         """Test that graph exits early when area has no criteria or messages."""
-        from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
+        from src.workflows.subgraphs.knowledge_extraction.graph import (
+            build_knowledge_extraction_graph,
+        )
 
         area_id, user_id = uuid.uuid4(), uuid.uuid4()
         area = db.LifeArea(id=area_id, title="Empty", parent_id=None, user_id=user_id)
         db.LifeAreaManager.create(area_id, area)
 
         mock_llm = MagicMock()
-        graph = build_extract_data_graph(llm=mock_llm)
-        await graph.ainvoke(ExtractDataState(area_id=area_id, user_id=user_id))
+        graph = build_knowledge_extraction_graph(llm=mock_llm)
+        await graph.ainvoke(KnowledgeExtractionState(area_id=area_id, user_id=user_id))
 
         mock_llm.with_structured_output.assert_not_called()
         assert len(db.AreaSummariesManager.list_by_area(area_id)) == 0

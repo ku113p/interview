@@ -31,7 +31,7 @@ Each layer only imports from layers below it.
 ```
 START
   ↓
-extract_text (subgraph)      # Convert audio/video to text
+transcribe (subgraph)        # Convert audio/video to text
   ↓
 load_history                  # Load conversation from DB
   ↓
@@ -51,7 +51,7 @@ extract_target               # Classify: interview vs areas
 
 ## Subgraphs
 
-### extract_flow
+### transcribe
 Handles media input processing.
 - Routes by message type (text vs media)
 - Converts video/audio to WAV
@@ -64,7 +64,7 @@ Tool-calling loop for area/criteria management.
 - `area_end`: Finalize with success flag
 - Max 10 iterations (recursion limit: 23)
 
-### extract_data
+### knowledge_extraction
 Post-interview knowledge extraction (triggered when all criteria covered).
 - `load_area_data`: Fetch area messages
 - `extract_summaries`: LLM summarizes per criterion
@@ -134,7 +134,7 @@ Merge function uses SHA-256 hash of (type, content, tool_calls) to prevent dupli
 | interview_analysis | gemini-2.5-flash | Criteria coverage check |
 | interview_response | gpt-5.1 | Response generation |
 | area_chat | gemini-2.5-flash | Tool-based area management |
-| extract_data | gemini-2.5-flash | Knowledge extraction |
+| knowledge_extraction | gemini-2.5-flash | Knowledge extraction |
 
 Configured in `src/config/settings.py`.
 

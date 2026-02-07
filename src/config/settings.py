@@ -34,7 +34,6 @@ MAX_TOKENS_TRANSCRIPTION = 8192  # For audio transcription
 # Model Assignments - Interview Nodes
 MODEL_INTERVIEW_ANALYSIS = MODEL_NAME_FLASH  # Fast analysis for criteria coverage
 MODEL_INTERVIEW_RESPONSE = MODEL_NAME_INTERVIEW  # Reasoning response generation
-MODEL_EXTRACT_DATA = MODEL_NAME_FLASH  # Data extraction from completed interviews
 MODEL_KNOWLEDGE_EXTRACTION = MODEL_NAME_FLASH  # Knowledge extraction from summaries
 
 # Embedding Configuration

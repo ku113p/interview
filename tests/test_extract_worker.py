@@ -9,21 +9,21 @@ from src.application.workers.runtime import _run_worker_pool
 from src.application.workers.workers import (
     Channels,
     ExtractTask,
-    _build_extract_graph,
+    _build_knowledge_extraction_graph,
     create_extract_worker,
 )
 
 
-class TestBuildExtractGraph:
-    """Test the _build_extract_graph function."""
+class TestBuildKnowledgeExtractionGraph:
+    """Test the _build_knowledge_extraction_graph function."""
 
-    def test_build_extract_graph_returns_compiled_graph(self):
+    def test_build_knowledge_extraction_graph_returns_compiled_graph(self):
         """Should return a compiled LangGraph."""
         with patch("src.application.workers.workers.NewAI") as mock_ai:
             mock_llm = MagicMock()
             mock_ai.return_value.build.return_value = mock_llm
 
-            graph = _build_extract_graph()
+            graph = _build_knowledge_extraction_graph()
 
             assert graph is not None
             mock_ai.assert_called_once()
@@ -40,7 +40,7 @@ class TestCreateExtractWorker:
         await channels.extract.put(task)
 
         with patch(
-            "src.application.workers.workers._build_extract_graph"
+            "src.application.workers.workers._build_knowledge_extraction_graph"
         ) as mock_build:
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock()
@@ -70,7 +70,7 @@ class TestCreateExtractWorker:
         await channels.extract.put(task2)
 
         with patch(
-            "src.application.workers.workers._build_extract_graph"
+            "src.application.workers.workers._build_knowledge_extraction_graph"
         ) as mock_build:
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock(
@@ -93,14 +93,14 @@ class TestCreateExtractWorker:
 
     @pytest.mark.asyncio
     async def test_worker_invokes_with_correct_state(self):
-        """Should invoke graph with ExtractDataState containing area_id and user_id."""
+        """Should invoke graph with KnowledgeExtractionState containing area_id and user_id."""
         channels = Channels()
         area_id = uuid.uuid4()
         user_id = uuid.uuid4()
         await channels.extract.put(ExtractTask(area_id=area_id, user_id=user_id))
 
         with patch(
-            "src.application.workers.workers._build_extract_graph"
+            "src.application.workers.workers._build_knowledge_extraction_graph"
         ) as mock_build:
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock()

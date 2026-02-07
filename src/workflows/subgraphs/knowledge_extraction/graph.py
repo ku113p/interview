@@ -13,11 +13,13 @@ from .nodes import (
     save_summary,
 )
 from .routers import route_extraction_success, route_has_data
-from .state import ExtractDataState
+from .state import KnowledgeExtractionState
 
 
-def build_extract_data_graph(llm: ChatOpenAI, knowledge_llm: ChatOpenAI | None = None):
-    """Build the extract_data workflow graph.
+def build_knowledge_extraction_graph(
+    llm: ChatOpenAI, knowledge_llm: ChatOpenAI | None = None
+):
+    """Build the knowledge_extraction workflow graph.
 
     This graph:
     1. Loads area data (title, criteria, messages)
@@ -36,7 +38,7 @@ def build_extract_data_graph(llm: ChatOpenAI, knowledge_llm: ChatOpenAI | None =
         Compiled LangGraph workflow
     """
     knowledge_llm = knowledge_llm or llm
-    builder = StateGraph(ExtractDataState)
+    builder = StateGraph(KnowledgeExtractionState)
 
     # Add nodes
     builder.add_node("load_area_data", load_area_data)

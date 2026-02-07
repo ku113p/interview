@@ -26,12 +26,12 @@ from src.workflows.subgraphs.area_loop.graph import (
     MAX_AREA_RECURSION,
     build_area_graph,
 )
-from src.workflows.subgraphs.extract_flow.graph import build_extract_graph
+from src.workflows.subgraphs.transcribe.graph import build_transcribe_graph
 
 
-def _add_nodes(builder: StateGraph, extract_graph, area_graph) -> None:
+def _add_nodes(builder: StateGraph, transcribe_graph, area_graph) -> None:
     """Add all nodes to the workflow graph."""
-    builder.add_node("extract_text", extract_graph)
+    builder.add_node("transcribe", transcribe_graph)
     builder.add_node("load_history", load_history)
     builder.add_node("build_user_message", build_user_message)
     builder.add_node(
@@ -65,8 +65,8 @@ def _add_nodes(builder: StateGraph, extract_graph, area_graph) -> None:
 
 def _add_edges(builder: StateGraph) -> None:
     """Add all edges to the workflow graph."""
-    builder.add_edge(START, "extract_text")
-    builder.add_edge("extract_text", "load_history")
+    builder.add_edge(START, "transcribe")
+    builder.add_edge("transcribe", "load_history")
     builder.add_edge("load_history", "build_user_message")
     builder.add_edge("build_user_message", "extract_target")
     builder.add_conditional_edges("extract_target", route_message)
@@ -87,7 +87,7 @@ def get_graph():
         Compiled LangGraph workflow
     """
     builder = StateGraph(State)
-    extract_graph = build_extract_graph(
+    transcribe_graph = build_transcribe_graph(
         NewAI(
             MODEL_AUDIO_TRANSCRIPTION,
             temperature=0,
@@ -97,6 +97,6 @@ def get_graph():
     area_graph = build_area_graph(
         NewAI(MODEL_AREA_CHAT, max_tokens=MAX_TOKENS_CHAT).build()
     ).with_config({"recursion_limit": MAX_AREA_RECURSION})
-    _add_nodes(builder, extract_graph, area_graph)
+    _add_nodes(builder, transcribe_graph, area_graph)
     _add_edges(builder)
     return builder.compile()

@@ -10,14 +10,16 @@ from functools import partial
 
 from src.application.graph import get_graph
 from src.application.state import State, Target
-from src.config.settings import MAX_TOKENS_STRUCTURED, MODEL_EXTRACT_DATA
+from src.config.settings import MAX_TOKENS_STRUCTURED, MODEL_KNOWLEDGE_EXTRACTION
 from src.domain import ClientMessage, User
 from src.infrastructure.ai import NewAI
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.utils.content import normalize_content
-from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
-from src.workflows.subgraphs.extract_data.state import ExtractDataState
+from src.workflows.subgraphs.knowledge_extraction.graph import (
+    build_knowledge_extraction_graph,
+)
+from src.workflows.subgraphs.knowledge_extraction.state import KnowledgeExtractionState
 
 logger = logging.getLogger(__name__)
 
@@ -154,10 +156,10 @@ async def _graph_worker_loop(
 # -----------------------------------------------------------------------------
 
 
-def _build_extract_graph():
-    """Build the extract data graph with configured LLM."""
-    return build_extract_data_graph(
-        NewAI(MODEL_EXTRACT_DATA, max_tokens=MAX_TOKENS_STRUCTURED).build()
+def _build_knowledge_extraction_graph():
+    """Build the knowledge extraction graph with configured LLM."""
+    return build_knowledge_extraction_graph(
+        NewAI(MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_STRUCTURED).build()
     )
 
 
@@ -169,7 +171,7 @@ async def _process_extract_task(task: ExtractTask, graph, worker_id: int) -> Non
         "worker_id": worker_id,
     }
     logger.info("Processing extract task", extra=extra)
-    state = ExtractDataState(area_id=task.area_id, user_id=task.user_id)
+    state = KnowledgeExtractionState(area_id=task.area_id, user_id=task.user_id)
     await graph.ainvoke(state)
     logger.info("Completed extract task", extra=extra)
 
@@ -197,5 +199,5 @@ def create_graph_worker(channels: Channels, user: User):
 
 def create_extract_worker(channels: Channels):
     """Create an extract worker function using partial application."""
-    graph = _build_extract_graph()
+    graph = _build_knowledge_extraction_graph()
     return partial(_extract_worker_loop, graph=graph, channels=channels)

@@ -47,7 +47,7 @@ async def extract_text(state: ExtractState, llm: ChatOpenAI):
     return {"text": text}
 
 
-def build_extract_graph(llm: ChatOpenAI):
+def build_transcribe_graph(llm: ChatOpenAI):
     builder = StateGraph(ExtractState)
     builder.add_node("extract_audio", run_extract_audio)
     builder.add_node("extract_text", partial(extract_text, llm=llm))

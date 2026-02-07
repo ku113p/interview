@@ -17,7 +17,7 @@ from .knowledge_nodes import (
     extract_knowledge,
     save_knowledge,
 )
-from .state import ExtractDataState
+from .state import KnowledgeExtractionState
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class ExtractionResult(BaseModel):
     summaries: list[CriterionSummary]
 
 
-async def load_area_data(state: ExtractDataState) -> dict:
+async def load_area_data(state: KnowledgeExtractionState) -> dict:
     """Load area data including title, criteria, and messages."""
     area_id = state.area_id
 
@@ -81,7 +81,7 @@ async def load_area_data(state: ExtractDataState) -> dict:
     }
 
 
-async def extract_summaries(state: ExtractDataState, llm: ChatOpenAI) -> dict:
+async def extract_summaries(state: KnowledgeExtractionState, llm: ChatOpenAI) -> dict:
     """Use LLM to extract and summarize user responses for each criterion.
 
     Note: The check for empty criteria/messages is handled by the router,
@@ -144,7 +144,7 @@ def _build_summary_content(extracted_summary: dict[str, str]) -> str:
     return "\n".join(parts)
 
 
-async def save_summary(state: ExtractDataState) -> dict:
+async def save_summary(state: KnowledgeExtractionState) -> dict:
     """Save summary with embedding to area_summaries table.
 
     This node:

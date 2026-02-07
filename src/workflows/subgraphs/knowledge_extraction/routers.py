@@ -2,10 +2,12 @@
 
 from typing import Literal
 
-from .state import ExtractDataState
+from .state import KnowledgeExtractionState
 
 
-def route_has_data(state: ExtractDataState) -> Literal["extract_summaries", "__end__"]:
+def route_has_data(
+    state: KnowledgeExtractionState,
+) -> Literal["extract_summaries", "__end__"]:
     """Route after load_area_data - skip if no data to process.
 
     Returns:
@@ -17,7 +19,7 @@ def route_has_data(state: ExtractDataState) -> Literal["extract_summaries", "__e
 
 
 def route_extraction_success(
-    state: ExtractDataState,
+    state: KnowledgeExtractionState,
 ) -> Literal["save_summary", "__end__"]:
     """Route after extract_summaries - continue only if successful.
 

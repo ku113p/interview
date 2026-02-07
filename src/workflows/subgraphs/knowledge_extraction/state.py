@@ -1,12 +1,12 @@
-"""State models for extract_data workflow."""
+"""State models for knowledge_extraction workflow."""
 
 import uuid
 
 from pydantic import BaseModel
 
 
-class ExtractDataState(BaseModel):
-    """State for the extract_data workflow."""
+class KnowledgeExtractionState(BaseModel):
+    """State for the knowledge_extraction workflow."""
 
     # Core identifiers
     area_id: uuid.UUID

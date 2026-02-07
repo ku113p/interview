@@ -11,7 +11,7 @@ from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.timestamp import get_timestamp
 
-from .state import ExtractDataState
+from .state import KnowledgeExtractionState
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class KnowledgeExtractionResult(BaseModel):
     )
 
 
-def _resolve_summary_content(state: ExtractDataState) -> str:
+def _resolve_summary_content(state: KnowledgeExtractionState) -> str:
     """Resolve summary content from state, computing from extracted_summary if needed."""
     from .nodes import _build_summary_content
 
@@ -73,7 +73,7 @@ def _resolve_summary_content(state: ExtractDataState) -> str:
     return ""
 
 
-async def extract_knowledge(state: ExtractDataState, llm: ChatOpenAI) -> dict:
+async def extract_knowledge(state: KnowledgeExtractionState, llm: ChatOpenAI) -> dict:
     """Extract skills and facts from the summary content using LLM.
 
     This node uses structured output to extract:
@@ -123,7 +123,7 @@ async def extract_knowledge(state: ExtractDataState, llm: ChatOpenAI) -> dict:
         return {"extracted_knowledge": []}
 
 
-async def save_knowledge(state: ExtractDataState) -> dict:
+async def save_knowledge(state: KnowledgeExtractionState) -> dict:
     """Save extracted knowledge items to database.
 
     This node:
