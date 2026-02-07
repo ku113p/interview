@@ -512,3 +512,145 @@ class TestSaveKnowledge:
         assert len(links) == 2
         assert all(link.user_id == user_id for link in links)
         assert all(link.area_id == area_id for link in links)
+
+
+def _create_area_with_data(area_id, user_id, criteria_titles, message_texts):
+    """Helper to create area with criteria and messages in database."""
+    area = db.LifeArea(id=area_id, title="Career", parent_id=None, user_id=user_id)
+    db.LifeAreaManager.create(area_id, area)
+
+    for title in criteria_titles:
+        c = db.Criteria(id=uuid.uuid4(), title=title, area_id=area_id)
+        db.CriteriaManager.create(c.id, c)
+
+    for i, text in enumerate(message_texts):
+        m = db.LifeAreaMessage(
+            id=uuid.uuid4(), data=text, area_id=area_id, created_ts=1000.0 + i
+        )
+        db.LifeAreaMessagesManager.create(m.id, m)
+
+
+def _create_mock_llm_for_extraction(summary_result, knowledge_result):
+    """Create mock LLM that returns different results for summary vs knowledge."""
+    mock_summary_structured = AsyncMock()
+    mock_summary_structured.ainvoke.return_value = summary_result
+
+    mock_knowledge_structured = AsyncMock()
+    mock_knowledge_structured.ainvoke.return_value = knowledge_result
+
+    def mock_with_structured_output(schema):
+        if schema == ExtractionResult:
+            return mock_summary_structured
+        return mock_knowledge_structured
+
+    mock_llm = MagicMock()
+    mock_llm.with_structured_output.side_effect = mock_with_structured_output
+    return mock_llm
+
+
+class TestExtractDataGraphIntegration:
+    """Integration tests for the full extract_data graph."""
+
+    @pytest.mark.asyncio
+    async def test_full_graph_extracts_and_saves_data(self, temp_db):
+        """Test full graph flow from load_area_data to save_knowledge."""
+        from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
+
+        area_id, user_id = uuid.uuid4(), uuid.uuid4()
+        _create_area_with_data(
+            area_id,
+            user_id,
+            ["Skills", "Goals"],
+            ["I know Python and JavaScript", "My goal is to become a tech lead"],
+        )
+
+        summary_result = ExtractionResult(
+            summaries=[
+                CriterionSummary(
+                    criterion="Skills", summary="Proficient in Python and JavaScript"
+                ),
+                CriterionSummary(
+                    criterion="Goals", summary="Aspires to become a tech lead"
+                ),
+            ]
+        )
+        knowledge_result = KnowledgeExtractionResult(
+            items=[
+                KnowledgeItem(
+                    content="Python programming", kind="skill", confidence=0.9
+                ),
+                KnowledgeItem(
+                    content="JavaScript programming", kind="skill", confidence=0.9
+                ),
+                KnowledgeItem(
+                    content="Aspires to be tech lead", kind="fact", confidence=0.8
+                ),
+            ]
+        )
+        mock_llm = _create_mock_llm_for_extraction(summary_result, knowledge_result)
+
+        mock_embed_client = AsyncMock()
+        mock_embed_client.aembed_query.return_value = [0.1, 0.2, 0.3]
+
+        with patch(
+            "src.infrastructure.embeddings.get_embedding_client",
+            return_value=mock_embed_client,
+        ):
+            graph = build_extract_data_graph(llm=mock_llm)
+            await graph.ainvoke(ExtractDataState(area_id=area_id, user_id=user_id))
+
+        summaries = db.AreaSummariesManager.list_by_area(area_id)
+        assert len(summaries) == 1
+        assert "Skills: Proficient in Python and JavaScript" in summaries[0].content
+
+        all_knowledge = db.UserKnowledgeManager.list()
+        assert len(all_knowledge) == 3
+
+        links = db.UserKnowledgeAreasManager.list_by_user(user_id)
+        assert len(links) == 3
+
+    @pytest.mark.asyncio
+    async def test_graph_handles_embedding_failure_gracefully(self, temp_db):
+        """Test that graph continues when embedding fails."""
+        from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
+
+        area_id, user_id = uuid.uuid4(), uuid.uuid4()
+        _create_area_with_data(area_id, user_id, ["Skills"], ["I know Python"])
+
+        summary_result = ExtractionResult(
+            summaries=[CriterionSummary(criterion="Skills", summary="Knows Python")]
+        )
+        mock_structured = AsyncMock()
+        mock_structured.ainvoke.return_value = summary_result
+        mock_llm = MagicMock()
+        mock_llm.with_structured_output.return_value = mock_structured
+
+        mock_embed_client = AsyncMock()
+        mock_embed_client.aembed_query.side_effect = Exception("Embedding service down")
+
+        with patch(
+            "src.infrastructure.embeddings.get_embedding_client",
+            return_value=mock_embed_client,
+        ):
+            graph = build_extract_data_graph(llm=mock_llm)
+            await graph.ainvoke(ExtractDataState(area_id=area_id, user_id=user_id))
+
+        assert len(db.AreaSummariesManager.list_by_area(area_id)) == 0
+        assert len(db.UserKnowledgeManager.list()) == 0
+
+    @pytest.mark.asyncio
+    async def test_graph_skips_when_no_data(self, temp_db):
+        """Test that graph exits early when area has no criteria or messages."""
+        from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
+
+        area_id, user_id = uuid.uuid4(), uuid.uuid4()
+        area = db.LifeArea(id=area_id, title="Empty", parent_id=None, user_id=user_id)
+        db.LifeAreaManager.create(area_id, area)
+
+        mock_llm = MagicMock()
+        graph = build_extract_data_graph(llm=mock_llm)
+        await graph.ainvoke(ExtractDataState(area_id=area_id, user_id=user_id))
+
+        mock_llm.with_structured_output.assert_not_called()
+        assert len(db.AreaSummariesManager.list_by_area(area_id)) == 0
+        assert len(db.UserKnowledgeManager.list()) == 0

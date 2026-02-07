@@ -193,7 +193,14 @@ async def save_summary(state: ExtractDataState) -> dict:
         return {"summary_content": ""}
 
     embed_client = get_embedding_client()
-    embedding = await embed_client.aembed_query(summary_content)
+    try:
+        embedding = await embed_client.aembed_query(summary_content)
+    except Exception:
+        logger.exception(
+            "Failed to generate embedding for summary",
+            extra={"area_id": str(state.area_id)},
+        )
+        return {"summary_content": ""}
 
     summary_id = new_id()
     area_summary = db.AreaSummary(

@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Annotated
 
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, ConfigDict
@@ -18,6 +18,22 @@ from src.shared.timestamp import get_timestamp
 from src.shared.utils.content import normalize_content
 
 logger = logging.getLogger(__name__)
+
+# Need at least 2 messages to have a preceding AI question before user answer
+_MIN_MESSAGES_FOR_CONTEXT = 2
+
+
+def _format_qa_data(messages: list[BaseMessage]) -> str:
+    """Format user answer with preceding AI question for criteria coverage context."""
+    user_content = normalize_content(messages[-1].content)
+
+    # Include preceding AI question so LLM understands what user was responding to
+    has_preceding_message = len(messages) >= _MIN_MESSAGES_FOR_CONTEXT
+    if has_preceding_message and isinstance(messages[-2], AIMessage):
+        ai_content = normalize_content(messages[-2].content)
+        return f"AI: {ai_content}\nUser: {user_content}"
+
+    return f"User: {user_content}"
 
 
 class State(BaseModel):
@@ -36,12 +52,11 @@ class State(BaseModel):
 async def interview_analysis(state: State, llm: ChatOpenAI):
     """Analyze criteria coverage without generating response."""
     area_id = state.area_id
-    message_content = normalize_content(state.messages[-1].content)
 
-    # Save user message to area messages
+    # Save answer with question context for criteria coverage analysis
     last_area_msg = db.LifeAreaMessage(
         id=new_id(),
-        data=message_content,
+        data=_format_qa_data(state.messages),
         area_id=area_id,
         created_ts=get_timestamp(),
     )
