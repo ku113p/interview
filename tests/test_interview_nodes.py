@@ -1,26 +1,31 @@
 """Unit tests for interview analysis and response nodes."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
-from src.domain import InputMode, User
+from src.application.state import State, Target
+from src.domain import ClientMessage, InputMode, User
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.interview_models import CriteriaAnalysis, CriterionCoverage
-from src.workflows.nodes.processing.interview_analysis import (
-    State as AnalysisState,
-)
-from src.workflows.nodes.processing.interview_analysis import (
-    interview_analysis,
-)
-from src.workflows.nodes.processing.interview_response import (
-    State as ResponseState,
-)
-from src.workflows.nodes.processing.interview_response import (
-    interview_response,
-)
+from src.workflows.nodes.processing.interview_analysis import interview_analysis
+from src.workflows.nodes.processing.interview_response import interview_response
+
+
+def _create_state(user: User, area_id, messages, **kwargs) -> State:
+    """Helper to create test State objects."""
+    return State(
+        user=user,
+        message=ClientMessage(data="test"),
+        text="test",
+        target=Target.interview,
+        area_id=area_id,
+        messages=messages,
+        messages_to_save=kwargs.get("messages_to_save", {}),
+        was_covered=kwargs.get("was_covered", False),
+        criteria_analysis=kwargs.get("criteria_analysis"),
+    )
 
 
 class TestInterviewAnalysis:
@@ -43,13 +48,10 @@ class TestInterviewAnalysis:
         )
         db.LifeAreaManager.create(area_id, area)
 
-        state = AnalysisState(
+        state = _create_state(
             user=user,
             area_id=area_id,
-            extract_data_tasks=asyncio.Queue(),
             messages=[HumanMessage(content="I have 5 years of Python experience")],
-            messages_to_save={},
-            was_covered=False,
         )
 
         mock_analysis = CriteriaAnalysis(
@@ -70,7 +72,53 @@ class TestInterviewAnalysis:
         # Assert - message should be saved to DB
         saved_messages = db.LifeAreaMessagesManager.list_by_area(area_id)
         assert len(saved_messages) == 1
-        assert saved_messages[0].data == "I have 5 years of Python experience"
+        assert saved_messages[0].data == "User: I have 5 years of Python experience"
+
+    @pytest.mark.asyncio
+    async def test_interview_analysis_saves_question_and_answer(self, temp_db):
+        """Verify AI question and user answer are saved together."""
+        # Arrange
+        area_id = new_id()
+        user_id = new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+
+        area = db.LifeArea(
+            id=area_id,
+            title="Test Area",
+            parent_id=None,
+            user_id=user_id,
+        )
+        db.LifeAreaManager.create(area_id, area)
+
+        state = _create_state(
+            user=user,
+            area_id=area_id,
+            messages=[
+                AIMessage(content="What is your Python experience?"),
+                HumanMessage(content="I have 5 years"),
+            ],
+        )
+
+        mock_analysis = CriteriaAnalysis(
+            criteria=[CriterionCoverage(title="Python experience", covered=True)],
+            all_covered=False,
+            next_uncovered="JavaScript experience",
+        )
+
+        mock_structured_llm = MagicMock()
+        mock_structured_llm.ainvoke = AsyncMock(return_value=mock_analysis)
+
+        mock_llm = MagicMock()
+        mock_llm.with_structured_output.return_value = mock_structured_llm
+
+        # Act
+        await interview_analysis(state, mock_llm)
+
+        # Assert - both question and answer should be saved
+        saved_messages = db.LifeAreaMessagesManager.list_by_area(area_id)
+        assert len(saved_messages) == 1
+        expected = "AI: What is your Python experience?\nUser: I have 5 years"
+        assert saved_messages[0].data == expected
 
     @pytest.mark.asyncio
     async def test_interview_analysis_returns_criteria_analysis(self, temp_db):
@@ -88,13 +136,10 @@ class TestInterviewAnalysis:
         )
         db.LifeAreaManager.create(area_id, area)
 
-        state = AnalysisState(
+        state = _create_state(
             user=user,
             area_id=area_id,
-            extract_data_tasks=asyncio.Queue(),
             messages=[HumanMessage(content="Test message")],
-            messages_to_save={},
-            was_covered=False,
         )
 
         mock_analysis = CriteriaAnalysis(
@@ -130,6 +175,7 @@ class TestInterviewResponse:
     async def test_interview_response_uses_history(self):
         """Verify conversation history is passed to the LLM."""
         # Arrange
+        user = User(id=new_id(), mode=InputMode.auto)
         area_id = new_id()
         history_messages = [
             HumanMessage(content="Hello"),
@@ -143,12 +189,10 @@ class TestInterviewResponse:
             next_uncovered="Experience",
         )
 
-        state = ResponseState(
+        state = _create_state(
+            user=user,
             area_id=area_id,
-            extract_data_tasks=asyncio.Queue(),
             messages=history_messages,
-            messages_to_save={},
-            was_covered=False,
             criteria_analysis=analysis,
         )
 
@@ -170,14 +214,13 @@ class TestInterviewResponse:
     async def test_interview_response_requires_analysis(self):
         """Verify null check raises ValueError when criteria_analysis is None."""
         # Arrange
+        user = User(id=new_id(), mode=InputMode.auto)
         area_id = new_id()
 
-        state = ResponseState(
+        state = _create_state(
+            user=user,
             area_id=area_id,
-            extract_data_tasks=asyncio.Queue(),
             messages=[HumanMessage(content="Hello")],
-            messages_to_save={},
-            was_covered=False,
             criteria_analysis=None,  # Explicitly None
         )
 

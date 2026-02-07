@@ -1,22 +1,12 @@
 import asyncio
 import logging
-import os
-import tempfile
 import unicodedata
 import uuid
 
-from langchain_core.messages import BaseMessage
-
-from src.application.graph import get_graph
-from src.application.state import State, Target
-from src.config.settings import MAX_TOKENS_STRUCTURED, MODEL_EXTRACT_DATA
-from src.domain import ClientMessage, ExtractDataTask, InputMode, User
-from src.infrastructure.ai import NewAI
+from src.application.workers import Runtime
+from src.domain import ClientMessage, InputMode, User
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
-from src.shared.utils.content import normalize_content
-from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
-from src.workflows.subgraphs.extract_data.state import ExtractDataState
 
 logger = logging.getLogger(__name__)
 
@@ -53,84 +43,24 @@ def ensure_user(user_id: uuid.UUID) -> User:
     return user_obj
 
 
-def get_current_area_id(user_id: uuid.UUID) -> uuid.UUID | None:
-    """Get user's current_area_id from database."""
-    db_user = db.UsersManager.get_by_id(user_id)
-    if db_user is not None:
-        return db_user.current_area_id
-    return None
-
-
-def format_ai_response(messages: list[BaseMessage]) -> str:
-    if not messages:
-        return ""
-    last_msg = messages[-1]
-    return normalize_content(last_msg.content)
-
-
-async def run_graph(state: State) -> dict:
-    graph = get_graph()
-    result = await graph.ainvoke(state)
-    if isinstance(result, dict):
-        return result
-    return result.model_dump()
-
-
-def _build_extract_graph():
-    """Build the extract data graph with configured LLM."""
-    return build_extract_data_graph(
-        NewAI(MODEL_EXTRACT_DATA, max_tokens=MAX_TOKENS_STRUCTURED).build()
-    )
-
-
-async def _process_single_extract_task(extract_graph, task: ExtractDataTask) -> None:
-    """Process a single extract_data task."""
-    logger.info(
-        "Processing extract_data task",
-        extra={"area_id": str(task.area_id), "user_id": str(task.user_id)},
-    )
-    state = ExtractDataState(area_id=task.area_id, user_id=task.user_id)
-    await extract_graph.ainvoke(state)
-    logger.info(
-        "Completed extract_data task",
-        extra={"area_id": str(task.area_id), "user_id": str(task.user_id)},
-    )
-
-
-async def _process_queue_item(
-    extract_graph, queue: asyncio.Queue[ExtractDataTask]
-) -> bool:
-    """Process one queue item. Returns False to stop the loop."""
-    task = None
+async def _prompt_user_input() -> str | None:
+    """Prompt for user input without blocking the event loop."""
+    loop = asyncio.get_event_loop()
     try:
-        task = await queue.get()
-        await _process_single_extract_task(extract_graph, task)
-    except asyncio.CancelledError:
-        logger.info("Extract data task processor cancelled")
-        return False
-    except Exception:
-        logger.exception("Error processing extract_data task")
-    finally:
-        if task is not None:
-            queue.task_done()
-    return True
-
-
-async def process_extract_data_tasks(queue: asyncio.Queue[ExtractDataTask]) -> None:
-    """Background task that processes extract_data_tasks queue."""
-    extract_graph = _build_extract_graph()
-    while await _process_queue_item(extract_graph, queue):
-        pass
-
-
-def _prompt_user_input() -> str | None:
-    try:
-        return input("> ").strip()
+        user_input = await loop.run_in_executor(None, input, "> ")
+        return user_input.strip()
     except EOFError:
         return None
 
 
 def _handle_command(user_input: str) -> bool | None:
+    """Handle CLI commands.
+
+    Returns:
+        True: exit command
+        None: command handled (help) or empty input, continue loop
+        False: not a command, process as message
+    """
     if not user_input:
         return None
     if user_input == "/exit":
@@ -146,6 +76,7 @@ def _normalize_user_input(user_input: str) -> str:
 
 
 def _validate_user_input(user_input: str) -> str | None:
+    """Validate user input. Returns error message or None if valid."""
     if not user_input:
         return "Please type your message"
     if len(user_input) > MAX_MESSAGE_LENGTH:
@@ -158,108 +89,24 @@ def _validate_user_input(user_input: str) -> str | None:
     return None
 
 
-def _create_state_with_tempfiles(
-    user_obj: User,
-    user_input: str,
-    current_area_id: uuid.UUID | None,
-    extract_data_tasks: asyncio.Queue[uuid.UUID],
-) -> tuple[State, list[tempfile.NamedTemporaryFile]]:
-    media_tmp = tempfile.NamedTemporaryFile(delete=False)
-    audio_tmp = tempfile.NamedTemporaryFile(delete=False)
-    # Use current_area_id if set, otherwise generate a new one
-    area_id = current_area_id if current_area_id is not None else new_id()
-    state = State(
-        user=user_obj,
-        message=ClientMessage(data=user_input),
-        media_file=media_tmp.name,
-        audio_file=audio_tmp.name,
-        text=user_input,
-        target=Target.interview,
-        messages=[],
-        messages_to_save={},
-        success=None,
-        area_id=area_id,
-        extract_data_tasks=extract_data_tasks,
-        was_covered=False,
-    )
-    return state, [media_tmp, audio_tmp]
-
-
-def _cleanup_tempfiles(tempfiles: list[tempfile.NamedTemporaryFile]) -> None:
-    """Close and delete temporary files."""
-    for temp_file in tempfiles:
-        try:
-            temp_file.close()
-        except Exception:
-            logger.debug("Failed to close temp file", exc_info=True)
-        try:
-            os.unlink(temp_file.name)
-        except OSError:
-            logger.debug("Failed to delete temp file %s", temp_file.name)
-
-
-async def _handle_message(
-    user_obj: User,
-    user_input: str,
-    current_area_id: uuid.UUID | None,
-    extract_data_tasks: asyncio.Queue[uuid.UUID],
-) -> str:
+async def _process_user_input(user_input: str, runtime: Runtime) -> None:
+    """Process a single user input and print the response."""
     normalized_input = _normalize_user_input(user_input).strip()
     validation_error = _validate_user_input(normalized_input)
     if validation_error:
-        logger.info(
-            "Rejected user input",
-            extra={"user_id": str(user_obj.id), "length": len(normalized_input)},
-        )
-        return f"Error: {validation_error}"
+        logger.info("Rejected user input", extra={"length": len(normalized_input)})
+        print(f"Error: {validation_error}")
+        return
 
-    return await _process_validated_message(
-        user_obj, normalized_input, current_area_id, extract_data_tasks
-    )
+    msg = ClientMessage(data=normalized_input)
+    response = await runtime.send_and_receive(msg)
+    print(response)
 
 
-async def _process_validated_message(
-    user_obj: User,
-    user_input: str,
-    current_area_id: uuid.UUID | None,
-    extract_data_tasks: asyncio.Queue[uuid.UUID],
-) -> str:
-    state, tempfiles = _create_state_with_tempfiles(
-        user_obj, user_input, current_area_id, extract_data_tasks
-    )
-    try:
-        logger.info(
-            "Processing user message",
-            extra={"user_id": str(user_obj.id), "length": len(user_input)},
-        )
-        result = await run_graph(state)
-    except RuntimeError as exc:
-        if "OPENROUTER_API_KEY" in str(exc):
-            raise RuntimeError("Set OPENROUTER_API_KEY environment variable") from exc
-        raise
-    finally:
-        _cleanup_tempfiles(tempfiles)
-
-    messages: list[BaseMessage] = result.get("messages", [])
-    return format_ai_response(messages) or "(no response)"
-
-
-async def _process_user_input(
-    user_obj: User, user_input: str, extract_data_tasks: asyncio.Queue[uuid.UUID]
-) -> None:
-    """Process a single user input and print the response."""
-    # Fetch current_area_id fresh (may change via set_current_area tool)
-    current_area_id = get_current_area_id(user_obj.id)
-    ai_response = await _handle_message(
-        user_obj, user_input, current_area_id, extract_data_tasks
-    )
-    print(ai_response)
-
-
-async def _run_cli_loop(user_obj: User, extract_data_tasks: asyncio.Queue) -> None:
+async def _run_cli_loop(runtime: Runtime) -> None:
     """Main CLI input loop."""
     while True:
-        user_input = _prompt_user_input()
+        user_input = await _prompt_user_input()
         if user_input is None:
             break
         command_result = _handle_command(user_input)
@@ -267,28 +114,15 @@ async def _run_cli_loop(user_obj: User, extract_data_tasks: asyncio.Queue) -> No
             break
         if command_result is None:
             continue
-        await _process_user_input(user_obj, user_input, extract_data_tasks)
-
-
-async def _cancel_task(task: asyncio.Task) -> None:
-    """Cancel a task and wait for it to finish."""
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+        await _process_user_input(user_input, runtime)
 
 
 async def run_cli_async(user_id: uuid.UUID) -> None:
+    """Run the CLI session."""
     user_obj = ensure_user(user_id)
     logger.info("Starting CLI session", extra={"user_id": str(user_obj.id)})
     print(f"User: {user_obj.id}")
     print("Type /help for commands.\n")
 
-    extract_data_tasks: asyncio.Queue[ExtractDataTask] = asyncio.Queue()
-    processor_task = asyncio.create_task(process_extract_data_tasks(extract_data_tasks))
-
-    try:
-        await _run_cli_loop(user_obj, extract_data_tasks)
-    finally:
-        await _cancel_task(processor_task)
+    async with Runtime(user_obj) as runtime:
+        await _run_cli_loop(runtime)

@@ -1,47 +1,43 @@
-import asyncio
 import json
 import logging
-import uuid
-from typing import Annotated
 
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
-from langgraph.graph.message import add_messages
-from pydantic import BaseModel, ConfigDict
 
-from src.domain import ExtractDataTask, User
+from src.application.state import State
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.interview_models import CriteriaAnalysis
-from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 from src.shared.timestamp import get_timestamp
 from src.shared.utils.content import normalize_content
 
 logger = logging.getLogger(__name__)
 
+# Need at least 2 messages to have a preceding AI question before user answer
+_MIN_MESSAGES_FOR_CONTEXT = 2
 
-class State(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    user: User
-    area_id: uuid.UUID
-    extract_data_tasks: asyncio.Queue[ExtractDataTask]
-    messages: Annotated[list[BaseMessage], add_messages]
-    messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
-    success: bool | None = None
-    was_covered: bool
-    criteria_analysis: CriteriaAnalysis | None = None
+def _format_qa_data(messages: list[BaseMessage]) -> str:
+    """Format user answer with preceding AI question for criteria coverage context."""
+    user_content = normalize_content(messages[-1].content)
+
+    # Include preceding AI question so LLM understands what user was responding to
+    has_preceding_message = len(messages) >= _MIN_MESSAGES_FOR_CONTEXT
+    if has_preceding_message and isinstance(messages[-2], AIMessage):
+        ai_content = normalize_content(messages[-2].content)
+        return f"AI: {ai_content}\nUser: {user_content}"
+
+    return f"User: {user_content}"
 
 
 async def interview_analysis(state: State, llm: ChatOpenAI):
     """Analyze criteria coverage without generating response."""
     area_id = state.area_id
-    message_content = normalize_content(state.messages[-1].content)
 
-    # Save user message to area messages
+    # Save answer with question context for criteria coverage analysis
     last_area_msg = db.LifeAreaMessage(
         id=new_id(),
-        data=message_content,
+        data=_format_qa_data(state.messages),
         area_id=area_id,
         created_ts=get_timestamp(),
     )
@@ -57,10 +53,6 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
 
     # Analyze coverage (structured output)
     analysis = await _analyze_coverage(area_msgs, area_criteria, llm)
-
-    if analysis.all_covered:
-        task = ExtractDataTask(area_id=area_id, user_id=state.user.id)
-        await state.extract_data_tasks.put(task)
 
     logger.info(
         "Interview criteria analyzed",

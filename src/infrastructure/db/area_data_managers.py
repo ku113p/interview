@@ -1,11 +1,11 @@
-"""Area data repository managers: LifeAreaMessages, ExtractedData, AreaSummaries."""
+"""Area data repository managers: LifeAreaMessages and AreaSummaries."""
 
 import sqlite3
 import uuid
 from typing import Any
 
 from .base import AreaFilterMixin, BaseModel
-from .models import AreaSummary, ExtractedData, LifeAreaMessage
+from .models import AreaSummary, LifeAreaMessage
 
 
 class LifeAreaMessagesManager(
@@ -40,47 +40,6 @@ class LifeAreaMessagesManager(
             "id": str(data.id),
             "data": data.data,
             "area_id": str(data.area_id),
-            "created_ts": data.created_ts,
-        }
-
-
-class ExtractedDataManager(BaseModel[ExtractedData], AreaFilterMixin[ExtractedData]):
-    _table = "extracted_data"
-    _columns = ("id", "area_id", "data", "created_ts")
-
-    @classmethod
-    def list_by_area(
-        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
-    ) -> list[ExtractedData]:
-        return cls._list_by_column(
-            "area_id",
-            str(area_id),
-            conn,
-            order_by="created_ts DESC",
-        )
-
-    @classmethod
-    def get_latest_by_area(
-        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
-    ) -> ExtractedData | None:
-        results = cls.list_by_area(area_id, conn)
-        return results[0] if results else None
-
-    @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> ExtractedData:
-        return ExtractedData(
-            id=uuid.UUID(row["id"]),
-            area_id=uuid.UUID(row["area_id"]),
-            data=row["data"],
-            created_ts=row["created_ts"],
-        )
-
-    @classmethod
-    def _obj_to_row(cls, data: ExtractedData) -> dict[str, Any]:
-        return {
-            "id": str(data.id),
-            "area_id": str(data.area_id),
-            "data": data.data,
             "created_ts": data.created_ts,
         }
 

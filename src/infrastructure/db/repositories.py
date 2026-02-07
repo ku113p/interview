@@ -7,7 +7,6 @@ This module provides backward-compatible imports for all database entities.
 # Area Data Managers
 from .area_data_managers import (
     AreaSummariesManager,
-    ExtractedDataManager,
     LifeAreaMessagesManager,
 )
 
@@ -27,7 +26,6 @@ from .knowledge_managers import (
 from .models import (
     AreaSummary,
     Criteria,
-    ExtractedData,
     History,
     LifeArea,
     LifeAreaMessage,
@@ -40,7 +38,6 @@ __all__ = [
     # Models
     "AreaSummary",
     "Criteria",
-    "ExtractedData",
     "History",
     "LifeArea",
     "LifeAreaMessage",
@@ -50,7 +47,6 @@ __all__ = [
     # Managers
     "AreaSummariesManager",
     "CriteriaManager",
-    "ExtractedDataManager",
     "HistoryManager",
     "LifeAreaManager",
     "LifeAreaMessagesManager",

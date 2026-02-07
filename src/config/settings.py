@@ -41,6 +41,10 @@ MODEL_KNOWLEDGE_EXTRACTION = MODEL_NAME_FLASH  # Knowledge extraction from summa
 EMBEDDING_MODEL = "openai/text-embedding-3-small"  # Via OpenRouter
 EMBEDDING_DIMENSIONS = 1536
 
+# Worker Pool Configuration
+WORKER_POOL_GRAPH = 2  # Concurrent graph workers
+WORKER_POOL_EXTRACT = 2  # Concurrent extract workers
+
 
 def load_api_key() -> str:
     """Load and validate OpenRouter API key from environment.

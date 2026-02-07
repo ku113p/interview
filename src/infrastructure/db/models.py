@@ -44,14 +44,6 @@ class LifeAreaMessage:
 
 
 @dataclass
-class ExtractedData:
-    id: uuid.UUID
-    area_id: uuid.UUID
-    data: str
-    created_ts: float
-
-
-@dataclass
 class AreaSummary:
     id: uuid.UUID
     area_id: uuid.UUID

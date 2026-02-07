@@ -1,6 +1,7 @@
 """Unit tests for session helpers."""
 
-from src.adapters.cli.session import ensure_user, get_current_area_id
+from src.adapters.cli.session import ensure_user
+from src.application.workers.graph_worker import _get_current_area_id
 from src.domain.models import InputMode
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
@@ -49,7 +50,7 @@ class TestEnsureUser:
 
 
 class TestGetCurrentAreaId:
-    """Test the get_current_area_id function."""
+    """Test the _get_current_area_id function."""
 
     def test_returns_current_area_when_set(self, temp_db):
         """Should return user's current_area_id when set."""
@@ -78,7 +79,7 @@ class TestGetCurrentAreaId:
         )
 
         # Act
-        current_area_id = get_current_area_id(user_id)
+        current_area_id = _get_current_area_id(user_id)
 
         # Assert
         assert current_area_id == area_id
@@ -98,7 +99,7 @@ class TestGetCurrentAreaId:
         )
 
         # Act
-        current_area_id = get_current_area_id(user_id)
+        current_area_id = _get_current_area_id(user_id)
 
         # Assert
         assert current_area_id is None
@@ -109,7 +110,7 @@ class TestGetCurrentAreaId:
         user_id = new_id()
 
         # Act
-        current_area_id = get_current_area_id(user_id)
+        current_area_id = _get_current_area_id(user_id)
 
         # Assert
         assert current_area_id is None

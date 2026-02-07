@@ -35,7 +35,6 @@ __all__ = [
     "extract_knowledge",
     "extract_summaries",
     "load_area_data",
-    "save_extracted_data",
     "save_knowledge",
     "save_summary",
 ]
@@ -136,32 +135,6 @@ async def extract_summaries(state: ExtractDataState, llm: ChatOpenAI) -> dict:
         return {"success": False}
 
 
-async def save_extracted_data(state: ExtractDataState) -> dict:
-    """Save extracted data to the database (deprecated, kept for compatibility).
-
-    Note: This function is deprecated. Use save_summary instead.
-    The success/summary check is now handled by the router.
-    """
-    data_id = new_id()
-    extracted = db.ExtractedData(
-        id=data_id,
-        area_id=state.area_id,
-        data=json.dumps(state.extracted_summary),
-        created_ts=get_timestamp(),
-    )
-    db.ExtractedDataManager.create(data_id, extracted)
-
-    logger.info(
-        "Saved extracted data",
-        extra={
-            "area_id": str(state.area_id),
-            "data_id": str(data_id),
-        },
-    )
-
-    return {}
-
-
 def _build_summary_content(extracted_summary: dict[str, str]) -> str:
     """Combine extracted summaries into a single text for embedding."""
     parts = []
@@ -193,7 +166,14 @@ async def save_summary(state: ExtractDataState) -> dict:
         return {"summary_content": ""}
 
     embed_client = get_embedding_client()
-    embedding = await embed_client.aembed_query(summary_content)
+    try:
+        embedding = await embed_client.aembed_query(summary_content)
+    except Exception:
+        logger.exception(
+            "Failed to generate embedding for summary",
+            extra={"area_id": str(state.area_id)},
+        )
+        return {"summary_content": ""}
 
     summary_id = new_id()
     area_summary = db.AreaSummary(

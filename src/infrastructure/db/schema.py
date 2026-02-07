@@ -66,16 +66,6 @@ def init_schema(conn: sqlite3.Connection, db_path: str) -> None:
                 ON life_area_messages(area_id);
             CREATE INDEX IF NOT EXISTS life_area_messages_created_ts_idx
                 ON life_area_messages(created_ts);
-            CREATE TABLE IF NOT EXISTS extracted_data (
-                id TEXT PRIMARY KEY,
-                area_id TEXT NOT NULL,
-                data TEXT NOT NULL,
-                created_ts REAL NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS extracted_data_area_id_idx
-                ON extracted_data(area_id);
-            CREATE INDEX IF NOT EXISTS extracted_data_created_ts_idx
-                ON extracted_data(created_ts);
             CREATE TABLE IF NOT EXISTS area_summaries (
                 id TEXT PRIMARY KEY,
                 area_id TEXT NOT NULL,

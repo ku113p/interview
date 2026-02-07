@@ -1,6 +1,5 @@
 """Unit tests for State model file handling."""
 
-import asyncio
 import tempfile
 from pathlib import Path
 
@@ -33,7 +32,6 @@ class TestStateFileHandling:
             messages_to_save={},
             success=None,
             area_id=new_id(),
-            extract_data_tasks=asyncio.Queue(),
             was_covered=False,
         )
 
@@ -61,7 +59,6 @@ class TestStateFileHandling:
             messages_to_save={},
             success=None,
             area_id=new_id(),
-            extract_data_tasks=asyncio.Queue(),
             was_covered=False,
         )
 
@@ -93,7 +90,6 @@ class TestStateFileHandling:
                 messages_to_save={},
                 success=None,
                 area_id=new_id(),
-                extract_data_tasks=asyncio.Queue(),
                 was_covered=False,
             )
 
@@ -126,7 +122,6 @@ class TestStateFileHandling:
             messages_to_save={},
             success=None,
             area_id=new_id(),
-            extract_data_tasks=asyncio.Queue(),
             was_covered=False,
         )
 

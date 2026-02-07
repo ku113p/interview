@@ -1,31 +1,13 @@
-import asyncio
 import logging
-import uuid
-from typing import Annotated
 
-from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
-from langgraph.graph.message import add_messages
-from pydantic import BaseModel, ConfigDict
 
+from src.application.state import State
 from src.config.settings import HISTORY_LIMIT_INTERVIEW
-from src.shared.interview_models import CriteriaAnalysis
-from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 from src.shared.timestamp import get_timestamp
 
 logger = logging.getLogger(__name__)
-
-
-class State(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    area_id: uuid.UUID
-    extract_data_tasks: asyncio.Queue[uuid.UUID]
-    messages: Annotated[list[BaseMessage], add_messages]
-    messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
-    success: bool | None = None
-    was_covered: bool
-    criteria_analysis: CriteriaAnalysis | None = None
 
 
 async def interview_response(state: State, llm: ChatOpenAI):
