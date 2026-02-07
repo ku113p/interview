@@ -1,7 +1,6 @@
 """Unit tests for message bucket utilities."""
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-
 from src.shared.message_buckets import merge_message_buckets
 
 

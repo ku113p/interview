@@ -4,7 +4,6 @@ import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from src.infrastructure.db import repositories as db
 from src.workflows.subgraphs.extract_data.nodes import (
     CriterionSummary,

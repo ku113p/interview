@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
-
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.interview_models import CriteriaAnalysis, CriterionCoverage

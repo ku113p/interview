@@ -1,0 +1,8 @@
+# Extend parent configuration with relaxed limits for tests
+extend = "../pyproject.toml"
+
+[lint.per-file-ignores]
+"**" = ["PLR2004"]
+
+[lint.pylint]
+max-statements = 20

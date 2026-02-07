@@ -6,7 +6,6 @@ import uuid
 from typing import Generator
 
 import pytest
-
 from src.domain.models import InputMode, User
 
 

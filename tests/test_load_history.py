@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-
 from src.domain.models import InputMode, User
 from src.infrastructure.db import repositories as db
 from src.workflows.nodes.processing.load_history import (

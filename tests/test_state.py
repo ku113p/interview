@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage
-
 from src.application.state import State, Target
 from src.domain import ClientMessage, InputMode, User
 from src.shared.ids import new_id

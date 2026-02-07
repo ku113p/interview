@@ -1,7 +1,6 @@
 """Unit tests for area tools."""
 
 import pytest
-
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.workflows.subgraphs.area_loop.tools import CurrentAreaMethods

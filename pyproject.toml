@@ -32,9 +32,6 @@ target-version = "py312"
 select = ["F", "I"]
 extend-select = ["PLR"]
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**" = ["PLR2004", "PLR0915"]
-
 [tool.ruff.lint.pylint]
 max-statements = 15
 
