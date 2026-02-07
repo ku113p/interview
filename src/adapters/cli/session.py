@@ -9,14 +9,11 @@ from langchain_core.messages import BaseMessage
 
 from src.application.graph import get_graph
 from src.application.state import State, Target
-from src.config.settings import MAX_TOKENS_STRUCTURED, MODEL_EXTRACT_DATA
+from src.application.task_processor import run_task_processor
 from src.domain import ClientMessage, ExtractDataTask, InputMode, User
-from src.infrastructure.ai import NewAI
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.utils.content import normalize_content
-from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
-from src.workflows.subgraphs.extract_data.state import ExtractDataState
 
 logger = logging.getLogger(__name__)
 
@@ -74,53 +71,6 @@ async def run_graph(state: State) -> dict:
     if isinstance(result, dict):
         return result
     return result.model_dump()
-
-
-def _build_extract_graph():
-    """Build the extract data graph with configured LLM."""
-    return build_extract_data_graph(
-        NewAI(MODEL_EXTRACT_DATA, max_tokens=MAX_TOKENS_STRUCTURED).build()
-    )
-
-
-async def _process_single_extract_task(extract_graph, task: ExtractDataTask) -> None:
-    """Process a single extract_data task."""
-    logger.info(
-        "Processing extract_data task",
-        extra={"area_id": str(task.area_id), "user_id": str(task.user_id)},
-    )
-    state = ExtractDataState(area_id=task.area_id, user_id=task.user_id)
-    await extract_graph.ainvoke(state)
-    logger.info(
-        "Completed extract_data task",
-        extra={"area_id": str(task.area_id), "user_id": str(task.user_id)},
-    )
-
-
-async def _process_queue_item(
-    extract_graph, queue: asyncio.Queue[ExtractDataTask]
-) -> bool:
-    """Process one queue item. Returns False to stop the loop."""
-    task = None
-    try:
-        task = await queue.get()
-        await _process_single_extract_task(extract_graph, task)
-    except asyncio.CancelledError:
-        logger.info("Extract data task processor cancelled")
-        return False
-    except Exception:
-        logger.exception("Error processing extract_data task")
-    finally:
-        if task is not None:
-            queue.task_done()
-    return True
-
-
-async def process_extract_data_tasks(queue: asyncio.Queue[ExtractDataTask]) -> None:
-    """Background task that processes extract_data_tasks queue."""
-    extract_graph = _build_extract_graph()
-    while await _process_queue_item(extract_graph, queue):
-        pass
 
 
 def _prompt_user_input() -> str | None:
@@ -286,7 +236,7 @@ async def run_cli_async(user_id: uuid.UUID) -> None:
     print("Type /help for commands.\n")
 
     extract_data_tasks: asyncio.Queue[ExtractDataTask] = asyncio.Queue()
-    processor_task = asyncio.create_task(process_extract_data_tasks(extract_data_tasks))
+    processor_task = asyncio.create_task(run_task_processor(extract_data_tasks))
 
     try:
         await _run_cli_loop(user_obj, extract_data_tasks)
