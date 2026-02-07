@@ -75,17 +75,22 @@ def _normalize_user_input(user_input: str) -> str:
     return unicodedata.normalize("NFKC", user_input)
 
 
+def _has_control_chars(user_input: str) -> bool:
+    """Check if input contains disallowed control characters."""
+    return any(
+        ord(char) < MIN_PRINTABLE_CHAR and char not in {"\n", "\r", "\t"}
+        for char in user_input
+    )
+
+
 def _validate_user_input(user_input: str) -> str | None:
     """Validate user input. Returns error message or None if valid."""
     if not user_input:
         return "Please type your message"
     if len(user_input) > MAX_MESSAGE_LENGTH:
         return f"Message too long: {len(user_input)}/{MAX_MESSAGE_LENGTH} chars"
-    if "\x00" in user_input:
-        return "No null characters allowed"
-    for char in user_input:
-        if ord(char) < MIN_PRINTABLE_CHAR and char not in {"\n", "\r", "\t"}:
-            return "No control characters allowed"
+    if "\x00" in user_input or _has_control_chars(user_input):
+        return "No control characters allowed"
     return None
 
 

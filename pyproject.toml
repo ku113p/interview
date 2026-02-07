@@ -30,11 +30,18 @@ dev = [
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["F", "I"]
+select = ["F", "I", "C90"]
 extend-select = ["PLR"]
 
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
 [tool.ruff.lint.pylint]
+max-args = 6
+max-branches = 8
+max-returns = 4
 max-statements = 15
+max-nested-blocks = 3
 
 
 [tool.vulture]
