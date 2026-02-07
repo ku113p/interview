@@ -1,30 +1,161 @@
-"""Area loop tools and tool registry."""
+"""Area loop tools, schemas, and tool registry."""
 
+import inspect
 import logging
 import sqlite3
+import uuid
+from functools import wraps
+from typing import Callable
 
 from langchain.tools import tool
 from langchain_core.messages.tool import ToolCall
+from pydantic import BaseModel, Field
 
 from src.infrastructure.db import repositories as db
 
 from .methods import CriteriaMethods, CurrentAreaMethods, LifeAreaMethods
-from .schemas import (
-    CreateCriteriaArgs,
-    CreateLifeAreaArgs,
-    DeleteCriteriaArgs,
-    DeleteLifeAreaArgs,
-    GetLifeAreaArgs,
-    ListCriteriaArgs,
-    ListLifeAreasArgs,
-    SetCurrentAreaArgs,
-)
-from .validators import validate_uuid_args
 
 logger = logging.getLogger(__name__)
 
 
+# -----------------------------------------------------------------------------
+# Argument Schemas
+# -----------------------------------------------------------------------------
+
+
+class ListLifeAreasArgs(BaseModel):
+    """Arguments for listing life areas."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+
+
+class GetLifeAreaArgs(BaseModel):
+    """Arguments for getting a single life area."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    area_id: str = Field(..., description="UUID of the life area to fetch")
+
+
+class CreateLifeAreaArgs(BaseModel):
+    """Arguments for creating a life area."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    title: str = Field(..., description="Title/name for the new life area")
+    parent_id: str | None = Field(
+        None,
+        description="Optional UUID of parent life area for hierarchical organization",
+    )
+
+
+class DeleteLifeAreaArgs(BaseModel):
+    """Arguments for deleting a life area."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    area_id: str = Field(..., description="UUID of the life area to delete")
+
+
+class ListCriteriaArgs(BaseModel):
+    """Arguments for listing criteria."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    area_id: str = Field(
+        ...,
+        description="UUID of the life area. Use 'list_life_areas' first if you don't have the ID.",
+    )
+
+
+class CreateCriteriaArgs(BaseModel):
+    """Arguments for creating a criteria item."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    area_id: str = Field(
+        ...,
+        description="UUID of the life area. Call 'list_life_areas' to get available area IDs, then extract the 'id' field from the response.",
+    )
+    title: str = Field(..., description="Title/name for the new criteria item")
+
+
+class DeleteCriteriaArgs(BaseModel):
+    """Arguments for deleting a criteria item."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    criteria_id: str = Field(..., description="UUID of the criteria item to delete")
+
+
+class SetCurrentAreaArgs(BaseModel):
+    """Arguments for setting the current area for interview."""
+
+    user_id: str = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    area_id: str = Field(
+        ...,
+        description="UUID of the life area to set as current for interview",
+    )
+
+
+# -----------------------------------------------------------------------------
+# UUID Validation
+# -----------------------------------------------------------------------------
+
+
+def _validate_uuid(value: str | None, name: str) -> None:
+    if value is None:
+        return
+    try:
+        uuid.UUID(value)
+    except ValueError as exc:
+        logger.warning("Invalid UUID input", extra={"param": name})
+        raise ValueError(f"Invalid UUID for {name}: {value}") from exc
+
+
+def validate_uuid_args(*param_names: str) -> Callable:
+    """Decorator to validate UUID string arguments."""
+
+    def decorator(func: Callable) -> Callable:
+        sig = inspect.signature(func)
+        param_list = list(sig.parameters.keys())
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Validate keyword arguments
+            for name in param_names:
+                if name in kwargs:
+                    _validate_uuid(kwargs[name], name)
+
+            # Validate positional arguments
+            for i, arg in enumerate(args):
+                if i < len(param_list) and param_list[i] in param_names:
+                    _validate_uuid(arg, param_list[i])
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+# -----------------------------------------------------------------------------
+# Tool Calling
+# -----------------------------------------------------------------------------
+
+
 async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None):
+    """Execute a tool call by name with given arguments."""
     tool_name = tool_call["name"]
     tool_args = dict(tool_call.get("args", {}) or {})
     tool_args.pop("conn", None)
@@ -42,6 +173,11 @@ async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None)
         },
     )
     return tool_fn(**tool_args, conn=conn)
+
+
+# -----------------------------------------------------------------------------
+# Tool Definitions
+# -----------------------------------------------------------------------------
 
 
 @tool(args_schema=ListLifeAreasArgs)

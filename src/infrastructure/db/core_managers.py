@@ -5,7 +5,7 @@ import sqlite3
 import uuid
 from typing import Any
 
-from .base import AreaFilterMixin, BaseModel, UserFilterMixin
+from .base import BaseModel
 from .models import Criteria, History, LifeArea, User
 
 
@@ -35,9 +35,10 @@ class UsersManager(BaseModel[User]):
         }
 
 
-class HistoryManager(BaseModel[History], UserFilterMixin[History]):
+class HistoryManager(BaseModel[History]):
     _table = "histories"
     _columns = ("id", "data", "user_id", "created_ts")
+    _user_column = "user_id"
 
     @classmethod
     def _row_to_obj(cls, row: sqlite3.Row) -> History:
@@ -58,9 +59,10 @@ class HistoryManager(BaseModel[History], UserFilterMixin[History]):
         }
 
 
-class LifeAreaManager(BaseModel[LifeArea], UserFilterMixin[LifeArea]):
+class LifeAreaManager(BaseModel[LifeArea]):
     _table = "life_areas"
     _columns = ("id", "title", "parent_id", "user_id")
+    _user_column = "user_id"
 
     @classmethod
     def _row_to_obj(cls, row: sqlite3.Row) -> LifeArea:
@@ -82,9 +84,10 @@ class LifeAreaManager(BaseModel[LifeArea], UserFilterMixin[LifeArea]):
         }
 
 
-class CriteriaManager(BaseModel[Criteria], AreaFilterMixin[Criteria]):
+class CriteriaManager(BaseModel[Criteria]):
     _table = "criteria"
     _columns = ("id", "title", "area_id")
+    _area_column = "area_id"
 
     @classmethod
     def _row_to_obj(cls, row: sqlite3.Row) -> Criteria:

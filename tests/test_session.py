@@ -1,7 +1,7 @@
 """Unit tests for session helpers."""
 
 from src.adapters.cli.session import ensure_user
-from src.application.workers.graph_worker import _get_current_area_id
+from src.application.workers.workers import _get_current_area_id
 from src.domain.models import InputMode
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id

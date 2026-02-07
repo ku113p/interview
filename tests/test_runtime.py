@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 from src.application.workers import Runtime
-from src.application.workers.channels import Channels
+from src.application.workers.workers import Channels
 from src.domain import ClientMessage, InputMode, User
 
 

@@ -4,15 +4,29 @@ import sqlite3
 import uuid
 from typing import Any
 
-from .base import AreaFilterMixin, BaseModel
+from .base import BaseModel
 from .models import AreaSummary, LifeAreaMessage
 
 
-class LifeAreaMessagesManager(
-    BaseModel[LifeAreaMessage], AreaFilterMixin[LifeAreaMessage]
-):
+def _serialize_vector(vector: list[float]) -> bytes:
+    """Serialize embedding vector to bytes for storage."""
+    import struct
+
+    return struct.pack(f"{len(vector)}f", *vector)
+
+
+def _deserialize_vector(data: bytes) -> list[float]:
+    """Deserialize bytes back to embedding vector."""
+    import struct
+
+    count = len(data) // 4  # float is 4 bytes
+    return list(struct.unpack(f"{count}f", data))
+
+
+class LifeAreaMessagesManager(BaseModel[LifeAreaMessage]):
     _table = "life_area_messages"
     _columns = ("id", "data", "area_id", "created_ts")
+    _area_column = "area_id"
 
     @classmethod
     def list_by_area(
@@ -44,24 +58,10 @@ class LifeAreaMessagesManager(
         }
 
 
-def _serialize_vector(vector: list[float]) -> bytes:
-    """Serialize embedding vector to bytes for storage."""
-    import struct
-
-    return struct.pack(f"{len(vector)}f", *vector)
-
-
-def _deserialize_vector(data: bytes) -> list[float]:
-    """Deserialize bytes back to embedding vector."""
-    import struct
-
-    count = len(data) // 4  # float is 4 bytes
-    return list(struct.unpack(f"{count}f", data))
-
-
-class AreaSummariesManager(BaseModel[AreaSummary], AreaFilterMixin[AreaSummary]):
+class AreaSummariesManager(BaseModel[AreaSummary]):
     _table = "area_summaries"
     _columns = ("id", "area_id", "content", "vector", "created_ts")
+    _area_column = "area_id"
 
     @classmethod
     def list_by_area(

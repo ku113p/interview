@@ -1,22 +1,11 @@
-"""Base ORM framework classes and mixins."""
+"""Base ORM framework classes."""
 
 import sqlite3
 import uuid
-from typing import Any, Generic, Protocol, TypeVar, cast
+from typing import Any, Generic, TypeVar
 
 # Define a TypeVar that represents our Data Objects
 T = TypeVar("T")
-
-
-class _ColumnFilterable(Protocol[T]):
-    @classmethod
-    def _list_by_column(
-        cls,
-        column: str,
-        value: str,
-        conn: sqlite3.Connection | None = None,
-        order_by: str | None = None,
-    ) -> list[T]: ...
 
 
 class BaseModel(Generic[T]):
@@ -24,6 +13,8 @@ class BaseModel(Generic[T]):
 
     _table: str
     _columns: tuple[str, ...]
+    _user_column: str | None = None  # Set to enable list_by_user
+    _area_column: str | None = None  # Set to enable list_by_area
 
     @classmethod
     def _row_to_obj(cls, row: sqlite3.Row) -> T:
@@ -55,6 +46,24 @@ class BaseModel(Generic[T]):
         else:
             rows = conn.execute(query, (value,)).fetchall()
         return [cls._row_to_obj(row) for row in rows]
+
+    @classmethod
+    def list_by_user(
+        cls, user_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    ) -> list[T]:
+        """List objects by user_id. Requires _user_column to be set."""
+        if cls._user_column is None:
+            raise NotImplementedError(f"{cls.__name__} does not support list_by_user")
+        return cls._list_by_column(cls._user_column, str(user_id), conn)
+
+    @classmethod
+    def list_by_area(
+        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    ) -> list[T]:
+        """List objects by area_id. Requires _area_column to be set."""
+        if cls._area_column is None:
+            raise NotImplementedError(f"{cls.__name__} does not support list_by_area")
+        return cls._list_by_column(cls._area_column, str(area_id), conn)
 
     @classmethod
     def get_by_id(
@@ -155,25 +164,3 @@ class BaseModel(Generic[T]):
                     local_conn.commit()
         else:
             conn.execute(query, (str(id),))
-
-
-class UserFilterMixin(Generic[T]):
-    """Mixin for models that support filtering by user_id."""
-
-    @classmethod
-    def list_by_user(
-        cls, user_id: uuid.UUID, conn: sqlite3.Connection | None = None
-    ) -> list[T]:
-        model = cast(_ColumnFilterable[T], cls)
-        return model._list_by_column("user_id", str(user_id), conn)
-
-
-class AreaFilterMixin(Generic[T]):
-    """Mixin for models that support filtering by area_id."""
-
-    @classmethod
-    def list_by_area(
-        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
-    ) -> list[T]:
-        model = cast(_ColumnFilterable[T], cls)
-        return model._list_by_column("area_id", str(area_id), conn)

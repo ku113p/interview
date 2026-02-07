@@ -22,8 +22,10 @@ from src.workflows.nodes.processing.interview_response import interview_response
 from src.workflows.nodes.processing.load_history import load_history
 from src.workflows.routers.history_router import route_history_save
 from src.workflows.routers.message_router import route_message
-from src.workflows.subgraphs.area_loop.flow import MAX_AREA_RECURSION
-from src.workflows.subgraphs.area_loop.graph import build_area_graph
+from src.workflows.subgraphs.area_loop.graph import (
+    MAX_AREA_RECURSION,
+    build_area_graph,
+)
 from src.workflows.subgraphs.extract_flow.graph import build_extract_graph
 
 

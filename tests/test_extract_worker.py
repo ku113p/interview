@@ -5,12 +5,13 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from src.application.workers.channels import Channels, ExtractTask
-from src.application.workers.extract_worker import (
+from src.application.workers.runtime import _run_worker_pool
+from src.application.workers.workers import (
+    Channels,
+    ExtractTask,
     _build_extract_graph,
     create_extract_worker,
 )
-from src.application.workers.pool import run_worker_pool
 
 
 class TestBuildExtractGraph:
@@ -18,7 +19,7 @@ class TestBuildExtractGraph:
 
     def test_build_extract_graph_returns_compiled_graph(self):
         """Should return a compiled LangGraph."""
-        with patch("src.application.workers.extract_worker.NewAI") as mock_ai:
+        with patch("src.application.workers.workers.NewAI") as mock_ai:
             mock_llm = MagicMock()
             mock_ai.return_value.build.return_value = mock_llm
 
@@ -39,7 +40,7 @@ class TestCreateExtractWorker:
         await channels.extract.put(task)
 
         with patch(
-            "src.application.workers.extract_worker._build_extract_graph"
+            "src.application.workers.workers._build_extract_graph"
         ) as mock_build:
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock()
@@ -69,7 +70,7 @@ class TestCreateExtractWorker:
         await channels.extract.put(task2)
 
         with patch(
-            "src.application.workers.extract_worker._build_extract_graph"
+            "src.application.workers.workers._build_extract_graph"
         ) as mock_build:
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock(
@@ -99,7 +100,7 @@ class TestCreateExtractWorker:
         await channels.extract.put(ExtractTask(area_id=area_id, user_id=user_id))
 
         with patch(
-            "src.application.workers.extract_worker._build_extract_graph"
+            "src.application.workers.workers._build_extract_graph"
         ) as mock_build:
             mock_graph = MagicMock()
             mock_graph.ainvoke = AsyncMock()
@@ -129,7 +130,7 @@ class TestWorkerPool:
             await asyncio.sleep(0.01)
             raise asyncio.CancelledError()
 
-        pool = asyncio.create_task(run_worker_pool("test", mock_worker, 3))
+        pool = asyncio.create_task(_run_worker_pool("test", mock_worker, 3))
         await asyncio.sleep(0.05)
 
         pool.cancel()
