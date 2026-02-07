@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import tempfile
 import unicodedata
 import uuid
@@ -8,10 +9,14 @@ from langchain_core.messages import BaseMessage
 
 from src.application.graph import get_graph
 from src.application.state import State, Target
+from src.config.settings import MAX_TOKENS_STRUCTURED, MODEL_EXTRACT_DATA
 from src.domain import ClientMessage, InputMode, User
+from src.infrastructure.ai import NewAI
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.utils.content import normalize_content
+from src.workflows.subgraphs.extract_data.graph import build_extract_data_graph
+from src.workflows.subgraphs.extract_data.state import ExtractDataState
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +76,45 @@ async def run_graph(state: State) -> dict:
     return result.model_dump()
 
 
+def _build_extract_graph():
+    """Build the extract data graph with configured LLM."""
+    return build_extract_data_graph(
+        NewAI(MODEL_EXTRACT_DATA, max_tokens=MAX_TOKENS_STRUCTURED).build()
+    )
+
+
+async def _process_single_extract_task(extract_graph, area_id: uuid.UUID) -> None:
+    """Process a single extract_data task."""
+    logger.info("Processing extract_data task", extra={"area_id": str(area_id)})
+    state = ExtractDataState(area_id=area_id)
+    await extract_graph.ainvoke(state)
+    logger.info("Completed extract_data task", extra={"area_id": str(area_id)})
+
+
+async def _process_queue_item(extract_graph, queue: asyncio.Queue[uuid.UUID]) -> bool:
+    """Process one queue item. Returns False to stop the loop."""
+    area_id = None
+    try:
+        area_id = await queue.get()
+        await _process_single_extract_task(extract_graph, area_id)
+    except asyncio.CancelledError:
+        logger.info("Extract data task processor cancelled")
+        return False
+    except Exception:
+        logger.exception("Error processing extract_data task")
+    finally:
+        if area_id is not None:
+            queue.task_done()
+    return True
+
+
+async def process_extract_data_tasks(queue: asyncio.Queue[uuid.UUID]) -> None:
+    """Background task that processes extract_data_tasks queue."""
+    extract_graph = _build_extract_graph()
+    while await _process_queue_item(extract_graph, queue):
+        pass
+
+
 def _prompt_user_input() -> str | None:
     try:
         return input("> ").strip()
@@ -110,7 +154,8 @@ def _create_state_with_tempfiles(
     user_obj: User,
     user_input: str,
     current_area_id: uuid.UUID | None,
-) -> tuple[State, list]:
+    extract_data_tasks: asyncio.Queue[uuid.UUID],
+) -> tuple[State, list[tempfile.NamedTemporaryFile]]:
     media_tmp = tempfile.NamedTemporaryFile(delete=False)
     audio_tmp = tempfile.NamedTemporaryFile(delete=False)
     # Use current_area_id if set, otherwise generate a new one
@@ -126,19 +171,30 @@ def _create_state_with_tempfiles(
         messages_to_save={},
         success=None,
         area_id=area_id,
-        extract_data_tasks=asyncio.Queue(),
+        extract_data_tasks=extract_data_tasks,
         was_covered=False,
     )
     return state, [media_tmp, audio_tmp]
 
 
-def _close_tempfiles(tempfiles: list) -> None:
+def _cleanup_tempfiles(tempfiles: list[tempfile.NamedTemporaryFile]) -> None:
+    """Close and delete temporary files."""
     for temp_file in tempfiles:
-        temp_file.close()
+        try:
+            temp_file.close()
+        except Exception:
+            logger.debug("Failed to close temp file", exc_info=True)
+        try:
+            os.unlink(temp_file.name)
+        except OSError:
+            logger.debug("Failed to delete temp file %s", temp_file.name)
 
 
 async def _handle_message(
-    user_obj: User, user_input: str, current_area_id: uuid.UUID | None
+    user_obj: User,
+    user_input: str,
+    current_area_id: uuid.UUID | None,
+    extract_data_tasks: asyncio.Queue[uuid.UUID],
 ) -> str:
     normalized_input = _normalize_user_input(user_input).strip()
     validation_error = _validate_user_input(normalized_input)
@@ -149,14 +205,19 @@ async def _handle_message(
         )
         return f"Error: {validation_error}"
 
-    return await _process_validated_message(user_obj, normalized_input, current_area_id)
+    return await _process_validated_message(
+        user_obj, normalized_input, current_area_id, extract_data_tasks
+    )
 
 
 async def _process_validated_message(
-    user_obj: User, user_input: str, current_area_id: uuid.UUID | None
+    user_obj: User,
+    user_input: str,
+    current_area_id: uuid.UUID | None,
+    extract_data_tasks: asyncio.Queue[uuid.UUID],
 ) -> str:
     state, tempfiles = _create_state_with_tempfiles(
-        user_obj, user_input, current_area_id
+        user_obj, user_input, current_area_id, extract_data_tasks
     )
     try:
         logger.info(
@@ -169,26 +230,26 @@ async def _process_validated_message(
             raise RuntimeError("Set OPENROUTER_API_KEY environment variable") from exc
         raise
     finally:
-        _close_tempfiles(tempfiles)
+        _cleanup_tempfiles(tempfiles)
 
     messages: list[BaseMessage] = result.get("messages", [])
     return format_ai_response(messages) or "(no response)"
 
 
-async def _process_user_input(user_obj: User, user_input: str) -> None:
+async def _process_user_input(
+    user_obj: User, user_input: str, extract_data_tasks: asyncio.Queue[uuid.UUID]
+) -> None:
     """Process a single user input and print the response."""
     # Fetch current_area_id fresh (may change via set_current_area tool)
     current_area_id = get_current_area_id(user_obj.id)
-    ai_response = await _handle_message(user_obj, user_input, current_area_id)
+    ai_response = await _handle_message(
+        user_obj, user_input, current_area_id, extract_data_tasks
+    )
     print(ai_response)
 
 
-async def run_cli_async(user_id: uuid.UUID) -> None:
-    user_obj = ensure_user(user_id)
-    logger.info("Starting CLI session", extra={"user_id": str(user_obj.id)})
-    print(f"User: {user_obj.id}")
-    print("Type /help for commands.\n")
-
+async def _run_cli_loop(user_obj: User, extract_data_tasks: asyncio.Queue) -> None:
+    """Main CLI input loop."""
     while True:
         user_input = _prompt_user_input()
         if user_input is None:
@@ -198,4 +259,28 @@ async def run_cli_async(user_id: uuid.UUID) -> None:
             break
         if command_result is None:
             continue
-        await _process_user_input(user_obj, user_input)
+        await _process_user_input(user_obj, user_input, extract_data_tasks)
+
+
+async def _cancel_task(task: asyncio.Task) -> None:
+    """Cancel a task and wait for it to finish."""
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+async def run_cli_async(user_id: uuid.UUID) -> None:
+    user_obj = ensure_user(user_id)
+    logger.info("Starting CLI session", extra={"user_id": str(user_obj.id)})
+    print(f"User: {user_obj.id}")
+    print("Type /help for commands.\n")
+
+    extract_data_tasks: asyncio.Queue[uuid.UUID] = asyncio.Queue()
+    processor_task = asyncio.create_task(process_extract_data_tasks(extract_data_tasks))
+
+    try:
+        await _run_cli_loop(user_obj, extract_data_tasks)
+    finally:
+        await _cancel_task(processor_task)

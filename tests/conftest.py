@@ -20,7 +20,7 @@ def sample_user() -> User:
 
 
 @pytest.fixture
-def temp_db() -> Generator[str, None, None]:  # noqa: PLR0915
+def temp_db() -> Generator[str, None, None]:
     """Create a temporary database for testing.
 
     Yields:

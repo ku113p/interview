@@ -70,7 +70,7 @@ class TestStateFileHandling:
         assert state.media_file is None
         assert state.audio_file is None
 
-    def test_state_with_actual_tempfile_paths(self):  # noqa: PLR0915
+    def test_state_with_actual_tempfile_paths(self):
         """State should work with actual temporary file paths."""
         # Arrange
         user = User(id=new_id(), mode=InputMode.auto)

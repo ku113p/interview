@@ -186,7 +186,7 @@ class LifeAreaMethods:
         a_id = _str_to_uuid(area_id)
 
         if u_id is None or a_id is None:
-            raise KeyError
+            raise KeyError("user_id and area_id are required")
 
         area = db.LifeAreaManager.get_by_id(a_id, conn=conn)
         if area is None:
@@ -208,7 +208,7 @@ class LifeAreaMethods:
         p_id = _str_to_uuid(parent_id)
 
         if u_id is None:
-            raise KeyError
+            raise KeyError("user_id is required")
 
         area_id = new_id()
         area = db.LifeArea(id=area_id, title=title, parent_id=p_id, user_id=u_id)
@@ -223,13 +223,13 @@ class LifeAreaMethods:
         a_id = _str_to_uuid(area_id)
 
         if u_id is None or a_id is None:
-            raise KeyError
+            raise KeyError("user_id and area_id are required")
 
         area = db.LifeAreaManager.get_by_id(a_id, conn=conn)
         if area is None:
-            raise KeyError
+            raise KeyError(f"LifeArea {area_id} not found")
         if area.user_id != u_id:
-            raise KeyError
+            raise KeyError(f"LifeArea {area_id} does not belong to user {user_id}")
 
         db.LifeAreaManager.delete(a_id, conn=conn)
 
@@ -252,13 +252,13 @@ class CriteriaMethods:
         u_id = _str_to_uuid(user_id)
         c_id = _str_to_uuid(criteria_id)
         if u_id is None or c_id is None:
-            raise KeyError
+            raise KeyError("user_id and criteria_id are required")
         criteria = db.CriteriaManager.get_by_id(c_id, conn=conn)
         if criteria is None:
-            raise KeyError
+            raise KeyError(f"Criteria {criteria_id} not found")
         area = LifeAreaMethods.get(user_id, str(criteria.area_id), conn=conn)
         if area.user_id != u_id:
-            raise KeyError
+            raise KeyError(f"Criteria {criteria_id} does not belong to user {user_id}")
         db.CriteriaManager.delete(c_id, conn=conn)
 
     @staticmethod

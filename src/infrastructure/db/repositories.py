@@ -92,8 +92,16 @@ class BaseModel(Generic[T]):
         id: uuid.UUID,
         data: T,
         conn: sqlite3.Connection | None = None,
+        auto_commit: bool = True,
     ):
-        """Create or replace an object in the database."""
+        """Create or replace an object in the database.
+
+        Args:
+            id: Unique identifier for the object
+            data: Domain object to persist
+            conn: Optional existing connection (uses transaction if provided)
+            auto_commit: If True and conn is None, auto-commits. If False, caller manages commit.
+        """
         from src.infrastructure.db.connection import get_connection
 
         values = cls._obj_to_row(data)
@@ -107,7 +115,8 @@ class BaseModel(Generic[T]):
         if conn is None:
             with get_connection() as local_conn:
                 local_conn.execute(query, tuple(values.values()))
-                local_conn.commit()
+                if auto_commit:
+                    local_conn.commit()
         else:
             conn.execute(query, tuple(values.values()))
 
@@ -117,20 +126,33 @@ class BaseModel(Generic[T]):
         id: uuid.UUID,
         data: T,
         conn: sqlite3.Connection | None = None,
+        auto_commit: bool = True,
     ):
         """Update an object (uses create for simplicity)."""
-        cls.create(id, data, conn=conn)
+        cls.create(id, data, conn=conn, auto_commit=auto_commit)
 
     @classmethod
-    def delete(cls, id: uuid.UUID, conn: sqlite3.Connection | None = None):
-        """Delete an object by ID."""
+    def delete(
+        cls,
+        id: uuid.UUID,
+        conn: sqlite3.Connection | None = None,
+        auto_commit: bool = True,
+    ):
+        """Delete an object by ID.
+
+        Args:
+            id: Unique identifier of object to delete
+            conn: Optional existing connection (uses transaction if provided)
+            auto_commit: If True and conn is None, auto-commits. If False, caller manages commit.
+        """
         from src.infrastructure.db.connection import get_connection
 
         query = f"DELETE FROM {cls._table} WHERE id = ?"
         if conn is None:
             with get_connection() as local_conn:
                 local_conn.execute(query, (str(id),))
-                local_conn.commit()
+                if auto_commit:
+                    local_conn.commit()
         else:
             conn.execute(query, (str(id),))
 
@@ -196,6 +218,14 @@ class LifeAreaMessage:
     id: uuid.UUID
     data: str
     area_id: uuid.UUID
+    created_ts: float
+
+
+@dataclass
+class ExtractedData:
+    id: uuid.UUID
+    area_id: uuid.UUID
+    data: str
     created_ts: float
 
 
@@ -328,5 +358,46 @@ class LifeAreaMessagesManager(
             "id": str(data.id),
             "data": data.data,
             "area_id": str(data.area_id),
+            "created_ts": data.created_ts,
+        }
+
+
+class ExtractedDataManager(BaseModel[ExtractedData], AreaFilterMixin[ExtractedData]):
+    _table = "extracted_data"
+    _columns = ("id", "area_id", "data", "created_ts")
+
+    @classmethod
+    def list_by_area(
+        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    ) -> list[ExtractedData]:
+        return cls._list_by_column(
+            "area_id",
+            str(area_id),
+            conn,
+            order_by="created_ts DESC",
+        )
+
+    @classmethod
+    def get_latest_by_area(
+        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    ) -> ExtractedData | None:
+        results = cls.list_by_area(area_id, conn)
+        return results[0] if results else None
+
+    @classmethod
+    def _row_to_obj(cls, row: sqlite3.Row) -> ExtractedData:
+        return ExtractedData(
+            id=uuid.UUID(row["id"]),
+            area_id=uuid.UUID(row["area_id"]),
+            data=row["data"],
+            created_ts=row["created_ts"],
+        )
+
+    @classmethod
+    def _obj_to_row(cls, data: ExtractedData) -> dict[str, Any]:
+        return {
+            "id": str(data.id),
+            "area_id": str(data.area_id),
+            "data": data.data,
             "created_ts": data.created_ts,
         }

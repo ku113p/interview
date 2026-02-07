@@ -40,7 +40,7 @@ class TestMergeMessageBuckets:
 
         result = merge_message_buckets(left, right)
 
-        assert len(result) == 2  # noqa: PLR2004
+        assert len(result) == 2
         assert result[1000.0] == [msg1]
         assert result[1001.0] == [msg2]
 
@@ -53,7 +53,7 @@ class TestMergeMessageBuckets:
 
         result = merge_message_buckets(left, right)
 
-        assert len(result[1000.0]) == 2  # noqa: PLR2004
+        assert len(result[1000.0]) == 2
         assert msg1 in result[1000.0]
         assert msg2 in result[1000.0]
 
@@ -86,7 +86,7 @@ class TestMergeMessageBuckets:
         result = merge_message_buckets(left, right)
 
         # Should have both: same content but different types
-        assert len(result[1000.0]) == 2  # noqa: PLR2004
+        assert len(result[1000.0]) == 2
         types = {m.type for m in result[1000.0]}
         assert types == {"human", "ai"}
 
@@ -101,7 +101,7 @@ class TestMergeMessageBuckets:
 
         result = merge_message_buckets(left, right)
 
-        assert len(result[1000.0]) == 3  # noqa: PLR2004
+        assert len(result[1000.0]) == 3
         contents = [m.content for m in result[1000.0]]
         assert contents == ["first", "second", "third"]
 
@@ -116,4 +116,4 @@ class TestMergeMessageBuckets:
         result = merge_message_buckets(left, right)
 
         # Should have both: tool and ai messages
-        assert len(result[1000.0]) == 2  # noqa: PLR2004
+        assert len(result[1000.0]) == 2
