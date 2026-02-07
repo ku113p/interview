@@ -3,7 +3,7 @@ import logging
 import uuid
 from typing import Annotated
 
-from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, ConfigDict
@@ -53,8 +53,16 @@ async def interview_response(state: State, llm: ChatOpenAI):
         "- Be polite, natural, and conversational\n"
     )
 
-    # Follow area_chat pattern - use conversation history
-    history = state.messages[-HISTORY_LIMIT_INTERVIEW:]
+    # Filter out tool-related messages (area management artifacts)
+    # These can cause "No tool call found" errors when ToolMessage appears
+    # without its corresponding AIMessage with tool_calls
+    chat_messages = [
+        m
+        for m in state.messages
+        if not isinstance(m, ToolMessage)
+        and not (isinstance(m, AIMessage) and getattr(m, "tool_calls", None))
+    ]
+    history = chat_messages[-HISTORY_LIMIT_INTERVIEW:]
 
     response = await llm.ainvoke([SystemMessage(content=system_prompt), *history])
 
