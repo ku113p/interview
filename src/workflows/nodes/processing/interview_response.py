@@ -4,8 +4,11 @@ from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
 from src.application.state import State
-from src.config.settings import HISTORY_LIMIT_INTERVIEW
+from src.config.settings import HISTORY_LIMIT_INTERVIEW, INPUT_TOKENS_INTERVIEW
+from src.shared.prompts import build_interview_response_prompt
+from src.shared.retry import invoke_with_retry
 from src.shared.timestamp import get_timestamp
+from src.shared.tokens import trim_messages_to_budget
 
 logger = logging.getLogger(__name__)
 
@@ -21,18 +24,10 @@ async def interview_response(state: State, llm: ChatOpenAI):
     covered_count = len([c for c in analysis.criteria if c.covered])
     total_count = len(analysis.criteria)
 
-    system_prompt = (
-        "You are a friendly interview assistant.\n"
-        "Based on the analysis provided, respond naturally:\n"
-        f"- Criteria status: {covered_count}/{total_count} covered\n"
-        f"- Next topic: {analysis.next_uncovered or 'All covered!'}\n\n"
-        "Rules:\n"
-        "- Do NOT repeat greetings if conversation has already started\n"
-        "- If no criteria exist: gently mention that no criteria are defined yet and suggest creating some\n"
-        "- If all criteria covered: thank them and close politely\n"
-        "- If criteria remain: ask about the next uncovered topic\n"
-        "- Ask only ONE question at a time\n"
-        "- Be polite, natural, and conversational\n"
+    system_prompt = build_interview_response_prompt(
+        covered_count=covered_count,
+        total_count=total_count,
+        next_uncovered=analysis.next_uncovered,
     )
 
     # Filter out tool-related messages (area management artifacts)
@@ -45,8 +40,10 @@ async def interview_response(state: State, llm: ChatOpenAI):
         and not (isinstance(m, AIMessage) and getattr(m, "tool_calls", None))
     ]
     history = chat_messages[-HISTORY_LIMIT_INTERVIEW:]
+    history = trim_messages_to_budget(history, INPUT_TOKENS_INTERVIEW)
 
-    response = await llm.ainvoke([SystemMessage(content=system_prompt), *history])
+    messages = [SystemMessage(content=system_prompt), *history]
+    response = await invoke_with_retry(lambda: llm.ainvoke(messages))
 
     logger.info(
         "Interview response generated",

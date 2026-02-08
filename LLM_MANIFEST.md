@@ -1,0 +1,132 @@
+# LLM Manifest
+
+This document describes all AI/LLM behavior in the interview assistant codebase. Keep this in sync with actual code when making changes.
+
+## Model Assignments
+
+| Node | Model | Purpose |
+|------|-------|---------|
+| `extract_target` | `gemini-2.5-flash-lite` | Fast intent classification (interview vs areas) |
+| `interview_analysis` | `gemini-2.5-flash` | Criteria coverage analysis |
+| `interview_response` | `gpt-5.1` | User-facing conversational responses |
+| `area_chat` | `gemini-2.5-flash` | Area/criteria management with tools |
+| `transcribe` | `gemini-2.5-flash-lite` | Audio transcription |
+| `knowledge_extraction` | `gemini-2.5-flash` | Extract skills/facts from summaries |
+
+**Configuration location:** `src/config/settings.py` (MODEL_* constants)
+
+## Temperature Configuration
+
+| Node | Temperature | Rationale |
+|------|-------------|-----------|
+| `extract_target` | 0.0 | Deterministic classification |
+| `transcribe` | 0.0 | Deterministic transcription |
+| `interview_analysis` | 0.2 | Low variance for structured analysis |
+| `area_chat` | 0.2 | Consistent tool-calling behavior |
+| `interview_response` | 0.5 | Natural conversational variation |
+
+**Configuration location:** `src/config/settings.py` (TEMPERATURE_* constants)
+
+## Token Limits
+
+### Output Tokens (max_tokens)
+
+| Category | Limit | Used By |
+|----------|-------|---------|
+| Structured output | 1024 | `extract_target`, `interview_analysis` |
+| Conversational | 4096 | `interview_response`, `area_chat` |
+| Transcription | 8192 | `transcribe` |
+
+### Input Token Budgets
+
+| Node | Budget | Purpose |
+|------|--------|---------|
+| Interview response | 8000 | History context limit |
+
+### Message History Limits
+
+| Setting | Limit | Purpose |
+|---------|-------|---------|
+| `HISTORY_LIMIT_GLOBAL` | 15 | Default for most nodes |
+| `HISTORY_LIMIT_EXTRACT_TARGET` | 5 | Limited context for classification |
+| `HISTORY_LIMIT_INTERVIEW` | 8 | Interview response history |
+
+**Configuration location:** `src/config/settings.py`
+
+## Pre-configured LLM Instances
+
+LLM instances are created via lazy-initialized getters in `src/infrastructure/llms.py`:
+
+| Getter | Model | Temperature | Max Tokens |
+|--------|-------|-------------|------------|
+| `get_llm_extract_target()` | flash-lite | 0.0 | 1024 |
+| `get_llm_transcribe()` | flash-lite | 0.0 | 8192 |
+| `get_llm_interview_analysis()` | flash | 0.2 | 1024 |
+| `get_llm_area_chat()` | flash | 0.2 | 4096 |
+| `get_llm_interview_response()` | gpt-5.1 | 0.5 | 4096 |
+
+These getters use `@lru_cache` to ensure each LLM is only instantiated once. Called by `src/application/graph.py` at graph build time.
+
+## Prompt Locations
+
+All prompts are centralized in `src/shared/prompts.py`:
+
+| Purpose | Constant/Function |
+|---------|-------------------|
+| Intent classification | `PROMPT_EXTRACT_TARGET_TEMPLATE`, `build_extract_target_prompt()` |
+| Criteria analysis | `PROMPT_INTERVIEW_ANALYSIS` |
+| Interview response | `PROMPT_INTERVIEW_RESPONSE_TEMPLATE`, `build_interview_response_prompt()` |
+| Area management | `PROMPT_AREA_CHAT_TEMPLATE`, `build_area_chat_prompt()` |
+| Audio transcription | `PROMPT_TRANSCRIBE` |
+
+Template functions are used when prompts require dynamic values (e.g., user ID, criteria status).
+
+## Error Handling
+
+### Retry Configuration
+
+LLM API calls use exponential backoff retry:
+- **Max attempts:** 3
+- **Initial wait:** 1 second
+- **Max wait:** 10 seconds
+- **Multiplier:** 2
+- **Retried errors:**
+  - `ConnectionError` - Network connectivity issues
+  - `TimeoutError` - Request timeouts
+  - HTTP 429 - Rate limits
+  - HTTP 500, 502, 503, 504 - Server errors
+
+Non-retryable HTTP errors (400, 401, 403, 404, etc.) fail immediately.
+
+**Implementation:** `src/shared/retry.py`
+
+### Applied to:
+- `extract_target.py` - Intent classification
+- `interview_analysis.py` - Structured output call
+- `interview_response.py` - Chat response
+- `area_loop/nodes.py` - Area chat with tools
+- `transcribe/extract_text.py` - Audio transcription
+
+## Known Limitations
+
+1. **Token counting is approximate:** Uses character-based estimation (4 chars per token) rather than model-specific tokenizers for performance.
+
+2. **Message trimming is by token budget:** Long messages may be trimmed mid-content. Consider summarization for very long histories.
+
+3. **No streaming:** All LLM calls are blocking. For long responses, users wait for full completion.
+
+4. **Provider-dependent behavior:** OpenRouter may have different rate limits or behaviors than direct API access.
+
+## NewAI Wrapper
+
+The `NewAI` dataclass (`src/infrastructure/ai.py`) standardizes LLM client creation:
+
+```python
+@dataclass
+class NewAI:
+    model: str
+    temperature: float | None = None
+    max_tokens: int | None = None
+```
+
+All parameters are passed through to ChatOpenAI. Use explicit temperatures for consistency.

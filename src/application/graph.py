@@ -3,17 +3,13 @@ from functools import partial
 from langgraph.graph import END, START, StateGraph
 
 from src.application.state import State
-from src.config.settings import (
-    MAX_TOKENS_CHAT,
-    MAX_TOKENS_STRUCTURED,
-    MAX_TOKENS_TRANSCRIPTION,
-    MODEL_AREA_CHAT,
-    MODEL_AUDIO_TRANSCRIPTION,
-    MODEL_EXTRACT_TARGET,
-    MODEL_INTERVIEW_ANALYSIS,
-    MODEL_INTERVIEW_RESPONSE,
+from src.infrastructure.llms import (
+    get_llm_area_chat,
+    get_llm_extract_target,
+    get_llm_interview_analysis,
+    get_llm_interview_response,
+    get_llm_transcribe,
 )
-from src.infrastructure.ai import NewAI
 from src.workflows.nodes.input.build_user_message import build_user_message
 from src.workflows.nodes.input.extract_target import extract_target
 from src.workflows.nodes.persistence.save_history import save_history
@@ -36,28 +32,15 @@ def _add_nodes(builder: StateGraph, transcribe_graph, area_graph) -> None:
     builder.add_node("build_user_message", build_user_message)
     builder.add_node(
         "extract_target",
-        partial(
-            extract_target,
-            llm=NewAI(
-                MODEL_EXTRACT_TARGET, temperature=0, max_tokens=MAX_TOKENS_STRUCTURED
-            ).build(),
-        ),
+        partial(extract_target, llm=get_llm_extract_target()),
     )
     builder.add_node(
         "interview_analysis",
-        partial(
-            interview_analysis,
-            llm=NewAI(
-                MODEL_INTERVIEW_ANALYSIS, max_tokens=MAX_TOKENS_STRUCTURED
-            ).build(),
-        ),
+        partial(interview_analysis, llm=get_llm_interview_analysis()),
     )
     builder.add_node(
         "interview_response",
-        partial(
-            interview_response,
-            llm=NewAI(MODEL_INTERVIEW_RESPONSE, max_tokens=MAX_TOKENS_CHAT).build(),
-        ),
+        partial(interview_response, llm=get_llm_interview_response()),
     )
     builder.add_node("save_history", save_history)
     builder.add_node("area_loop", area_graph)
@@ -87,16 +70,10 @@ def get_graph():
         Compiled LangGraph workflow
     """
     builder = StateGraph(State)
-    transcribe_graph = build_transcribe_graph(
-        NewAI(
-            MODEL_AUDIO_TRANSCRIPTION,
-            temperature=0,
-            max_tokens=MAX_TOKENS_TRANSCRIPTION,
-        ).build()
+    transcribe_graph = build_transcribe_graph(get_llm_transcribe())
+    area_graph = build_area_graph(get_llm_area_chat()).with_config(
+        {"recursion_limit": MAX_AREA_RECURSION}
     )
-    area_graph = build_area_graph(
-        NewAI(MODEL_AREA_CHAT, max_tokens=MAX_TOKENS_CHAT).build()
-    ).with_config({"recursion_limit": MAX_AREA_RECURSION})
     _add_nodes(builder, transcribe_graph, area_graph)
     _add_edges(builder)
     return builder.compile()

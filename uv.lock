@@ -706,6 +706,7 @@ dependencies = [
     { name = "langchain-tools" },
     { name = "langgraph" },
     { name = "python-json-logger" },
+    { name = "tenacity" },
     { name = "uuid7" },
 ]
 
@@ -729,6 +730,7 @@ requires-dist = [
     { name = "langchain-tools", specifier = ">=0.1.34" },
     { name = "langgraph", specifier = ">=1.0.7" },
     { name = "python-json-logger", specifier = ">=2.0.7" },
+    { name = "tenacity", specifier = ">=8.2.0" },
     { name = "uuid7", specifier = ">=0.1.0" },
 ]
 

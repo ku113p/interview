@@ -25,7 +25,11 @@ class NewAI:
             ChatOpenAI: Configured LLM client
         """
         api_key = self.api_key if self.api_key is not None else load_api_key()
-        logger.debug("Building AI client", extra={"model": self.model})
+        logger.debug(
+            "Building AI client",
+            extra={"model": self.model, "temperature": self.temperature},
+        )
+
         return ChatOpenAI(
             model=self.model,
             base_url=self.base_url,

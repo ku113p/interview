@@ -31,6 +31,14 @@ MAX_TOKENS_STRUCTURED = 1024  # For structured output (classification, analysis)
 MAX_TOKENS_CHAT = 4096  # For conversational responses
 MAX_TOKENS_TRANSCRIPTION = 8192  # For audio transcription
 
+# Temperature Configuration
+TEMPERATURE_DETERMINISTIC = 0.0  # Classification, transcription
+TEMPERATURE_STRUCTURED = 0.2  # Analysis, extraction
+TEMPERATURE_CONVERSATIONAL = 0.5  # User-facing responses
+
+# Input Token Budgets (for context management)
+INPUT_TOKENS_INTERVIEW = 8000  # Interview response context limit
+
 # Model Assignments - Interview Nodes
 MODEL_INTERVIEW_ANALYSIS = MODEL_NAME_FLASH  # Fast analysis for criteria coverage
 MODEL_INTERVIEW_RESPONSE = MODEL_NAME_INTERVIEW  # Reasoning response generation

@@ -8,6 +8,8 @@ from src.application.state import State
 from src.infrastructure.db import repositories as db
 from src.shared.ids import new_id
 from src.shared.interview_models import CriteriaAnalysis
+from src.shared.prompts import PROMPT_INTERVIEW_ANALYSIS
+from src.shared.retry import invoke_with_retry
 from src.shared.timestamp import get_timestamp
 from src.shared.utils.content import normalize_content
 
@@ -77,30 +79,18 @@ async def _analyze_coverage(
     llm: ChatOpenAI,
 ) -> CriteriaAnalysis:
     """Analyze which criteria are covered by the interview messages."""
-    system_prompt = (
-        "You are an interview analysis agent.\n"
-        "Your task is to analyze the interview messages and determine:\n"
-        "1. For EACH criterion, whether it is clearly covered by the interview\n"
-        "2. Which criterion should be asked about next (if any remain uncovered)\n\n"
-        "Rules:\n"
-        "- Be strict: unclear or partial answers = NOT covered\n"
-        "- If NO criteria exist, set all_covered=false and next_uncovered=null\n"
-        "- Pick the most logical next criterion to ask about\n"
-    )
-
     user_prompt = {
         "interview_messages": interview_messages,
         "criteria": area_criteria,
     }
 
     structured_llm = llm.with_structured_output(CriteriaAnalysis)
+    messages = [
+        {"role": "system", "content": PROMPT_INTERVIEW_ANALYSIS},
+        {"role": "user", "content": json.dumps(user_prompt)},
+    ]
 
-    result = await structured_llm.ainvoke(
-        [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": json.dumps(user_prompt)},
-        ]
-    )
+    result = await invoke_with_retry(lambda: structured_llm.ainvoke(messages))
 
     if not isinstance(result, CriteriaAnalysis):
         result = CriteriaAnalysis.model_validate(result)

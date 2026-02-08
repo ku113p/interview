@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 from src.application.state import Target
 from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET
 from src.domain.models import InputMode, User
+from src.shared.prompts import build_extract_target_prompt
+from src.shared.retry import invoke_with_retry
 from src.workflows.subgraphs.area_loop.tools import AREA_TOOLS
 
 
@@ -52,33 +54,16 @@ async def extract_target_from_messages(
 
     # Auto-generate tools description from AREA_TOOLS
     areas_tools_desc = _generate_areas_tools_description(AREA_TOOLS)
-
-    system_prompt = SystemMessage(
-        content=(
-            "You are a routing classifier. Analyze the user's message and determine which module should handle it.\n\n"
-            "**Return 'areas' when the user wants to:**\n"
-            "- Manage life areas (also called topics) or their evaluation criteria\n"
-            "- Use any of these area management operations:\n"
-            f"{areas_tools_desc}\n"
-            "- Ask questions about criteria setup (e.g., 'what criteria should we use?', 'which criteria can we create?')\n"
-            "- Discuss area/criteria configuration or management\n\n"
-            "**Return 'interview' when the user wants to:**\n"
-            "- Share experiences, stories, or information about a topic\n"
-            "- Answer questions about their background or skills\n"
-            "- Have a conversation to evaluate their knowledge/experience\n"
-            "- Respond to interview questions\n\n"
-            "**Key distinction:**\n"
-            "- 'areas' = managing the structure (what to evaluate, setup, configuration)\n"
-            "- 'interview' = the actual conversation (being evaluated, sharing experiences)\n\n"
-            "Classify based on message intent only, ignoring conversation history."
-        )
-    )
+    prompt_content = build_extract_target_prompt(areas_tools_desc)
+    system_prompt = SystemMessage(content=prompt_content)
 
     # Use only last N messages for classification (limit context for extract_target)
     recent_messages = messages[-HISTORY_LIMIT_EXTRACT_TARGET:]
     messages_with_system = [system_prompt] + recent_messages
 
-    result = await structured_llm.ainvoke(messages_with_system)
+    result = await invoke_with_retry(
+        lambda: structured_llm.ainvoke(messages_with_system)
+    )
 
     if isinstance(result, dict):
         return Target(result["target"])
