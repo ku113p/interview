@@ -15,7 +15,7 @@ class User:
 @dataclass(frozen=True)
 class History:
     id: uuid.UUID
-    data: dict
+    message_data: dict
     user_id: uuid.UUID
     created_ts: float
 
@@ -38,7 +38,7 @@ class Criteria:
 @dataclass
 class LifeAreaMessage:
     id: uuid.UUID
-    data: str
+    message_text: str
     area_id: uuid.UUID
     created_ts: float
 
@@ -47,7 +47,7 @@ class LifeAreaMessage:
 class AreaSummary:
     id: uuid.UUID
     area_id: uuid.UUID
-    content: str
+    summary_text: str
     vector: list[float]
     created_ts: float
 
@@ -55,7 +55,7 @@ class AreaSummary:
 @dataclass
 class UserKnowledge:
     id: uuid.UUID
-    content: str
+    description: str
     kind: str  # 'skill' or 'fact'
     confidence: float
     created_ts: float

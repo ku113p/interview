@@ -152,7 +152,7 @@ async def save_knowledge(state: KnowledgeExtractionState) -> dict:
             knowledge_id = new_id()
             knowledge = db.UserKnowledge(
                 id=knowledge_id,
-                content=item["content"],
+                description=item["content"],
                 kind=item["kind"],
                 confidence=item["confidence"],
                 created_ts=get_timestamp(),

@@ -37,14 +37,14 @@ class UsersManager(ORMBase[User]):
 
 class HistoriesManager(ORMBase[History]):
     _table = "histories"
-    _columns = ("id", "data", "user_id", "created_ts")
+    _columns = ("id", "message_data", "user_id", "created_ts")
     _user_column = "user_id"
 
     @classmethod
     def _row_to_obj(cls, row: sqlite3.Row) -> History:
         return History(
             id=uuid.UUID(row["id"]),
-            data=json.loads(row["data"]),
+            message_data=json.loads(row["message_data"]),
             user_id=uuid.UUID(row["user_id"]),
             created_ts=row["created_ts"],
         )
@@ -53,7 +53,7 @@ class HistoriesManager(ORMBase[History]):
     def _obj_to_row(cls, data: History) -> dict[str, Any]:
         return {
             "id": str(data.id),
-            "data": json.dumps(data.data),
+            "message_data": json.dumps(data.message_data),
             "user_id": str(data.user_id),
             "created_ts": data.created_ts,
         }

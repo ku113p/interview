@@ -30,7 +30,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "ai", "content": "Hello, I'm an AI!"},
+                message_data={"role": "ai", "content": "Hello, I'm an AI!"},
                 user_id=user.id,
                 created_ts=time.time(),
             )
@@ -63,7 +63,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={
+                message_data={
                     "role": "ai",
                     "content": "",
                     "tool_calls": tool_calls,
@@ -93,7 +93,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={
+                message_data={
                     "role": "ai",
                     "content": "No tools needed",
                     "tool_calls": [],
@@ -122,7 +122,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "user", "content": "Hello, AI!"},
+                message_data={"role": "user", "content": "Hello, AI!"},
                 user_id=user.id,
                 created_ts=time.time(),
             )
@@ -146,7 +146,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={
+                message_data={
                     "role": "tool",
                     "content": '["result1", "result2"]',
                     "tool_call_id": "tool_123",
@@ -177,7 +177,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={
+                message_data={
                     "role": "tool",
                     "content": "result",
                     # No tool_call_id or name
@@ -207,7 +207,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "system", "content": "System message"},
+                message_data={"role": "system", "content": "System message"},
                 user_id=user.id,
                 created_ts=time.time(),
             )
@@ -230,7 +230,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "user", "content": f"Message {i}"},
+                message_data={"role": "user", "content": f"Message {i}"},
                 user_id=user.id,
                 created_ts=time.time() + i,  # Different timestamps
             )
@@ -256,7 +256,7 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "user", "content": f"Message {i}"},
+                message_data={"role": "user", "content": f"Message {i}"},
                 user_id=user.id,
                 created_ts=time.time() + i,
             )
@@ -283,19 +283,19 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "user", "content": "Third"},
+                message_data={"role": "user", "content": "Third"},
                 user_id=user.id,
                 created_ts=base_time + 3,
             ),
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "user", "content": "First"},
+                message_data={"role": "user", "content": "First"},
                 user_id=user.id,
                 created_ts=base_time + 1,
             ),
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "user", "content": "Second"},
+                message_data={"role": "user", "content": "Second"},
                 user_id=user.id,
                 created_ts=base_time + 2,
             ),
@@ -321,19 +321,19 @@ class TestGetFormattedHistory:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "user", "content": "Hello"},
+                message_data={"role": "user", "content": "Hello"},
                 user_id=user.id,
                 created_ts=base_time + 1,
             ),
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "ai", "content": "Hi there!"},
+                message_data={"role": "ai", "content": "Hi there!"},
                 user_id=user.id,
                 created_ts=base_time + 2,
             ),
             db.History(
                 id=uuid.uuid4(),
-                data={
+                message_data={
                     "role": "ai",
                     "content": "",
                     "tool_calls": [
@@ -345,7 +345,7 @@ class TestGetFormattedHistory:
             ),
             db.History(
                 id=uuid.uuid4(),
-                data={
+                message_data={
                     "role": "tool",
                     "content": "result",
                     "tool_call_id": "1",
@@ -385,7 +385,7 @@ class TestLoadHistoryAsync:
         mock_history = [
             db.History(
                 id=uuid.uuid4(),
-                data={"role": "user", "content": "Test message"},
+                message_data={"role": "user", "content": "Test message"},
                 user_id=user.id,
                 created_ts=time.time(),
             )

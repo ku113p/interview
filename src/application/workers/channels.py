@@ -13,7 +13,7 @@ class ChannelRequest:
 
     correlation_id: uuid.UUID
     user_id: uuid.UUID
-    payload: ClientMessage
+    client_message: ClientMessage
 
 
 @dataclass
@@ -21,7 +21,7 @@ class ChannelResponse:
     """Envelope for responses from graph workers to transport."""
 
     correlation_id: uuid.UUID
-    payload: str
+    response_text: str
 
 
 @dataclass

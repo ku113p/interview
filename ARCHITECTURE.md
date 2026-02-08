@@ -37,7 +37,7 @@ load_history                  # Load conversation from DB
   ↓
 build_user_message           # Create HumanMessage
   ↓
-extract_target               # Classify: interview vs areas
+extract_target               # Classify: conduct_interview vs manage_areas
   ├─→ interview_analysis     # Check criteria coverage
   │     ↓
   │   interview_response     # Generate response
@@ -97,8 +97,8 @@ Flat peer-based architecture where all worker pools communicate through shared c
 ### Channel Message Types
 
 ```python
-ChannelRequest   # transport → graph (correlation_id, user_id, payload)
-ChannelResponse  # graph → transport (correlation_id, payload)
+ChannelRequest   # transport → graph (correlation_id, user_id, client_message)
+ChannelResponse  # graph → transport (correlation_id, response_text)
 ExtractTask      # graph → extract (area_id, user_id)
 ```
 
@@ -151,7 +151,7 @@ State:
   user: User
   message: ClientMessage
   text: str                    # Extracted text
-  target: Target               # interview | areas
+  target: Target               # conduct_interview | manage_areas
   messages: list[BaseMessage]  # Aggregated via add_messages
   messages_to_save: MessageBuckets
   is_successful: bool          # Operation success flag

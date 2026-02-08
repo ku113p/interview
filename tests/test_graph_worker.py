@@ -55,7 +55,7 @@ class TestGraphWorker:
             await asyncio.wait_for(pool, timeout=2.0)
 
             assert response.correlation_id == corr_id
-            assert response.payload == "Response text"
+            assert response.response_text == "Response text"
 
     @pytest.mark.asyncio
     async def test_worker_handles_multiple_requests(self, temp_db):
@@ -112,4 +112,4 @@ class TestGraphWorker:
             await asyncio.wait_for(pool, timeout=2.0)
 
             assert response.correlation_id == corr_id
-            assert response.payload == "An error occurred"
+            assert response.response_text == "An error occurred"

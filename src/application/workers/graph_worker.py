@@ -44,7 +44,7 @@ def _init_graph_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]
         media_file=media_tmp.name,
         audio_file=audio_tmp.name,
         text=text,
-        target=Target.interview,
+        target=Target.conduct_interview,
         messages=[],
         messages_to_save={},
         is_successful=None,
@@ -109,16 +109,18 @@ async def _process_channel_request(
         logger.debug("Graph worker %d processing message", worker_id)
         user = _get_user_from_db(request.user_id)
         response = await _invoke_graph_and_get_response(
-            request.payload, user, graph, channels
+            request.client_message, user, graph, channels
         )
         await channels.responses.put(
-            ChannelResponse(correlation_id=request.correlation_id, payload=response)
+            ChannelResponse(
+                correlation_id=request.correlation_id, response_text=response
+            )
         )
     except Exception:
         logger.exception("Graph worker %d error", worker_id)
         await channels.responses.put(
             ChannelResponse(
-                correlation_id=request.correlation_id, payload="An error occurred"
+                correlation_id=request.correlation_id, response_text="An error occurred"
             )
         )
 

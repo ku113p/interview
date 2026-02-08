@@ -19,7 +19,7 @@ def _create_state(user: User, area_id, messages, **kwargs) -> State:
         user=user,
         message=ClientMessage(data="test"),
         text="test",
-        target=Target.interview,
+        target=Target.conduct_interview,
         area_id=area_id,
         messages=messages,
         messages_to_save=kwargs.get("messages_to_save", {}),
@@ -72,7 +72,10 @@ class TestInterviewAnalysis:
         # Assert - message should be saved to DB
         saved_messages = db.LifeAreaMessagesManager.list_by_area(area_id)
         assert len(saved_messages) == 1
-        assert saved_messages[0].data == "User: I have 5 years of Python experience"
+        assert (
+            saved_messages[0].message_text
+            == "User: I have 5 years of Python experience"
+        )
 
     @pytest.mark.asyncio
     async def test_interview_analysis_saves_question_and_answer(self, temp_db):
@@ -118,7 +121,7 @@ class TestInterviewAnalysis:
         saved_messages = db.LifeAreaMessagesManager.list_by_area(area_id)
         assert len(saved_messages) == 1
         expected = "AI: What is your Python experience?\nUser: I have 5 years"
-        assert saved_messages[0].data == expected
+        assert saved_messages[0].message_text == expected
 
     @pytest.mark.asyncio
     async def test_interview_analysis_returns_criteria_analysis(self, temp_db):

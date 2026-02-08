@@ -14,8 +14,8 @@ from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 class Target(enum.Enum):
     """Interview workflow target."""
 
-    interview = "interview"
-    areas = "areas"
+    conduct_interview = "conduct_interview"
+    manage_areas = "manage_areas"
 
     @classmethod
     def from_user_mode(cls, mode: InputMode):
@@ -31,10 +31,10 @@ class Target(enum.Enum):
             NotImplementedError: If mode is not supported
         """
         match mode:
-            case InputMode.interview:
-                return cls.interview
-            case InputMode.areas:
-                return cls.areas
+            case InputMode.conduct_interview:
+                return cls.conduct_interview
+            case InputMode.manage_areas:
+                return cls.manage_areas
             case _:
                 raise NotImplementedError()
 

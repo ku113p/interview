@@ -61,7 +61,7 @@ def get_formatted_history(
     history_entries = sorted(
         db.HistoriesManager.list_by_user(user_obj.id), key=lambda x: x.created_ts
     )
-    message_dicts = [entry.data for entry in history_entries[-limit:]]
+    message_dicts = [entry.message_data for entry in history_entries[-limit:]]
 
     formatted_messages = []
     for message_dict in message_dicts:
