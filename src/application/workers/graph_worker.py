@@ -18,15 +18,15 @@ from src.application.workers.channels import (
 from src.application.workers.pool import run_worker_pool
 from src.config.settings import WORKER_POOL_GRAPH
 from src.domain import ClientMessage, InputMode, User
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.utils.content import normalize_content
 
 logger = logging.getLogger(__name__)
 
 
-def _build_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]:
-    """Build initial state for graph invocation."""
+def _init_graph_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]:
+    """Initialize graph state and create temporary files for media processing."""
     media_tmp = tempfile.NamedTemporaryFile(delete=False)
     audio_tmp = tempfile.NamedTemporaryFile(delete=False)
     temp_files = [media_tmp.name, audio_tmp.name]
@@ -47,9 +47,9 @@ def _build_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]:
         target=Target.interview,
         messages=[],
         messages_to_save={},
-        success=None,
+        is_successful=None,
         area_id=area_id,
-        was_covered=False,
+        is_fully_covered=False,
     )
     return state, temp_files
 
@@ -67,7 +67,7 @@ async def _enqueue_extract_if_covered(
     result: dict, user: User, channels: Channels
 ) -> None:
     """Queue extract task if all criteria were covered."""
-    if result.get("was_covered") and result.get("area_id"):
+    if result.get("is_fully_covered") and result.get("area_id"):
         task = ExtractTask(area_id=result["area_id"], user_id=user.id)
         await channels.extract.put(task)
         logger.info(
@@ -84,11 +84,11 @@ def _get_user_from_db(user_id) -> User:
     return User(id=db_user.id, mode=InputMode(db_user.mode))
 
 
-async def _process_message(
+async def _invoke_graph_and_get_response(
     msg: ClientMessage, user: User, graph, channels: Channels
 ) -> str:
-    """Process a single message through the graph."""
-    state, temp_files = _build_state(msg, user)
+    """Invoke the graph with a message and return the AI response."""
+    state, temp_files = _init_graph_state(msg, user)
     try:
         result = await graph.ainvoke(state)
         if not isinstance(result, dict):
@@ -101,14 +101,16 @@ async def _process_message(
         _cleanup_tempfiles(temp_files)
 
 
-async def _handle_request(
+async def _process_channel_request(
     request: ChannelRequest, graph, channels: Channels, worker_id: int
 ) -> None:
-    """Handle a single request and send response."""
+    """Process a channel request: invoke graph and send response."""
     try:
         logger.debug("Graph worker %d processing message", worker_id)
         user = _get_user_from_db(request.user_id)
-        response = await _process_message(request.payload, user, graph, channels)
+        response = await _invoke_graph_and_get_response(
+            request.payload, user, graph, channels
+        )
         await channels.responses.put(
             ChannelResponse(correlation_id=request.correlation_id, payload=response)
         )
@@ -129,7 +131,7 @@ async def _graph_worker_loop(worker_id: int, graph, channels: Channels) -> None:
         except asyncio.TimeoutError:
             continue
         try:
-            await _handle_request(request, graph, channels, worker_id)
+            await _process_channel_request(request, graph, channels, worker_id)
         finally:
             channels.requests.task_done()
 

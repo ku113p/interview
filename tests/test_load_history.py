@@ -7,9 +7,9 @@ from unittest.mock import patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from src.domain.models import InputMode, User
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.workflows.nodes.processing.load_history import (
-    State,
+    LoadHistoryState,
     get_formatted_history,
     load_history,
 )
@@ -36,7 +36,9 @@ class TestGetFormattedHistory:
             )
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -71,7 +73,9 @@ class TestGetFormattedHistory:
             )
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -99,7 +103,9 @@ class TestGetFormattedHistory:
             )
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -122,7 +128,9 @@ class TestGetFormattedHistory:
             )
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -149,7 +157,9 @@ class TestGetFormattedHistory:
             )
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -177,7 +187,9 @@ class TestGetFormattedHistory:
             )
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -201,7 +213,9 @@ class TestGetFormattedHistory:
             )
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act - should skip the unknown role and return empty list
             messages = get_formatted_history(user)
 
@@ -223,7 +237,9 @@ class TestGetFormattedHistory:
             for i in range(20)
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -247,7 +263,9 @@ class TestGetFormattedHistory:
             for i in range(10)
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user, limit=3)
 
@@ -283,7 +301,9 @@ class TestGetFormattedHistory:
             ),
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -336,7 +356,9 @@ class TestGetFormattedHistory:
             ),
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             messages = get_formatted_history(user)
 
@@ -358,7 +380,7 @@ class TestLoadHistoryAsync:
         """load_history should return dict with messages key."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
-        state = State(user=user, messages=[])
+        state = LoadHistoryState(user=user, messages=[])
 
         mock_history = [
             db.History(
@@ -369,7 +391,9 @@ class TestLoadHistoryAsync:
             )
         ]
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=mock_history):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", return_value=mock_history
+        ):
             # Act
             result = await load_history(state)
 
@@ -384,9 +408,9 @@ class TestLoadHistoryAsync:
         """load_history should handle empty history gracefully."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
-        state = State(user=user, messages=[])
+        state = LoadHistoryState(user=user, messages=[])
 
-        with patch.object(db.HistoryManager, "list_by_user", return_value=[]):
+        with patch.object(db.HistoriesManager, "list_by_user", return_value=[]):
             # Act
             result = await load_history(state)
 

@@ -19,7 +19,7 @@ class KnowledgeExtractionState(BaseModel):
 
     # Extraction results
     extracted_summary: dict[str, str] = {}
-    success: bool = False
+    is_successful: bool = False
 
     # Summary content for embedding (combined from extracted_summary)
     summary_content: str = ""

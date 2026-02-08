@@ -21,7 +21,9 @@ async def interview_response(state: State, llm: ChatOpenAI):
         )
     analysis = state.criteria_analysis
 
-    covered_count = len([c for c in analysis.criteria if c.covered])
+    covered_count = len(
+        [criterion for criterion in analysis.criteria if criterion.covered]
+    )
     total_count = len(analysis.criteria)
 
     system_prompt = build_interview_response_prompt(
@@ -34,10 +36,12 @@ async def interview_response(state: State, llm: ChatOpenAI):
     # These can cause "No tool call found" errors when ToolMessage appears
     # without its corresponding AIMessage with tool_calls
     chat_messages = [
-        m
-        for m in state.messages
-        if not isinstance(m, ToolMessage)
-        and not (isinstance(m, AIMessage) and getattr(m, "tool_calls", None))
+        message
+        for message in state.messages
+        if not isinstance(message, ToolMessage)
+        and not (
+            isinstance(message, AIMessage) and getattr(message, "tool_calls", None)
+        )
     ]
     history = chat_messages[-HISTORY_LIMIT_INTERVIEW:]
     history = trim_messages_to_budget(history, INPUT_TOKENS_INTERVIEW)
@@ -59,5 +63,5 @@ async def interview_response(state: State, llm: ChatOpenAI):
     return {
         "messages": [ai_msg],
         "messages_to_save": {get_timestamp(): [ai_msg]},
-        "success": True,
+        "is_successful": True,
     }

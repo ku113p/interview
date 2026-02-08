@@ -8,7 +8,7 @@ import pytest
 from src.application.workers.channels import ChannelRequest, Channels
 from src.application.workers.graph_worker import run_graph_pool
 from src.domain import ClientMessage
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 
 
 def _create_test_user(temp_db) -> uuid.UUID:
@@ -25,7 +25,10 @@ def _mock_graph_response(content: str):
     """Create a mock graph that returns the given content."""
     mock_graph = MagicMock()
     mock_graph.ainvoke = AsyncMock(
-        return_value={"messages": [MagicMock(content=content)], "was_covered": False}
+        return_value={
+            "messages": [MagicMock(content=content)],
+            "is_fully_covered": False,
+        }
     )
     return mock_graph
 
@@ -74,7 +77,7 @@ class TestGraphWorker:
                 counter[0] += 1
                 return {
                     "messages": [MagicMock(content=f"Reply {idx}")],
-                    "was_covered": False,
+                    "is_fully_covered": False,
                 }
 
             mock_get.return_value = MagicMock(ainvoke=mock_invoke)

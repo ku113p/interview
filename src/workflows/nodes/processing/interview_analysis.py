@@ -5,7 +5,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
 
 from src.application.state import State
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.interview_models import CriteriaAnalysis
 from src.shared.prompts import PROMPT_INTERVIEW_ANALYSIS
@@ -46,21 +46,21 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
     db.LifeAreaMessagesManager.create(last_area_msg.id, last_area_msg)
 
     # Get area data
-    area_msgs: list[str] = [
-        msg.data for msg in db.LifeAreaMessagesManager.list_by_area(area_id)
+    area_messages: list[str] = [
+        message.data for message in db.LifeAreaMessagesManager.list_by_area(area_id)
     ]
     area_criteria: list[str] = [
-        c.title for c in db.CriteriaManager.list_by_area(area_id)
+        criterion.title for criterion in db.CriteriaManager.list_by_area(area_id)
     ]
 
     # Analyze coverage (structured output)
-    analysis = await _analyze_coverage(area_msgs, area_criteria, llm)
+    analysis = await _analyze_criteria_coverage(area_messages, area_criteria, llm)
 
     logger.info(
         "Interview criteria analyzed",
         extra={
             "area_id": str(area_id),
-            "message_count": len(area_msgs),
+            "message_count": len(area_messages),
             "criteria_count": len(area_criteria),
             "all_covered": analysis.all_covered,
             "next_uncovered": analysis.next_uncovered,
@@ -69,16 +69,16 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
 
     return {
         "criteria_analysis": analysis,
-        "was_covered": analysis.all_covered,
+        "is_fully_covered": analysis.all_covered,
     }
 
 
-async def _analyze_coverage(
+async def _analyze_criteria_coverage(
     interview_messages: list[str],
     area_criteria: list[str],
     llm: ChatOpenAI,
 ) -> CriteriaAnalysis:
-    """Analyze which criteria are covered by the interview messages."""
+    """Analyze which interview criteria are covered by the collected messages."""
     user_prompt = {
         "interview_messages": interview_messages,
         "criteria": area_criteria,

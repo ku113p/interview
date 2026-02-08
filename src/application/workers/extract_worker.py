@@ -11,7 +11,7 @@ from src.config.settings import (
     MODEL_KNOWLEDGE_EXTRACTION,
     WORKER_POOL_EXTRACT,
 )
-from src.infrastructure.ai import NewAI
+from src.infrastructure.ai import LLMClientBuilder
 from src.workflows.subgraphs.knowledge_extraction.graph import (
     build_knowledge_extraction_graph,
 )
@@ -20,8 +20,8 @@ from src.workflows.subgraphs.knowledge_extraction.state import KnowledgeExtracti
 logger = logging.getLogger(__name__)
 
 
-async def _process_extract_task(task: ExtractTask, graph, worker_id: int) -> None:
-    """Process a single extract task."""
+async def _invoke_extraction_graph(task: ExtractTask, graph, worker_id: int) -> None:
+    """Invoke the knowledge extraction graph for a task."""
     extra = {
         "area_id": str(task.area_id),
         "user_id": str(task.user_id),
@@ -33,12 +33,12 @@ async def _process_extract_task(task: ExtractTask, graph, worker_id: int) -> Non
     logger.info("Completed extract task", extra=extra)
 
 
-async def _handle_task(
+async def _run_extraction_with_recovery(
     task: ExtractTask, graph, channels: Channels, worker_id: int
 ) -> None:
-    """Handle a single task with error handling."""
+    """Run extraction with error recovery - log and continue on failure."""
     try:
-        await _process_extract_task(task, graph, worker_id)
+        await _invoke_extraction_graph(task, graph, worker_id)
     except asyncio.CancelledError:
         logger.info("Extract worker %d cancelled", worker_id)
         raise
@@ -54,7 +54,7 @@ async def _extract_worker_loop(worker_id: int, graph, channels: Channels) -> Non
         except asyncio.TimeoutError:
             continue
         try:
-            await _handle_task(task, graph, channels, worker_id)
+            await _run_extraction_with_recovery(task, graph, channels, worker_id)
         finally:
             channels.extract.task_done()
 
@@ -62,7 +62,9 @@ async def _extract_worker_loop(worker_id: int, graph, channels: Channels) -> Non
 async def run_extract_pool(channels: Channels) -> None:
     """Run the extract worker pool."""
     graph = build_knowledge_extraction_graph(
-        NewAI(MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_STRUCTURED).build()
+        LLMClientBuilder(
+            MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_STRUCTURED
+        ).build()
     )
     worker_fn = partial(_extract_worker_loop, graph=graph, channels=channels)
     await run_worker_pool("extract", worker_fn, WORKER_POOL_EXTRACT, channels.shutdown)

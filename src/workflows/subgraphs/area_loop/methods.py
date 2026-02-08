@@ -3,7 +3,7 @@
 import sqlite3
 import uuid
 
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 
 
@@ -21,7 +21,7 @@ class LifeAreaMethods:
     def list(user_id: str, conn: sqlite3.Connection | None = None) -> list[db.LifeArea]:
         u_id = _str_to_uuid(user_id)
         return [
-            obj for obj in db.LifeAreaManager.list(conn=conn) if obj.user_id == u_id
+            obj for obj in db.LifeAreasManager.list(conn=conn) if obj.user_id == u_id
         ]
 
     @staticmethod
@@ -34,7 +34,7 @@ class LifeAreaMethods:
         if u_id is None or a_id is None:
             raise KeyError("user_id and area_id are required")
 
-        area = db.LifeAreaManager.get_by_id(a_id, conn=conn)
+        area = db.LifeAreasManager.get_by_id(a_id, conn=conn)
         if area is None:
             raise KeyError(f"LifeArea {area_id} not found")
 
@@ -58,7 +58,7 @@ class LifeAreaMethods:
 
         area_id = new_id()
         area = db.LifeArea(id=area_id, title=title, parent_id=p_id, user_id=u_id)
-        db.LifeAreaManager.create(area_id, area, conn=conn)
+        db.LifeAreasManager.create(area_id, area, conn=conn)
         return area
 
     @staticmethod
@@ -71,13 +71,13 @@ class LifeAreaMethods:
         if u_id is None or a_id is None:
             raise KeyError("user_id and area_id are required")
 
-        area = db.LifeAreaManager.get_by_id(a_id, conn=conn)
+        area = db.LifeAreasManager.get_by_id(a_id, conn=conn)
         if area is None:
             raise KeyError(f"LifeArea {area_id} not found")
         if area.user_id != u_id:
             raise KeyError(f"LifeArea {area_id} does not belong to user {user_id}")
 
-        db.LifeAreaManager.delete(a_id, conn=conn)
+        db.LifeAreasManager.delete(a_id, conn=conn)
 
 
 class CriteriaMethods:

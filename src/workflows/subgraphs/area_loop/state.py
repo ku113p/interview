@@ -12,4 +12,4 @@ class AreaState(BaseModel):
     user: User
     messages: Annotated[list[BaseMessage], add_messages]
     messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
-    success: bool | None = None
+    is_successful: bool | None = None

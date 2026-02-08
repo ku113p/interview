@@ -16,8 +16,8 @@ from src.workflows.nodes.persistence.save_history import save_history
 from src.workflows.nodes.processing.interview_analysis import interview_analysis
 from src.workflows.nodes.processing.interview_response import interview_response
 from src.workflows.nodes.processing.load_history import load_history
-from src.workflows.routers.history_router import route_history_save
-from src.workflows.routers.message_router import route_message
+from src.workflows.routers.history_router import route_on_success
+from src.workflows.routers.message_router import route_by_target
 from src.workflows.subgraphs.area_loop.graph import (
     MAX_AREA_RECURSION,
     build_area_graph,
@@ -25,8 +25,8 @@ from src.workflows.subgraphs.area_loop.graph import (
 from src.workflows.subgraphs.transcribe.graph import build_transcribe_graph
 
 
-def _add_nodes(builder: StateGraph, transcribe_graph, area_graph) -> None:
-    """Add all nodes to the workflow graph."""
+def _add_workflow_nodes(builder: StateGraph, transcribe_graph, area_graph) -> None:
+    """Add all nodes to the main workflow graph."""
     builder.add_node("transcribe", transcribe_graph)
     builder.add_node("load_history", load_history)
     builder.add_node("build_user_message", build_user_message)
@@ -46,20 +46,18 @@ def _add_nodes(builder: StateGraph, transcribe_graph, area_graph) -> None:
     builder.add_node("area_loop", area_graph)
 
 
-def _add_edges(builder: StateGraph) -> None:
-    """Add all edges to the workflow graph."""
+def _add_workflow_edges(builder: StateGraph) -> None:
+    """Add all edges to the main workflow graph."""
     builder.add_edge(START, "transcribe")
     builder.add_edge("transcribe", "load_history")
     builder.add_edge("load_history", "build_user_message")
     builder.add_edge("build_user_message", "extract_target")
-    builder.add_conditional_edges("extract_target", route_message)
+    builder.add_conditional_edges("extract_target", route_by_target)
     builder.add_edge("interview_analysis", "interview_response")
     builder.add_conditional_edges(
-        "interview_response", route_history_save, ["save_history", END]
+        "interview_response", route_on_success, ["save_history", END]
     )
-    builder.add_conditional_edges(
-        "area_loop", route_history_save, ["save_history", END]
-    )
+    builder.add_conditional_edges("area_loop", route_on_success, ["save_history", END])
     builder.add_edge("save_history", END)
 
 
@@ -74,6 +72,6 @@ def get_graph():
     area_graph = build_area_graph(get_llm_area_chat()).with_config(
         {"recursion_limit": MAX_AREA_RECURSION}
     )
-    _add_nodes(builder, transcribe_graph, area_graph)
-    _add_edges(builder)
+    _add_workflow_nodes(builder, transcribe_graph, area_graph)
+    _add_workflow_edges(builder)
     return builder.compile()

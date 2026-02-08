@@ -57,7 +57,7 @@ class State(BaseModel):
     target: Target
     messages: Annotated[list[BaseMessage], add_messages]
     messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
-    success: bool | None = None
+    is_successful: bool | None = None
     area_id: uuid.UUID
-    was_covered: bool
+    is_fully_covered: bool
     criteria_analysis: CriteriaAnalysis | None = None

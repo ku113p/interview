@@ -4,7 +4,7 @@ import logging
 import uuid
 
 from src.application.workers.channels import Channels
-from src.application.workers.cli_transport import parse_user_id, run_cli_pool
+from src.application.workers.cli_worker import parse_user_id, run_cli_pool
 from src.application.workers.extract_worker import run_extract_pool
 from src.application.workers.graph_worker import run_graph_pool
 from src.config.logging import configure_logging

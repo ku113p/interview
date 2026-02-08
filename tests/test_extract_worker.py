@@ -21,7 +21,7 @@ class TestExtractWorker:
         await channels.extract.put(task)
 
         with (
-            patch("src.application.workers.extract_worker.NewAI") as mock_ai,
+            patch("src.application.workers.extract_worker.LLMClientBuilder") as mock_ai,
             patch(
                 "src.application.workers.extract_worker.build_knowledge_extraction_graph"
             ) as mock_build,
@@ -52,7 +52,7 @@ class TestExtractWorker:
         await channels.extract.put(task2)
 
         with (
-            patch("src.application.workers.extract_worker.NewAI") as mock_ai,
+            patch("src.application.workers.extract_worker.LLMClientBuilder") as mock_ai,
             patch(
                 "src.application.workers.extract_worker.build_knowledge_extraction_graph"
             ) as mock_build,
@@ -82,7 +82,7 @@ class TestExtractWorker:
         await channels.extract.put(ExtractTask(area_id=area_id, user_id=user_id))
 
         with (
-            patch("src.application.workers.extract_worker.NewAI") as mock_ai,
+            patch("src.application.workers.extract_worker.LLMClientBuilder") as mock_ai,
             patch(
                 "src.application.workers.extract_worker.build_knowledge_extraction_graph"
             ) as mock_build,

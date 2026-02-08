@@ -26,6 +26,6 @@ def route_extraction_success(
     Returns:
         "save_summary" if extraction succeeded, "__end__" otherwise.
     """
-    if not state.success or not state.extracted_summary:
+    if not state.is_successful or not state.extracted_summary:
         return "__end__"
     return "save_summary"

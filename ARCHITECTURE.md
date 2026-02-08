@@ -123,7 +123,7 @@ ExtractTask      # graph → extract (area_id, user_id)
 | File | Purpose |
 |------|---------|
 | `channels.py` | Channel types and Channels dataclass |
-| `cli_transport.py` | CLI transport pool |
+| `cli_worker.py` | CLI worker pool (stdin/stdout handling) |
 | `graph_worker.py` | Graph worker pool |
 | `extract_worker.py` | Extract worker pool |
 | `pool.py` | Generic `run_worker_pool()` utility |
@@ -141,7 +141,7 @@ ExtractTask      # graph → extract (area_id, user_id)
 | `user_knowledge` | Skills/facts extracted |
 | `user_knowledge_areas` | Knowledge-area links |
 
-ORM pattern: `BaseModel[T]` with managers per table.
+ORM pattern: `ORMBase[T]` with managers per table. Database managers are exported from `src/infrastructure/db/managers.py`.
 
 ## State Models
 
@@ -154,9 +154,10 @@ State:
   target: Target               # interview | areas
   messages: list[BaseMessage]  # Aggregated via add_messages
   messages_to_save: MessageBuckets
+  is_successful: bool          # Operation success flag
   area_id: UUID
   criteria_analysis: CriteriaAnalysis
-  was_covered: bool            # Triggers extract worker
+  is_fully_covered: bool       # All criteria covered, triggers extract worker
 ```
 
 ### Message Deduplication

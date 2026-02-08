@@ -5,11 +5,11 @@ import sqlite3
 import uuid
 from typing import Any
 
-from .base import BaseModel
+from .base import ORMBase
 from .models import Criteria, History, LifeArea, User
 
 
-class UsersManager(BaseModel[User]):
+class UsersManager(ORMBase[User]):
     _table = "users"
     _columns = ("id", "name", "mode", "current_area_id")
 
@@ -35,7 +35,7 @@ class UsersManager(BaseModel[User]):
         }
 
 
-class HistoryManager(BaseModel[History]):
+class HistoriesManager(ORMBase[History]):
     _table = "histories"
     _columns = ("id", "data", "user_id", "created_ts")
     _user_column = "user_id"
@@ -59,7 +59,7 @@ class HistoryManager(BaseModel[History]):
         }
 
 
-class LifeAreaManager(BaseModel[LifeArea]):
+class LifeAreasManager(ORMBase[LifeArea]):
     _table = "life_areas"
     _columns = ("id", "title", "parent_id", "user_id")
     _user_column = "user_id"
@@ -84,7 +84,7 @@ class LifeAreaManager(BaseModel[LifeArea]):
         }
 
 
-class CriteriaManager(BaseModel[Criteria]):
+class CriteriaManager(ORMBase[Criteria]):
     _table = "criteria"
     _columns = ("id", "title", "area_id")
     _area_column = "area_id"

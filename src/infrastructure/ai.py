@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class NewAI:
-    """Wrapper for creating OpenRouter LLM clients with standard configuration."""
+class LLMClientBuilder:
+    """Builder for creating OpenRouter LLM clients with standard configuration."""
 
     model: str
     temperature: int | float | None = None

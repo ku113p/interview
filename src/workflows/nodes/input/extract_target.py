@@ -14,13 +14,13 @@ from src.shared.retry import invoke_with_retry
 from src.workflows.subgraphs.area_loop.tools import AREA_TOOLS
 
 
-class State(BaseModel):
+class ExtractTargetState(BaseModel):
     user: User
     messages: Annotated[list[BaseMessage], add_messages]
     target: Target | None
 
 
-async def extract_target(state: State, llm: ChatOpenAI):
+async def extract_target(state: ExtractTargetState, llm: ChatOpenAI):
     user_obj = state.user
 
     if user_obj.mode != InputMode.auto:

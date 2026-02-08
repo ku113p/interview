@@ -1,15 +1,15 @@
-"""Unit tests for CLI transport helpers."""
+"""Unit tests for CLI worker helpers."""
 
-from src.application.workers.cli_transport import ensure_user
-from src.application.workers.graph_worker import _build_state
+from src.application.workers.cli_worker import get_or_create_user
+from src.application.workers.graph_worker import _init_graph_state
 from src.domain import ClientMessage, User
 from src.domain.models import InputMode
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 
 
-class TestEnsureUser:
-    """Test the ensure_user function."""
+class TestGetOrCreateUser:
+    """Test the get_or_create_user function."""
 
     def test_returns_existing_user(self, temp_db):
         """Should return existing user from database."""
@@ -26,7 +26,7 @@ class TestEnsureUser:
         )
 
         # Act
-        user = ensure_user(user_id)
+        user = get_or_create_user(user_id)
 
         # Assert
         assert user.id == user_id
@@ -38,7 +38,7 @@ class TestEnsureUser:
         user_id = new_id()
 
         # Act
-        user = ensure_user(user_id)
+        user = get_or_create_user(user_id)
 
         # Assert
         assert user.id == user_id
@@ -50,8 +50,8 @@ class TestEnsureUser:
         assert db_user.name == "cli"
 
 
-class TestBuildState:
-    """Test the _build_state function."""
+class TestInitGraphState:
+    """Test the _init_graph_state function."""
 
     def test_uses_current_area_id_when_set(self, temp_db):
         """Should use user's current_area_id when set."""
@@ -65,7 +65,7 @@ class TestBuildState:
             parent_id=None,
             user_id=user_id,
         )
-        db.LifeAreaManager.create(area_id, area)
+        db.LifeAreasManager.create(area_id, area)
 
         # Create user with current_area_id
         db.UsersManager.create(
@@ -81,7 +81,7 @@ class TestBuildState:
         user = User(id=user_id, mode=InputMode.auto)
         msg = ClientMessage(data="test message")
 
-        state, temp_files = _build_state(msg, user)
+        state, temp_files = _init_graph_state(msg, user)
 
         assert state.area_id == area_id
         assert len(temp_files) == 2
@@ -102,7 +102,7 @@ class TestBuildState:
         user = User(id=user_id, mode=InputMode.auto)
         msg = ClientMessage(data="test message")
 
-        state, temp_files = _build_state(msg, user)
+        state, temp_files = _init_graph_state(msg, user)
 
         assert state.area_id is not None
         assert len(temp_files) == 2
@@ -113,7 +113,7 @@ class TestBuildState:
         user = User(id=user_id, mode=InputMode.auto)
         msg = ClientMessage(data="test message")
 
-        state, temp_files = _build_state(msg, user)
+        state, temp_files = _init_graph_state(msg, user)
 
         assert state.area_id is not None
         assert len(temp_files) == 2

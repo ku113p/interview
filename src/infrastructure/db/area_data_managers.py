@@ -4,7 +4,7 @@ import sqlite3
 import uuid
 from typing import Any
 
-from .base import BaseModel
+from .base import ORMBase
 from .models import AreaSummary, LifeAreaMessage
 
 
@@ -23,7 +23,7 @@ def _deserialize_vector(data: bytes) -> list[float]:
     return list(struct.unpack(f"{count}f", data))
 
 
-class LifeAreaMessagesManager(BaseModel[LifeAreaMessage]):
+class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
     _table = "life_area_messages"
     _columns = ("id", "data", "area_id", "created_ts")
     _area_column = "area_id"
@@ -58,7 +58,7 @@ class LifeAreaMessagesManager(BaseModel[LifeAreaMessage]):
         }
 
 
-class AreaSummariesManager(BaseModel[AreaSummary]):
+class AreaSummariesManager(ORMBase[AreaSummary]):
     _table = "area_summaries"
     _columns = ("id", "area_id", "content", "vector", "created_ts")
     _area_column = "area_id"

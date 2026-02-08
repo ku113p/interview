@@ -4,11 +4,11 @@ import sqlite3
 import uuid
 from typing import Any
 
-from .base import BaseModel
+from .base import ORMBase
 from .models import UserKnowledge, UserKnowledgeArea
 
 
-class UserKnowledgeManager(BaseModel[UserKnowledge]):
+class UserKnowledgeManager(ORMBase[UserKnowledge]):
     _table = "user_knowledge"
     _columns = ("id", "content", "kind", "confidence", "created_ts")
 

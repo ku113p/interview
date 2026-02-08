@@ -6,8 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 from src.domain.models import ClientMessage
 
-from .nodes.extract_audio import State as ExtractAudioState
-from .nodes.extract_audio import extract_audio
+from .nodes.extract_audio import ExtractAudioState, extract_audio
 from .nodes.extract_text import extract_text_from_message
 
 
@@ -20,17 +19,17 @@ class ExtractState(BaseModel):
 
 
 def route_extract(state: ExtractState) -> str:
-    c_msg = state.message
-    if isinstance(c_msg.data, str):
+    client_message = state.message
+    if isinstance(client_message.data, str):
         return "extract_text"
     return "extract_audio"
 
 
 async def run_extract_audio(state: ExtractState):
-    c_msg = state.message
+    client_message = state.message
     await extract_audio(
         ExtractAudioState(
-            message=c_msg.data,
+            message=client_message.data,
             media_file=state.media_file,
             audio_file=state.audio_file,
         )
@@ -39,9 +38,9 @@ async def run_extract_audio(state: ExtractState):
 
 
 async def extract_text(state: ExtractState, llm: ChatOpenAI):
-    c_msg = state.message
-    if isinstance(c_msg.data, str):
-        return {"text": c_msg.data}
+    client_message = state.message
+    if isinstance(client_message.data, str):
+        return {"text": client_message.data}
 
     text = await extract_text_from_message(state.audio_file, llm)
     return {"text": text}

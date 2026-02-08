@@ -6,8 +6,8 @@ from src.application.workers.channels import (
     Channels,
     ExtractTask,
 )
-from src.application.workers.cli_transport import (
-    ensure_user,
+from src.application.workers.cli_worker import (
+    get_or_create_user,
     parse_user_id,
     run_cli_pool,
 )
@@ -20,7 +20,7 @@ __all__ = [
     "ChannelResponse",
     "Channels",
     "ExtractTask",
-    "ensure_user",
+    "get_or_create_user",
     "parse_user_id",
     "run_cli_pool",
     "run_extract_pool",

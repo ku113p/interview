@@ -30,9 +30,9 @@ class TestStateFileHandling:
             target=Target.interview,
             messages=[],
             messages_to_save={},
-            success=None,
+            is_successful=None,
             area_id=new_id(),
-            was_covered=False,
+            is_fully_covered=False,
         )
 
         # Assert
@@ -57,9 +57,9 @@ class TestStateFileHandling:
             target=Target.interview,
             messages=[],
             messages_to_save={},
-            success=None,
+            is_successful=None,
             area_id=new_id(),
-            was_covered=False,
+            is_fully_covered=False,
         )
 
         # Assert
@@ -88,9 +88,9 @@ class TestStateFileHandling:
                 target=Target.interview,
                 messages=[],
                 messages_to_save={},
-                success=None,
+                is_successful=None,
                 area_id=new_id(),
-                was_covered=False,
+                is_fully_covered=False,
             )
 
             # Assert
@@ -120,9 +120,9 @@ class TestStateFileHandling:
             target=Target.interview,
             messages=[],
             messages_to_save={},
-            success=None,
+            is_successful=None,
             area_id=new_id(),
-            was_covered=False,
+            is_fully_covered=False,
         )
 
         # Act - Add a message to state

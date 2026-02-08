@@ -9,7 +9,7 @@ from langchain.tools import tool
 from langchain_core.messages.tool import ToolCall
 from pydantic import AfterValidator, BaseModel, Field
 
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 
 from .methods import CriteriaMethods, CurrentAreaMethods, LifeAreaMethods
 

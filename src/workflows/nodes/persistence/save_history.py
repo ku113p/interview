@@ -5,7 +5,7 @@ from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from pydantic import BaseModel
 
 from src.domain.models import User
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 from src.shared.utils.content import normalize_content
@@ -13,10 +13,10 @@ from src.shared.utils.content import normalize_content
 logger = logging.getLogger(__name__)
 
 
-class State(BaseModel):
+class SaveHistoryState(BaseModel):
     user: User
     messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
-    success: bool | None = None
+    is_successful: bool | None = None
 
 
 def _normalize_role(role: str) -> str:
@@ -44,7 +44,7 @@ def _message_to_dict(msg: BaseMessage) -> dict[str, object]:
     return data
 
 
-def save_history(state: State) -> dict:
+def save_history(state: SaveHistoryState) -> dict:
     messages_by_ts = state.messages_to_save or {}
     if not messages_by_ts:
         logger.debug("No messages to save", extra={"user_id": str(state.user.id)})
@@ -59,7 +59,7 @@ def save_history(state: State) -> dict:
     for created_ts, messages in messages_by_ts.items():
         for msg in messages:
             history_id = new_id()
-            db.HistoryManager.create(
+            db.HistoriesManager.create(
                 history_id,
                 db.History(
                     id=history_id,

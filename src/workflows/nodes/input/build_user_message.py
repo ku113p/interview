@@ -9,14 +9,14 @@ from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 from src.shared.timestamp import get_timestamp
 
 
-class State(BaseModel):
+class BuildUserMessageState(BaseModel):
     user: User
     text: str
     messages: Annotated[list[BaseMessage], add_messages]
     messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
 
 
-async def build_user_message(state: State):
+async def build_user_message(state: BuildUserMessageState):
     new_msg = HumanMessage(content=state.text)
 
     return {"messages": [new_msg], "messages_to_save": {get_timestamp(): [new_msg]}}

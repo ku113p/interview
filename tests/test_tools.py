@@ -1,7 +1,7 @@
 """Unit tests for area tools."""
 
 import pytest
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.workflows.subgraphs.area_loop.tools import CurrentAreaMethods
 
@@ -30,7 +30,7 @@ class TestSetCurrentArea:
             parent_id=None,
             user_id=sample_user.id,
         )
-        db.LifeAreaManager.create(area_id, area)
+        db.LifeAreasManager.create(area_id, area)
 
         # Act
         result = CurrentAreaMethods.set_current(str(sample_user.id), str(area_id))
@@ -93,7 +93,7 @@ class TestSetCurrentArea:
             parent_id=None,
             user_id=other_user_id,
         )
-        db.LifeAreaManager.create(area_id, area)
+        db.LifeAreasManager.create(area_id, area)
 
         # Act & Assert - sample_user tries to set other_user's area as current
         with pytest.raises(KeyError):

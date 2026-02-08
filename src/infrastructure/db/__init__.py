@@ -1,15 +1,15 @@
 # Database infrastructure module
 
 from .connection import get_connection, transaction
-from .repositories import (
+from .managers import (
     Criteria,
     CriteriaManager,
+    HistoriesManager,
     History,
-    HistoryManager,
     LifeArea,
-    LifeAreaManager,
     LifeAreaMessage,
     LifeAreaMessagesManager,
+    LifeAreasManager,
     User,
     UsersManager,
 )
@@ -21,9 +21,9 @@ __all__ = [
     "User",
     "UsersManager",
     "History",
-    "HistoryManager",
+    "HistoriesManager",
     "LifeArea",
-    "LifeAreaManager",
+    "LifeAreasManager",
     "Criteria",
     "CriteriaManager",
     "LifeAreaMessage",

@@ -1,6 +1,6 @@
-"""Repository facade - re-exports all database models and managers.
+"""Database managers facade - re-exports all database models and managers.
 
-This module provides backward-compatible imports for all database entities.
+This module provides a single import point for all database entities.
 """
 
 # Domain Models
@@ -13,8 +13,8 @@ from .area_data_managers import (
 # Core Managers
 from .core_managers import (
     CriteriaManager,
-    HistoryManager,
-    LifeAreaManager,
+    HistoriesManager,
+    LifeAreasManager,
     UsersManager,
 )
 
@@ -47,8 +47,8 @@ __all__ = [
     # Managers
     "AreaSummariesManager",
     "CriteriaManager",
-    "HistoryManager",
-    "LifeAreaManager",
+    "HistoriesManager",
+    "LifeAreasManager",
     "LifeAreaMessagesManager",
     "UserKnowledgeAreasManager",
     "UserKnowledgeManager",

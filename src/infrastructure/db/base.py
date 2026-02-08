@@ -8,7 +8,7 @@ from typing import Any, Generic, TypeVar
 T = TypeVar("T")
 
 
-class BaseModel(Generic[T]):
+class ORMBase(Generic[T]):
     """Generic base class for ORM models with common CRUD operations."""
 
     _table: str

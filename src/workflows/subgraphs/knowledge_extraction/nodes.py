@@ -6,7 +6,7 @@ import logging
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.timestamp import get_timestamp
 
@@ -57,10 +57,10 @@ async def load_area_data(state: KnowledgeExtractionState) -> dict:
     """Load area data including title, criteria, and messages."""
     area_id = state.area_id
 
-    area = db.LifeAreaManager.get_by_id(area_id)
+    area = db.LifeAreasManager.get_by_id(area_id)
     if area is None:
         logger.warning("Area not found for extraction", extra={"area_id": str(area_id)})
-        return {"success": False}
+        return {"is_successful": False}
 
     criteria = db.CriteriaManager.list_by_area(area_id)
     messages = db.LifeAreaMessagesManager.list_by_area(area_id)
@@ -76,8 +76,8 @@ async def load_area_data(state: KnowledgeExtractionState) -> dict:
 
     return {
         "area_title": area.title,
-        "criteria_titles": [c.title for c in criteria],
-        "messages": [m.data for m in messages],
+        "criteria_titles": [criterion.title for criterion in criteria],
+        "messages": [message.data for message in messages],
     }
 
 
@@ -126,13 +126,13 @@ async def extract_summaries(state: KnowledgeExtractionState, llm: ChatOpenAI) ->
             },
         )
 
-        return {"extracted_summary": extracted, "success": True}
+        return {"extracted_summary": extracted, "is_successful": True}
 
     except Exception:
         logger.exception(
             "Failed to extract summaries", extra={"area_id": str(state.area_id)}
         )
-        return {"success": False}
+        return {"is_successful": False}
 
 
 def _build_summary_content(extracted_summary: dict[str, str]) -> str:

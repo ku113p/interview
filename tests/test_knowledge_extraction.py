@@ -4,7 +4,7 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.workflows.subgraphs.knowledge_extraction.nodes import (
     CriterionSummary,
     ExtractionResult,
@@ -29,17 +29,17 @@ class TestLoadAreaData:
 
     @pytest.mark.asyncio
     async def test_load_area_data_missing_area(self):
-        """Should return success=False when area is not found."""
+        """Should return is_successful=False when area is not found."""
         # Arrange
         area_id = uuid.uuid4()
         state = KnowledgeExtractionState(area_id=area_id)
 
-        with patch.object(db.LifeAreaManager, "get_by_id", return_value=None):
+        with patch.object(db.LifeAreasManager, "get_by_id", return_value=None):
             # Act
             result = await load_area_data(state)
 
         # Assert
-        assert result == {"success": False}
+        assert result == {"is_successful": False}
 
     @pytest.mark.asyncio
     async def test_load_area_data_success(self):
@@ -75,7 +75,7 @@ class TestLoadAreaData:
         ]
 
         with (
-            patch.object(db.LifeAreaManager, "get_by_id", return_value=mock_area),
+            patch.object(db.LifeAreasManager, "get_by_id", return_value=mock_area),
             patch.object(
                 db.CriteriaManager, "list_by_area", return_value=mock_criteria
             ),
@@ -110,7 +110,7 @@ class TestLoadAreaData:
         )
 
         with (
-            patch.object(db.LifeAreaManager, "get_by_id", return_value=mock_area),
+            patch.object(db.LifeAreasManager, "get_by_id", return_value=mock_area),
             patch.object(db.CriteriaManager, "list_by_area", return_value=[]),
             patch.object(db.LifeAreaMessagesManager, "list_by_area", return_value=[]),
         ):
@@ -158,7 +158,7 @@ class TestExtractSummaries:
         result = await extract_summaries(state, mock_llm)
 
         # Assert
-        assert result["success"] is True
+        assert result["is_successful"] is True
         assert result["extracted_summary"] == {
             "Skills": "Wants to learn Python",
             "Goals": "Aspires to become senior developer",
@@ -166,7 +166,7 @@ class TestExtractSummaries:
 
     @pytest.mark.asyncio
     async def test_extract_summaries_llm_exception(self):
-        """Should return success=False when LLM raises exception."""
+        """Should return is_successful=False when LLM raises exception."""
         # Arrange
         area_id = uuid.uuid4()
         state = KnowledgeExtractionState(
@@ -187,7 +187,7 @@ class TestExtractSummaries:
         result = await extract_summaries(state, mock_llm)
 
         # Assert
-        assert result == {"success": False}
+        assert result == {"is_successful": False}
 
 
 class TestRouters:
@@ -221,10 +221,10 @@ class TestRouters:
         assert route_has_data(state) == "extract_summaries"
 
     def test_route_extraction_success_returns_end_when_not_successful(self):
-        """Should return __end__ when success is False."""
+        """Should return __end__ when is_successful is False."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            success=False,
+            is_successful=False,
             extracted_summary={"Skills": "Summary"},
         )
         assert route_extraction_success(state) == "__end__"
@@ -233,7 +233,7 @@ class TestRouters:
         """Should return __end__ when extracted_summary is empty."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            success=True,
+            is_successful=True,
             extracted_summary={},
         )
         assert route_extraction_success(state) == "__end__"
@@ -242,7 +242,7 @@ class TestRouters:
         """Should return save_summary when successful with summary."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            success=True,
+            is_successful=True,
             extracted_summary={"Skills": "Summary"},
         )
         assert route_extraction_success(state) == "save_summary"
@@ -289,7 +289,7 @@ class TestSaveSummary:
         """Should skip saving when no meaningful content."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            success=True,
+            is_successful=True,
             extracted_summary={"Skills": "No response provided"},
         )
 
@@ -309,7 +309,7 @@ class TestSaveSummary:
         area_id = uuid.uuid4()
         state = KnowledgeExtractionState(
             area_id=area_id,
-            success=True,
+            is_successful=True,
             extracted_summary={"Skills": "Knows Python"},
         )
 
@@ -520,7 +520,7 @@ class TestSaveKnowledge:
 def _create_area_with_data(area_id, user_id, criteria_titles, message_texts):
     """Helper to create area with criteria and messages in database."""
     area = db.LifeArea(id=area_id, title="Career", parent_id=None, user_id=user_id)
-    db.LifeAreaManager.create(area_id, area)
+    db.LifeAreasManager.create(area_id, area)
 
     for title in criteria_titles:
         c = db.Criteria(id=uuid.uuid4(), title=title, area_id=area_id)
@@ -658,7 +658,7 @@ class TestKnowledgeExtractionGraphIntegration:
 
         area_id, user_id = uuid.uuid4(), uuid.uuid4()
         area = db.LifeArea(id=area_id, title="Empty", parent_id=None, user_id=user_id)
-        db.LifeAreaManager.create(area_id, area)
+        db.LifeAreasManager.create(area_id, area)
 
         mock_llm = MagicMock()
         graph = build_knowledge_extraction_graph(llm=mock_llm)

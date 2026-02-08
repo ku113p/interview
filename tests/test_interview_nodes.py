@@ -6,7 +6,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from src.application.state import State, Target
 from src.domain import ClientMessage, InputMode, User
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.interview_models import CriteriaAnalysis, CriterionCoverage
 from src.workflows.nodes.processing.interview_analysis import interview_analysis
@@ -23,7 +23,7 @@ def _create_state(user: User, area_id, messages, **kwargs) -> State:
         area_id=area_id,
         messages=messages,
         messages_to_save=kwargs.get("messages_to_save", {}),
-        was_covered=kwargs.get("was_covered", False),
+        is_fully_covered=kwargs.get("is_fully_covered", False),
         criteria_analysis=kwargs.get("criteria_analysis"),
     )
 
@@ -46,7 +46,7 @@ class TestInterviewAnalysis:
             parent_id=None,
             user_id=user_id,
         )
-        db.LifeAreaManager.create(area_id, area)
+        db.LifeAreasManager.create(area_id, area)
 
         state = _create_state(
             user=user,
@@ -88,7 +88,7 @@ class TestInterviewAnalysis:
             parent_id=None,
             user_id=user_id,
         )
-        db.LifeAreaManager.create(area_id, area)
+        db.LifeAreasManager.create(area_id, area)
 
         state = _create_state(
             user=user,
@@ -134,7 +134,7 @@ class TestInterviewAnalysis:
             parent_id=None,
             user_id=user_id,
         )
-        db.LifeAreaManager.create(area_id, area)
+        db.LifeAreasManager.create(area_id, area)
 
         state = _create_state(
             user=user,
@@ -165,7 +165,7 @@ class TestInterviewAnalysis:
         assert isinstance(result["criteria_analysis"], CriteriaAnalysis)
         assert len(result["criteria_analysis"].criteria) == 2
         assert result["criteria_analysis"].next_uncovered == "Criterion B"
-        assert result["was_covered"] is False
+        assert result["is_fully_covered"] is False
 
 
 class TestInterviewResponse:

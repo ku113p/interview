@@ -20,12 +20,14 @@ from src.config.settings import (
     TEMPERATURE_DETERMINISTIC,
     TEMPERATURE_STRUCTURED,
 )
-from src.infrastructure.ai import NewAI
+from src.infrastructure.ai import LLMClientBuilder
 
 
 def _build_llm(model: str, temperature: float, max_tokens: int) -> ChatOpenAI:
     """Build an LLM with standard configuration."""
-    return NewAI(model, temperature=temperature, max_tokens=max_tokens).build()
+    return LLMClientBuilder(
+        model, temperature=temperature, max_tokens=max_tokens
+    ).build()
 
 
 # Deterministic LLMs (temperature=0.0)

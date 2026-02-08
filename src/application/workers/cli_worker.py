@@ -1,4 +1,4 @@
-"""CLI transport worker for handling stdin/stdout communication."""
+"""CLI worker for handling stdin/stdout communication."""
 
 import asyncio
 import logging
@@ -7,7 +7,7 @@ import uuid
 
 from src.application.workers.channels import ChannelRequest, Channels
 from src.domain import ClientMessage, InputMode, User
-from src.infrastructure.db import repositories as db
+from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def parse_user_id(value: str | None) -> uuid.UUID:
     return new_id() if value is None else uuid.UUID(value)
 
 
-def ensure_user(user_id: uuid.UUID) -> User:
+def get_or_create_user(user_id: uuid.UUID) -> User:
     """Get or create user."""
     existing = db.UsersManager.get_by_id(user_id)
     if existing is not None:
@@ -128,7 +128,7 @@ async def _run_input_loop(
 
 async def run_cli_pool(channels: Channels, user_id: uuid.UUID) -> None:
     """Run CLI transport - single worker, handles stdin/stdout."""
-    user = ensure_user(user_id)
+    user = get_or_create_user(user_id)
     logger.info("Starting CLI transport", extra={"user_id": str(user.id)})
     print(f"User: {user.id}\nType /help for commands.\n")
 

@@ -89,13 +89,13 @@ async def _execute_tool_call(
 
 
 def _make_result(
-    messages: list[ToolMessage], messages_to_save: MessageBuckets, success: bool
+    messages: list[ToolMessage], messages_to_save: MessageBuckets, is_successful: bool
 ) -> dict[str, list[ToolMessage] | MessageBuckets | bool]:
     """Create a result dict for area_tools."""
     return {
         "messages": messages,
         "messages_to_save": messages_to_save,
-        "success": success,
+        "is_successful": is_successful,
     }
 
 
@@ -121,7 +121,7 @@ async def area_tools(state: AreaState):
         getattr(state.messages[-1], "tool_calls", None) or [],
     )
     if not tool_calls:
-        return _make_result([], {}, state.success)
+        return _make_result([], {}, state.is_successful)
 
     logger.info("Executing tool calls", extra={"count": len(tool_calls)})
     try:
@@ -136,9 +136,9 @@ async def area_tools(state: AreaState):
         )
         return _make_result([fallback], {get_timestamp(): [fallback]}, False)
 
-    success = state.success if state.success is not None else True
-    logger.info("Tool handling completed", extra={"success": success})
-    return _make_result(messages, messages_to_save, success)
+    is_successful = state.is_successful if state.is_successful is not None else True
+    logger.info("Tool handling completed", extra={"is_successful": is_successful})
+    return _make_result(messages, messages_to_save, is_successful)
 
 
 # -----------------------------------------------------------------------------
@@ -147,7 +147,7 @@ async def area_tools(state: AreaState):
 
 
 def area_end(state: AreaState):
-    """Finalize the area loop, setting success if not already set."""
-    if state.success is None:
-        return {"success": True}
+    """Finalize the area loop, setting is_successful if not already set."""
+    if state.is_successful is None:
+        return {"is_successful": True}
     return {}

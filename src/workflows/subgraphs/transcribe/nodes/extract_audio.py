@@ -19,20 +19,20 @@ def check_ffmpeg_availability():
         )
 
 
-class State(BaseModel):
+class ExtractAudioState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     message: MediaMessage
     media_file: str
     audio_file: str
 
 
-async def extract_audio(state: State):
-    c_msg = state.message
-    m_file = state.media_file
+async def extract_audio(state: ExtractAudioState):
+    media_message = state.message
+    media_file = state.media_file
     audio_file = state.audio_file
 
-    await write_file(m_file, c_msg.content)
-    await extract_audio_to_wav(m_file, audio_file)
+    await write_file(media_file, media_message.content)
+    await extract_audio_to_wav(media_file, audio_file)
     return {"audio_file": audio_file}
 
 
