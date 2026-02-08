@@ -1,6 +1,6 @@
-"""Unit tests for CLI worker helpers."""
+"""Unit tests for CLI transport and graph worker helpers."""
 
-from src.application.workers.cli_worker import get_or_create_user
+from src.application.transports import get_or_create_user
 from src.application.workers.graph_worker import _init_graph_state
 from src.domain import ClientMessage, User
 from src.domain.models import InputMode

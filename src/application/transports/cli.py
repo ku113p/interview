@@ -1,4 +1,4 @@
-"""CLI worker for handling stdin/stdout communication."""
+"""CLI transport for handling stdin/stdout communication."""
 
 import asyncio
 import logging
@@ -128,7 +128,7 @@ async def _run_input_loop(
     channels.shutdown.set()
 
 
-async def run_cli_pool(channels: Channels, user_id: uuid.UUID) -> None:
+async def run_cli(channels: Channels, user_id: uuid.UUID) -> None:
     """Run CLI transport - single worker, handles stdin/stdout."""
     user = get_or_create_user(user_id)
     logger.info("Starting CLI transport", extra={"user_id": str(user.id)})

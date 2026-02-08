@@ -3,8 +3,8 @@ import asyncio
 import logging
 import uuid
 
+from src.application.transports import parse_user_id, run_cli
 from src.application.workers.channels import Channels
-from src.application.workers.cli_worker import parse_user_id, run_cli_pool
 from src.application.workers.extract_worker import run_extract_pool
 from src.application.workers.graph_worker import run_graph_pool
 from src.config.logging import configure_logging
@@ -13,22 +13,22 @@ from src.workflows.subgraphs.transcribe.nodes.extract_audio import (
 )
 
 
-async def run_all_pools(transport: str, user_id: uuid.UUID) -> None:
-    """Start all worker pools as peers."""
+async def run_application(transport: str, user_id: uuid.UUID) -> None:
+    """Start transport and worker pools."""
     channels = Channels()
 
-    pools = [
+    tasks = [
         run_graph_pool(channels),
         run_extract_pool(channels),
     ]
 
-    # Add transport pool based on selection
+    # Add transport based on selection
     if transport == "cli":
-        pools.append(run_cli_pool(channels, user_id))
-    # Future: elif transport == "http": pools.append(run_http_pool(channels))
+        tasks.append(run_cli(channels, user_id))
+    # Future: elif transport == "http": tasks.append(run_http(channels))
 
     try:
-        await asyncio.gather(*pools)
+        await asyncio.gather(*tasks)
     except asyncio.CancelledError:
         channels.shutdown.set()
 
@@ -55,11 +55,11 @@ def main() -> None:
         raise RuntimeError(f"Transport '{args.transport}' not supported. Use: cli")
 
     try:
-        asyncio.run(run_all_pools(args.transport, args.user_id))
+        asyncio.run(run_application(args.transport, args.user_id))
     except RuntimeError as exc:
         if "asyncio.run() cannot be called" in str(exc):
             raise RuntimeError(
-                "Event loop already running. Call run_all_pools() directly in async context."
+                "Event loop already running. Call run_application() directly in async context."
             ) from exc
         raise
 

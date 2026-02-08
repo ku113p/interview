@@ -8,8 +8,8 @@ Interview assistant using LangGraph for workflow orchestration. Collects structu
 
 ```
 src/
-├── adapters/           # External interfaces (CLI, API)
-├── application/        # Workflow orchestration & workers
+├── adapters/           # External interfaces (API)
+├── application/        # Workflow orchestration, transports & workers
 ├── config/             # Settings & model assignments
 ├── domain/             # Core business models
 ├── infrastructure/     # External services (LLM, database)
@@ -72,14 +72,24 @@ Post-interview knowledge extraction (triggered when all criteria covered).
 - `extract_knowledge`: Extract skills/facts
 - `save_knowledge`: Persist knowledge items
 
+## Transports
+
+Transports handle external communication (user I/O). Located in `src/application/transports/`.
+
+| Transport | Purpose |
+|-----------|---------|
+| CLI | Handles stdin/stdout, user creation |
+
+Transports are single async coroutines (not pools) that communicate with worker pools via channels.
+
 ## Worker Architecture
 
-Flat peer-based architecture where all worker pools communicate through shared channels:
+Flat peer-based architecture where transports and worker pools communicate through shared channels:
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │  Transport  │    │    Graph    │    │   Extract   │
-│   Workers   │◄──►│   Workers   │◄──►│   Workers   │
+│    (CLI)    │◄──►│   Workers   │◄──►│   Workers   │
 └─────────────┘    └─────────────┘    └─────────────┘
        │                  │                  │
        └──────────────────┴──────────────────┘
@@ -90,7 +100,6 @@ Flat peer-based architecture where all worker pools communicate through shared c
 
 | Pool | Size | Purpose |
 |------|------|---------|
-| Transport (CLI) | 1 | Handles stdin/stdout, user creation |
 | Graph | 2 | Processes messages through main graph |
 | Extract | 2 | Knowledge extraction from covered areas |
 
@@ -122,11 +131,11 @@ ExtractTask      # graph → extract (area_id, user_id)
 
 | File | Purpose |
 |------|---------|
-| `channels.py` | Channel types and Channels dataclass |
-| `cli_worker.py` | CLI worker pool (stdin/stdout handling) |
-| `graph_worker.py` | Graph worker pool |
-| `extract_worker.py` | Extract worker pool |
-| `pool.py` | Generic `run_worker_pool()` utility |
+| `transports/cli.py` | CLI transport (stdin/stdout handling) |
+| `workers/channels.py` | Channel types and Channels dataclass |
+| `workers/graph_worker.py` | Graph worker pool |
+| `workers/extract_worker.py` | Extract worker pool |
+| `workers/pool.py` | Generic `run_worker_pool()` utility |
 
 ## Database Schema
 
