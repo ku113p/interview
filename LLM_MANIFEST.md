@@ -117,13 +117,13 @@ Non-retryable HTTP errors (400, 401, 403, 404, etc.) fail immediately.
 
 4. **Provider-dependent behavior:** OpenRouter may have different rate limits or behaviors than direct API access.
 
-## NewAI Wrapper
+## LLMClientBuilder
 
-The `NewAI` dataclass (`src/infrastructure/ai.py`) standardizes LLM client creation:
+The `LLMClientBuilder` dataclass (`src/infrastructure/ai.py`) standardizes LLM client creation:
 
 ```python
 @dataclass
-class NewAI:
+class LLMClientBuilder:
     model: str
     temperature: float | None = None
     max_tokens: int | None = None
