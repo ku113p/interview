@@ -25,7 +25,7 @@ def _deserialize_vector(data: bytes) -> list[float]:
 
 class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
     _table = "life_area_messages"
-    _columns = ("id", "data", "area_id", "created_ts")
+    _columns = ("id", "message_text", "area_id", "created_ts")
     _area_column = "area_id"
 
     @classmethod
@@ -43,7 +43,7 @@ class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
     def _row_to_obj(cls, row: sqlite3.Row) -> LifeAreaMessage:
         return LifeAreaMessage(
             id=uuid.UUID(row["id"]),
-            data=row["data"],
+            message_text=row["message_text"],
             area_id=uuid.UUID(row["area_id"]),
             created_ts=row["created_ts"],
         )
@@ -52,7 +52,7 @@ class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
     def _obj_to_row(cls, data: LifeAreaMessage) -> dict[str, Any]:
         return {
             "id": str(data.id),
-            "data": data.data,
+            "message_text": data.message_text,
             "area_id": str(data.area_id),
             "created_ts": data.created_ts,
         }
@@ -60,7 +60,7 @@ class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
 
 class AreaSummariesManager(ORMBase[AreaSummary]):
     _table = "area_summaries"
-    _columns = ("id", "area_id", "content", "vector", "created_ts")
+    _columns = ("id", "area_id", "summary_text", "vector", "created_ts")
     _area_column = "area_id"
 
     @classmethod
@@ -86,7 +86,7 @@ class AreaSummariesManager(ORMBase[AreaSummary]):
         return AreaSummary(
             id=uuid.UUID(row["id"]),
             area_id=uuid.UUID(row["area_id"]),
-            content=row["content"],
+            summary_text=row["summary_text"],
             vector=_deserialize_vector(row["vector"]),
             created_ts=row["created_ts"],
         )
@@ -96,7 +96,7 @@ class AreaSummariesManager(ORMBase[AreaSummary]):
         return {
             "id": str(data.id),
             "area_id": str(data.area_id),
-            "content": data.content,
+            "summary_text": data.summary_text,
             "vector": _serialize_vector(data.vector),
             "created_ts": data.created_ts,
         }

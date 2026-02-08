@@ -67,7 +67,7 @@ async def _response_listener(
         except asyncio.TimeoutError:
             continue
         if future := pending.pop(response.correlation_id, None):
-            future.set_result(response.payload)
+            future.set_result(response.response_text)
         channels.responses.task_done()
 
 
@@ -82,7 +82,9 @@ async def _send_request(
     pending[corr_id] = future
     await channels.requests.put(
         ChannelRequest(
-            correlation_id=corr_id, user_id=user_id, payload=ClientMessage(data=text)
+            correlation_id=corr_id,
+            user_id=user_id,
+            client_message=ClientMessage(data=text),
         )
     )
     return await future

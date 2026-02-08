@@ -39,7 +39,7 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
     # Save answer with question context for criteria coverage analysis
     last_area_msg = db.LifeAreaMessage(
         id=new_id(),
-        data=_format_qa_data(state.messages),
+        message_text=_format_qa_data(state.messages),
         area_id=area_id,
         created_ts=get_timestamp(),
     )
@@ -47,7 +47,8 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
 
     # Get area data
     area_messages: list[str] = [
-        message.data for message in db.LifeAreaMessagesManager.list_by_area(area_id)
+        message.message_text
+        for message in db.LifeAreaMessagesManager.list_by_area(area_id)
     ]
     area_criteria: list[str] = [
         criterion.title for criterion in db.CriteriaManager.list_by_area(area_id)

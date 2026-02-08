@@ -33,7 +33,7 @@ def init_schema(conn: sqlite3.Connection, db_path: str) -> None:
             );
             CREATE TABLE IF NOT EXISTS histories (
                 id TEXT PRIMARY KEY,
-                data TEXT NOT NULL,
+                message_data TEXT NOT NULL,
                 user_id TEXT NOT NULL,
                 created_ts REAL NOT NULL
             );
@@ -50,7 +50,7 @@ def init_schema(conn: sqlite3.Connection, db_path: str) -> None:
             );
             CREATE TABLE IF NOT EXISTS life_area_messages (
                 id TEXT PRIMARY KEY,
-                data TEXT NOT NULL,
+                message_text TEXT NOT NULL,
                 area_id TEXT NOT NULL,
                 created_ts REAL NOT NULL
             );
@@ -69,7 +69,7 @@ def init_schema(conn: sqlite3.Connection, db_path: str) -> None:
             CREATE TABLE IF NOT EXISTS area_summaries (
                 id TEXT PRIMARY KEY,
                 area_id TEXT NOT NULL,
-                content TEXT NOT NULL,
+                summary_text TEXT NOT NULL,
                 vector BLOB NOT NULL,
                 created_ts REAL NOT NULL
             );
@@ -77,7 +77,7 @@ def init_schema(conn: sqlite3.Connection, db_path: str) -> None:
                 ON area_summaries(area_id);
             CREATE TABLE IF NOT EXISTS user_knowledge (
                 id TEXT PRIMARY KEY,
-                content TEXT NOT NULL,
+                description TEXT NOT NULL,
                 kind TEXT NOT NULL,
                 confidence REAL NOT NULL,
                 created_ts REAL NOT NULL

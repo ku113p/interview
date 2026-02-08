@@ -10,13 +10,13 @@ from .models import UserKnowledge, UserKnowledgeArea
 
 class UserKnowledgeManager(ORMBase[UserKnowledge]):
     _table = "user_knowledge"
-    _columns = ("id", "content", "kind", "confidence", "created_ts")
+    _columns = ("id", "description", "kind", "confidence", "created_ts")
 
     @classmethod
     def _row_to_obj(cls, row: sqlite3.Row) -> UserKnowledge:
         return UserKnowledge(
             id=uuid.UUID(row["id"]),
-            content=row["content"],
+            description=row["description"],
             kind=row["kind"],
             confidence=row["confidence"],
             created_ts=row["created_ts"],
@@ -26,7 +26,7 @@ class UserKnowledgeManager(ORMBase[UserKnowledge]):
     def _obj_to_row(cls, data: UserKnowledge) -> dict[str, Any]:
         return {
             "id": str(data.id),
-            "content": data.content,
+            "description": data.description,
             "kind": data.kind,
             "confidence": data.confidence,
             "created_ts": data.created_ts,

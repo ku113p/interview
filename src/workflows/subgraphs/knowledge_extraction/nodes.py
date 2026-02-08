@@ -77,7 +77,7 @@ async def load_area_data(state: KnowledgeExtractionState) -> dict:
     return {
         "area_title": area.title,
         "criteria_titles": [criterion.title for criterion in criteria],
-        "messages": [message.data for message in messages],
+        "messages": [message.message_text for message in messages],
     }
 
 
@@ -179,7 +179,7 @@ async def save_summary(state: KnowledgeExtractionState) -> dict:
     area_summary = db.AreaSummary(
         id=summary_id,
         area_id=state.area_id,
-        content=summary_content,
+        summary_text=summary_content,
         vector=embedding,
         created_ts=get_timestamp(),
     )

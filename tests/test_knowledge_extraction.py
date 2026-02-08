@@ -62,13 +62,13 @@ class TestLoadAreaData:
         mock_messages = [
             db.LifeAreaMessage(
                 id=uuid.uuid4(),
-                data="I want to learn Python",
+                message_text="I want to learn Python",
                 area_id=area_id,
                 created_ts=1000.0,
             ),
             db.LifeAreaMessage(
                 id=uuid.uuid4(),
-                data="My goal is to become a senior developer",
+                message_text="My goal is to become a senior developer",
                 area_id=area_id,
                 created_ts=1001.0,
             ),
@@ -333,7 +333,7 @@ class TestSaveSummary:
         call_args = mock_create.call_args
         summary = call_args[0][1]
         assert summary.area_id == area_id
-        assert summary.content == "Skills: Knows Python"
+        assert summary.summary_text == "Skills: Knows Python"
         assert summary.vector == [0.1, 0.2, 0.3]
 
 
@@ -500,12 +500,12 @@ class TestSaveKnowledge:
         all_knowledge = db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 2
 
-        python_knowledge = next(k for k in all_knowledge if k.content == "Python")
+        python_knowledge = next(k for k in all_knowledge if k.description == "Python")
         assert python_knowledge.kind == "skill"
         assert python_knowledge.confidence == 0.9
 
         google_knowledge = next(
-            k for k in all_knowledge if k.content == "Works at Google"
+            k for k in all_knowledge if k.description == "Works at Google"
         )
         assert google_knowledge.kind == "fact"
         assert google_knowledge.confidence == 1.0
@@ -528,7 +528,7 @@ def _create_area_with_data(area_id, user_id, criteria_titles, message_texts):
 
     for i, text in enumerate(message_texts):
         m = db.LifeAreaMessage(
-            id=uuid.uuid4(), data=text, area_id=area_id, created_ts=1000.0 + i
+            id=uuid.uuid4(), message_text=text, area_id=area_id, created_ts=1000.0 + i
         )
         db.LifeAreaMessagesManager.create(m.id, m)
 
@@ -608,7 +608,9 @@ class TestKnowledgeExtractionGraphIntegration:
 
         summaries = db.AreaSummariesManager.list_by_area(area_id)
         assert len(summaries) == 1
-        assert "Skills: Proficient in Python and JavaScript" in summaries[0].content
+        assert (
+            "Skills: Proficient in Python and JavaScript" in summaries[0].summary_text
+        )
 
         all_knowledge = db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 3

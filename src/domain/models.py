@@ -12,8 +12,8 @@ class InputMode(enum.Enum):
     """User input mode for interview."""
 
     auto = "auto"
-    interview = "interview"
-    areas = "areas"
+    conduct_interview = "conduct_interview"
+    manage_areas = "manage_areas"
 
 
 @dataclass
