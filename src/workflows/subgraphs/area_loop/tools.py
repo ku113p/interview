@@ -156,53 +156,73 @@ async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None)
 
 
 @tool(args_schema=ListLifeAreasArgs)
-def list_life_areas(user_id: str) -> list[db.LifeArea]:
+def list_life_areas(
+    user_id: str, conn: sqlite3.Connection | None = None
+) -> list[db.LifeArea]:
     """List all life areas for a user."""
-    return LifeAreaMethods.list(user_id)
+    return LifeAreaMethods.list(user_id, conn=conn)
 
 
 @tool(args_schema=GetLifeAreaArgs)
-def get_life_area(user_id: str, area_id: str) -> db.LifeArea:
+def get_life_area(
+    user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+) -> db.LifeArea:
     """Fetch a single life area by id for a user."""
-    return LifeAreaMethods.get(user_id, area_id)
+    return LifeAreaMethods.get(user_id, area_id, conn=conn)
 
 
 @tool(args_schema=CreateLifeAreaArgs)
 def create_life_area(
-    user_id: str, title: str, parent_id: str | None = None
+    user_id: str,
+    title: str,
+    parent_id: str | None = None,
+    conn: sqlite3.Connection | None = None,
 ) -> db.LifeArea:
     """Create a new life area for a user."""
-    return LifeAreaMethods.create(user_id, title, parent_id)
+    return LifeAreaMethods.create(user_id, title, parent_id, conn=conn)
 
 
 @tool(args_schema=DeleteLifeAreaArgs)
-def delete_life_area(user_id: str, area_id: str) -> None:
+def delete_life_area(
+    user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+) -> None:
     """Delete a life area by id for a user."""
-    LifeAreaMethods.delete(user_id, area_id)
+    LifeAreaMethods.delete(user_id, area_id, conn=conn)
 
 
 @tool(args_schema=ListCriteriaArgs)
-def list_criteria(user_id: str, area_id: str) -> list[db.Criteria]:
+def list_criteria(
+    user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+) -> list[db.Criteria]:
     """List criteria belonging to a life area."""
-    return CriteriaMethods.list(user_id, area_id)
+    return CriteriaMethods.list(user_id, area_id, conn=conn)
 
 
 @tool(args_schema=DeleteCriteriaArgs)
-def delete_criteria(user_id: str, criteria_id: str) -> None:
+def delete_criteria(
+    user_id: str, criteria_id: str, conn: sqlite3.Connection | None = None
+) -> None:
     """Delete a criteria item by id for a user."""
-    CriteriaMethods.delete(user_id, criteria_id)
+    CriteriaMethods.delete(user_id, criteria_id, conn=conn)
 
 
 @tool(args_schema=CreateCriteriaArgs)
-def create_criteria(user_id: str, area_id: str, title: str) -> db.Criteria:
+def create_criteria(
+    user_id: str,
+    area_id: str,
+    title: str,
+    conn: sqlite3.Connection | None = None,
+) -> db.Criteria:
     """Create a criteria item under a life area."""
-    return CriteriaMethods.create(user_id, area_id, title)
+    return CriteriaMethods.create(user_id, area_id, title, conn=conn)
 
 
 @tool(args_schema=SetCurrentAreaArgs)
-def set_current_area(user_id: str, area_id: str) -> db.LifeArea:
+def set_current_area(
+    user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+) -> db.LifeArea:
     """Set a life area as the current area for interview. Call this after creating an area when the user wants to be interviewed about it."""
-    return CurrentAreaMethods.set_current(user_id, area_id)
+    return CurrentAreaMethods.set_current(user_id, area_id, conn=conn)
 
 
 AREA_TOOLS = [

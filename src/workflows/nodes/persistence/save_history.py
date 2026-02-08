@@ -63,7 +63,7 @@ def save_history(state: SaveHistoryState) -> dict:
                 history_id,
                 db.History(
                     id=history_id,
-                    data=_message_to_dict(msg),
+                    message_data=_message_to_dict(msg),
                     user_id=state.user.id,
                     created_ts=created_ts,
                 ),
