@@ -237,4 +237,5 @@ AREA_TOOLS = [
 ]
 
 # Auto-generate from AREA_TOOLS to avoid manual sync
-TOOL_METHODS = {tool.name: tool.func for tool in AREA_TOOLS}
+# Note: async tools use .coroutine, sync tools use .func
+TOOL_METHODS = {tool.name: tool.coroutine or tool.func for tool in AREA_TOOLS}
