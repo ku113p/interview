@@ -33,6 +33,10 @@ START
   ↓
 transcribe (subgraph)        # Convert audio/video to text
   ↓
+handle_command ──(command)──→ END     # Handle /help, /clear, /delete, /mode
+  │
+  └─(continue)
+      ↓
 load_history                  # Load conversation from DB
   ↓
 build_user_message           # Create HumanMessage
@@ -48,6 +52,37 @@ extract_target               # Classify: conduct_interview vs manage_areas
         ↓
       save_history → END
 ```
+
+## Command Handling
+
+Commands are handled in the graph via `handle_command` node, making them transport-agnostic (works for CLI, Telegram, etc.).
+
+| Command | Action |
+|---------|--------|
+| `/help` | Show available commands |
+| `/clear` | Clear conversation history |
+| `/delete` | Start account deletion (returns confirmation token) |
+| `/delete_<token>` | Confirm deletion with token (deletes all user data) |
+| `/mode` | Show current input mode |
+| `/mode <name>` | Change mode (auto, interview, areas) |
+| `/exit`, `/exit_N` | CLI-only: Exit process (handled in transport) |
+
+### Deletion Order (FK-safe)
+
+When deleting a user, data is removed in this order:
+1. `user_knowledge_areas` links
+2. `user_knowledge` items
+3. Per-area: `area_summaries`, `life_area_messages`, `criteria`
+4. `life_areas`
+5. `histories`
+6. `users`
+
+### Delete Token Storage
+
+Delete confirmation uses time-limited tokens stored in module-level dict:
+- Token: 8-character hex string
+- TTL: 60 seconds
+- Storage: `dict[user_id, (token, timestamp)]`
 
 ## Subgraphs
 
@@ -244,6 +279,7 @@ State:
   area_id: UUID
   criteria_analysis: CriteriaAnalysis
   is_fully_covered: bool       # All criteria covered, triggers extract worker
+  command_response: str | None # Set when command handled (ends workflow early)
 ```
 
 ### Message Deduplication

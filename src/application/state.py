@@ -45,6 +45,7 @@ class State(BaseModel):
     Attributes:
         media_file: Path to temporary media file (e.g., uploaded video/audio)
         audio_file: Path to temporary extracted audio file (WAV format)
+        command_response: Response text when a command is handled (ends workflow early)
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -61,3 +62,4 @@ class State(BaseModel):
     area_id: uuid.UUID
     is_fully_covered: bool
     criteria_analysis: CriteriaAnalysis | None = None
+    command_response: str | None = None
