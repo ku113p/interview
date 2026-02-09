@@ -152,6 +152,36 @@ ExtractTask      # graph → extract (area_id, user_id)
 
 ORM pattern: `ORMBase[T]` with managers per table. Database managers are exported from `src/infrastructure/db/managers.py`.
 
+### Async Database Layer
+
+The database layer uses `aiosqlite` for async SQLite access with WAL mode for multi-client concurrent access:
+
+```python
+PRAGMA journal_mode = WAL     # Write-Ahead Logging
+PRAGMA busy_timeout = 30000   # 30 second retry on lock contention
+```
+
+**Key benefits:**
+- WAL mode allows multiple simultaneous readers
+- Single writer doesn't block readers (writes go to separate `-wal` file)
+- `busy_timeout` automatically retries on `SQLITE_BUSY` instead of failing
+- Works across multiple processes accessing the same `.db` file
+
+**Connection patterns:**
+```python
+# Simple read/write
+async with get_connection() as conn:
+    cursor = await conn.execute(query, params)
+    row = await cursor.fetchone()
+
+# Transaction with automatic rollback
+async with transaction() as conn:
+    await conn.execute(insert_query, values)
+    # Commits on success, rolls back on exception
+```
+
+All ORM methods (`get_by_id`, `list`, `create`, `update`, `delete`) are async.
+
 ## State Models
 
 ### Main Graph State

@@ -147,7 +147,7 @@ async def save_knowledge(state: KnowledgeExtractionState) -> dict:
         return {}
 
     saved_count = 0
-    with get_connection() as conn:
+    async with get_connection() as conn:
         for item in state.extracted_knowledge:
             knowledge_id = new_id()
             knowledge = db.UserKnowledge(
@@ -157,7 +157,7 @@ async def save_knowledge(state: KnowledgeExtractionState) -> dict:
                 confidence=item["confidence"],
                 created_ts=get_timestamp(),
             )
-            db.UserKnowledgeManager.create(
+            await db.UserKnowledgeManager.create(
                 knowledge_id, knowledge, conn, auto_commit=False
             )
 
@@ -166,9 +166,11 @@ async def save_knowledge(state: KnowledgeExtractionState) -> dict:
                 knowledge_id=knowledge_id,
                 area_id=state.area_id,
             )
-            db.UserKnowledgeAreasManager.create_link(link, conn, auto_commit=False)
+            await db.UserKnowledgeAreasManager.create_link(
+                link, conn, auto_commit=False
+            )
             saved_count += 1
-        conn.commit()
+        await conn.commit()
 
     logger.info(
         "Saved knowledge items",

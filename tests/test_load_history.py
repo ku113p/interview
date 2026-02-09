@@ -2,7 +2,7 @@
 
 import time
 import uuid
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -18,7 +18,8 @@ from src.workflows.nodes.processing.load_history import (
 class TestGetFormattedHistory:
     """Test the get_formatted_history function."""
 
-    def test_ai_message_without_tool_calls(self):
+    @pytest.mark.asyncio
+    async def test_ai_message_without_tool_calls(self):
         """AI message without tool_calls key should create AIMessage with empty tool_calls.
 
         This is the main bug fix verification test.
@@ -37,10 +38,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 1
@@ -48,7 +50,8 @@ class TestGetFormattedHistory:
         assert messages[0].content == "Hello, I'm an AI!"
         assert messages[0].tool_calls == []  # Should be empty list, not None
 
-    def test_ai_message_with_tool_calls(self):
+    @pytest.mark.asyncio
+    async def test_ai_message_with_tool_calls(self):
         """AI message with tool_calls should preserve the tool_calls list."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -74,10 +77,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 1
@@ -86,7 +90,8 @@ class TestGetFormattedHistory:
         assert len(messages[0].tool_calls) == 1
         assert messages[0].tool_calls[0]["name"] == "list_life_areas"
 
-    def test_ai_message_with_empty_tool_calls(self):
+    @pytest.mark.asyncio
+    async def test_ai_message_with_empty_tool_calls(self):
         """AI message with empty tool_calls list should preserve the empty list."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -104,10 +109,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 1
@@ -115,7 +121,8 @@ class TestGetFormattedHistory:
         assert messages[0].content == "No tools needed"
         assert messages[0].tool_calls == []
 
-    def test_human_message(self):
+    @pytest.mark.asyncio
+    async def test_human_message(self):
         """User role message should create HumanMessage."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -129,17 +136,19 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 1
         assert isinstance(messages[0], HumanMessage)
         assert messages[0].content == "Hello, AI!"
 
-    def test_tool_message(self):
+    @pytest.mark.asyncio
+    async def test_tool_message(self):
         """Tool role message should create ToolMessage with correct attributes."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -158,10 +167,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 1
@@ -170,7 +180,8 @@ class TestGetFormattedHistory:
         assert messages[0].tool_call_id == "tool_123"
         assert messages[0].name == "search_function"
 
-    def test_tool_message_with_defaults(self):
+    @pytest.mark.asyncio
+    async def test_tool_message_with_defaults(self):
         """Tool message without optional fields should use default values."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -188,10 +199,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 1
@@ -200,7 +212,8 @@ class TestGetFormattedHistory:
         assert messages[0].tool_call_id == "history"
         assert messages[0].name == "history"
 
-    def test_unsupported_role(self):
+    @pytest.mark.asyncio
+    async def test_unsupported_role(self):
         """Unknown role should be skipped with a warning (not raise)."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -214,15 +227,17 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act - should skip the unknown role and return empty list
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert - message with unknown role is skipped
         assert messages == []
 
-    def test_limit_parameter_default(self):
+    @pytest.mark.asyncio
+    async def test_limit_parameter_default(self):
         """Should respect default limit of 15 messages (HISTORY_LIMIT_GLOBAL)."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -238,10 +253,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 15
@@ -249,7 +265,8 @@ class TestGetFormattedHistory:
         assert messages[0].content == "Message 5"
         assert messages[-1].content == "Message 19"
 
-    def test_limit_parameter_custom(self):
+    @pytest.mark.asyncio
+    async def test_limit_parameter_custom(self):
         """Should respect custom limit parameter."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -264,17 +281,19 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user, limit=3)
+            messages = await get_formatted_history(user, limit=3)
 
         # Assert
         assert len(messages) == 3
         assert messages[0].content == "Message 7"
         assert messages[-1].content == "Message 9"
 
-    def test_message_ordering(self):
+    @pytest.mark.asyncio
+    async def test_message_ordering(self):
         """Messages should be sorted by created_ts."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -302,10 +321,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 3
@@ -313,7 +333,8 @@ class TestGetFormattedHistory:
         assert messages[1].content == "Second"
         assert messages[2].content == "Third"
 
-    def test_mixed_message_types(self):
+    @pytest.mark.asyncio
+    async def test_mixed_message_types(self):
         """Should handle a mix of different message types correctly."""
         # Arrange
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
@@ -357,10 +378,11 @@ class TestGetFormattedHistory:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
-            messages = get_formatted_history(user)
+            messages = await get_formatted_history(user)
 
         # Assert
         assert len(messages) == 4
@@ -392,8 +414,9 @@ class TestLoadHistoryAsync:
         ]
 
         with patch.object(
-            db.HistoriesManager, "list_by_user", return_value=mock_history
-        ):
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = mock_history
             # Act
             result = await load_history(state)
 
@@ -410,7 +433,10 @@ class TestLoadHistoryAsync:
         user = User(id=uuid.uuid4(), mode=InputMode.auto)
         state = LoadHistoryState(user=user, messages=[])
 
-        with patch.object(db.HistoriesManager, "list_by_user", return_value=[]):
+        with patch.object(
+            db.HistoriesManager, "list_by_user", new_callable=AsyncMock
+        ) as mock_list:
+            mock_list.return_value = []
             # Act
             result = await load_history(state)
 

@@ -1,8 +1,9 @@
 """Knowledge repository managers: UserKnowledge, UserKnowledgeAreas."""
 
-import sqlite3
 import uuid
 from typing import Any
+
+import aiosqlite
 
 from .base import ORMBase
 from .models import UserKnowledge, UserKnowledgeArea
@@ -13,7 +14,7 @@ class UserKnowledgeManager(ORMBase[UserKnowledge]):
     _columns = ("id", "description", "kind", "confidence", "created_ts")
 
     @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> UserKnowledge:
+    def _row_to_obj(cls, row: aiosqlite.Row) -> UserKnowledge:
         return UserKnowledge(
             id=uuid.UUID(row["id"]),
             description=row["description"],
@@ -39,10 +40,10 @@ class UserKnowledgeAreasManager:
     _table = "user_knowledge_areas"
 
     @classmethod
-    def create_link(
+    async def create_link(
         cls,
         data: UserKnowledgeArea,
-        conn: sqlite3.Connection | None = None,
+        conn: aiosqlite.Connection | None = None,
         auto_commit: bool = True,
     ):
         """Create a link between user, knowledge, and area."""
@@ -56,16 +57,16 @@ class UserKnowledgeAreasManager:
         values = (str(data.user_id), str(data.knowledge_id), str(data.area_id))
 
         if conn is None:
-            with get_connection() as local_conn:
-                local_conn.execute(query, values)
+            async with get_connection() as local_conn:
+                await local_conn.execute(query, values)
                 if auto_commit:
-                    local_conn.commit()
+                    await local_conn.commit()
         else:
-            conn.execute(query, values)
+            await conn.execute(query, values)
 
     @classmethod
-    def list_by_user(
-        cls, user_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    async def list_by_user(
+        cls, user_id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> list[UserKnowledgeArea]:
         """List all knowledge links for a user."""
         from src.infrastructure.db.connection import get_connection
@@ -76,10 +77,12 @@ class UserKnowledgeAreasManager:
             WHERE user_id = ?
         """
         if conn is None:
-            with get_connection() as local_conn:
-                rows = local_conn.execute(query, (str(user_id),)).fetchall()
+            async with get_connection() as local_conn:
+                cursor = await local_conn.execute(query, (str(user_id),))
+                rows = await cursor.fetchall()
         else:
-            rows = conn.execute(query, (str(user_id),)).fetchall()
+            cursor = await conn.execute(query, (str(user_id),))
+            rows = await cursor.fetchall()
 
         return [
             UserKnowledgeArea(
@@ -91,8 +94,8 @@ class UserKnowledgeAreasManager:
         ]
 
     @classmethod
-    def list_by_area(
-        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    async def list_by_area(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> list[UserKnowledgeArea]:
         """List all knowledge links for an area."""
         from src.infrastructure.db.connection import get_connection
@@ -103,10 +106,12 @@ class UserKnowledgeAreasManager:
             WHERE area_id = ?
         """
         if conn is None:
-            with get_connection() as local_conn:
-                rows = local_conn.execute(query, (str(area_id),)).fetchall()
+            async with get_connection() as local_conn:
+                cursor = await local_conn.execute(query, (str(area_id),))
+                rows = await cursor.fetchall()
         else:
-            rows = conn.execute(query, (str(area_id),)).fetchall()
+            cursor = await conn.execute(query, (str(area_id),))
+            rows = await cursor.fetchall()
 
         return [
             UserKnowledgeArea(
@@ -118,11 +123,11 @@ class UserKnowledgeAreasManager:
         ]
 
     @classmethod
-    def delete_link(
+    async def delete_link(
         cls,
         user_id: uuid.UUID,
         knowledge_id: uuid.UUID,
-        conn: sqlite3.Connection | None = None,
+        conn: aiosqlite.Connection | None = None,
         auto_commit: bool = True,
     ):
         """Delete a specific knowledge link."""
@@ -133,9 +138,9 @@ class UserKnowledgeAreasManager:
             WHERE user_id = ? AND knowledge_id = ?
         """
         if conn is None:
-            with get_connection() as local_conn:
-                local_conn.execute(query, (str(user_id), str(knowledge_id)))
+            async with get_connection() as local_conn:
+                await local_conn.execute(query, (str(user_id), str(knowledge_id)))
                 if auto_commit:
-                    local_conn.commit()
+                    await local_conn.commit()
         else:
-            conn.execute(query, (str(user_id), str(knowledge_id)))
+            await conn.execute(query, (str(user_id), str(knowledge_id)))

@@ -57,13 +57,13 @@ async def load_area_data(state: KnowledgeExtractionState) -> dict:
     """Load area data including title, criteria, and messages."""
     area_id = state.area_id
 
-    area = db.LifeAreasManager.get_by_id(area_id)
+    area = await db.LifeAreasManager.get_by_id(area_id)
     if area is None:
         logger.warning("Area not found for extraction", extra={"area_id": str(area_id)})
         return {"is_successful": False}
 
-    criteria = db.CriteriaManager.list_by_area(area_id)
-    messages = db.LifeAreaMessagesManager.list_by_area(area_id)
+    criteria = await db.CriteriaManager.list_by_area(area_id)
+    messages = await db.LifeAreaMessagesManager.list_by_area(area_id)
 
     logger.info(
         "Loaded area data for extraction",
@@ -183,7 +183,7 @@ async def save_summary(state: KnowledgeExtractionState) -> dict:
         vector=embedding,
         created_ts=get_timestamp(),
     )
-    db.AreaSummariesManager.create(summary_id, area_summary)
+    await db.AreaSummariesManager.create(summary_id, area_summary)
 
     logger.info(
         "Saved area summary with embedding",

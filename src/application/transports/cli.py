@@ -28,13 +28,13 @@ def parse_user_id(value: str | None) -> uuid.UUID:
     return new_id() if value is None else uuid.UUID(value)
 
 
-def get_or_create_user(user_id: uuid.UUID) -> User:
+async def get_or_create_user(user_id: uuid.UUID) -> User:
     """Get or create user."""
-    existing = db.UsersManager.get_by_id(user_id)
+    existing = await db.UsersManager.get_by_id(user_id)
     if existing is not None:
         return User(id=existing.id, mode=InputMode(existing.mode))
     user_obj = User(id=user_id, mode=InputMode.auto)
-    db.UsersManager.create(
+    await db.UsersManager.create(
         user_obj.id, db.User(id=user_obj.id, name="cli", mode=user_obj.mode.value)
     )
     return user_obj
@@ -130,7 +130,7 @@ async def _run_input_loop(
 
 async def run_cli(channels: Channels, user_id: uuid.UUID) -> None:
     """Run CLI transport - single worker, handles stdin/stdout."""
-    user = get_or_create_user(user_id)
+    user = await get_or_create_user(user_id)
     logger.info("Starting CLI transport", extra={"user_id": str(user.id)})
     print(f"User: {user.id}\nType /help for commands.\n")
 

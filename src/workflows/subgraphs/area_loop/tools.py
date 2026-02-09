@@ -1,10 +1,10 @@
 """Area loop tools, schemas, and tool registry."""
 
 import logging
-import sqlite3
 import uuid
 from typing import Annotated
 
+import aiosqlite
 from langchain.tools import tool
 from langchain_core.messages.tool import ToolCall
 from pydantic import AfterValidator, BaseModel, Field
@@ -129,7 +129,7 @@ class SetCurrentAreaArgs(BaseModel):
 # -----------------------------------------------------------------------------
 
 
-async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None):
+async def call_tool(tool_call: ToolCall, conn: aiosqlite.Connection | None = None):
     """Execute a tool call by name with given arguments."""
     tool_name = tool_call["name"]
     tool_args = dict(tool_call.get("args", {}) or {})
@@ -147,7 +147,7 @@ async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None)
             "tool_args": tool_args,
         },
     )
-    return tool_fn(**tool_args, conn=conn)
+    return await tool_fn(**tool_args, conn=conn)
 
 
 # -----------------------------------------------------------------------------
@@ -156,73 +156,73 @@ async def call_tool(tool_call: ToolCall, conn: sqlite3.Connection | None = None)
 
 
 @tool(args_schema=ListLifeAreasArgs)
-def list_life_areas(
-    user_id: str, conn: sqlite3.Connection | None = None
+async def list_life_areas(
+    user_id: str, conn: aiosqlite.Connection | None = None
 ) -> list[db.LifeArea]:
     """List all life areas for a user."""
-    return LifeAreaMethods.list(user_id, conn=conn)
+    return await LifeAreaMethods.list(user_id, conn=conn)
 
 
 @tool(args_schema=GetLifeAreaArgs)
-def get_life_area(
-    user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+async def get_life_area(
+    user_id: str, area_id: str, conn: aiosqlite.Connection | None = None
 ) -> db.LifeArea:
     """Fetch a single life area by id for a user."""
-    return LifeAreaMethods.get(user_id, area_id, conn=conn)
+    return await LifeAreaMethods.get(user_id, area_id, conn=conn)
 
 
 @tool(args_schema=CreateLifeAreaArgs)
-def create_life_area(
+async def create_life_area(
     user_id: str,
     title: str,
     parent_id: str | None = None,
-    conn: sqlite3.Connection | None = None,
+    conn: aiosqlite.Connection | None = None,
 ) -> db.LifeArea:
     """Create a new life area for a user."""
-    return LifeAreaMethods.create(user_id, title, parent_id, conn=conn)
+    return await LifeAreaMethods.create(user_id, title, parent_id, conn=conn)
 
 
 @tool(args_schema=DeleteLifeAreaArgs)
-def delete_life_area(
-    user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+async def delete_life_area(
+    user_id: str, area_id: str, conn: aiosqlite.Connection | None = None
 ) -> None:
     """Delete a life area by id for a user."""
-    LifeAreaMethods.delete(user_id, area_id, conn=conn)
+    await LifeAreaMethods.delete(user_id, area_id, conn=conn)
 
 
 @tool(args_schema=ListCriteriaArgs)
-def list_criteria(
-    user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+async def list_criteria(
+    user_id: str, area_id: str, conn: aiosqlite.Connection | None = None
 ) -> list[db.Criteria]:
     """List criteria belonging to a life area."""
-    return CriteriaMethods.list(user_id, area_id, conn=conn)
+    return await CriteriaMethods.list(user_id, area_id, conn=conn)
 
 
 @tool(args_schema=DeleteCriteriaArgs)
-def delete_criteria(
-    user_id: str, criteria_id: str, conn: sqlite3.Connection | None = None
+async def delete_criteria(
+    user_id: str, criteria_id: str, conn: aiosqlite.Connection | None = None
 ) -> None:
     """Delete a criteria item by id for a user."""
-    CriteriaMethods.delete(user_id, criteria_id, conn=conn)
+    await CriteriaMethods.delete(user_id, criteria_id, conn=conn)
 
 
 @tool(args_schema=CreateCriteriaArgs)
-def create_criteria(
+async def create_criteria(
     user_id: str,
     area_id: str,
     title: str,
-    conn: sqlite3.Connection | None = None,
+    conn: aiosqlite.Connection | None = None,
 ) -> db.Criteria:
     """Create a criteria item under a life area."""
-    return CriteriaMethods.create(user_id, area_id, title, conn=conn)
+    return await CriteriaMethods.create(user_id, area_id, title, conn=conn)
 
 
 @tool(args_schema=SetCurrentAreaArgs)
-def set_current_area(
-    user_id: str, area_id: str, conn: sqlite3.Connection | None = None
+async def set_current_area(
+    user_id: str, area_id: str, conn: aiosqlite.Connection | None = None
 ) -> db.LifeArea:
     """Set a life area as the current area for interview. Call this after creating an area when the user wants to be interviewed about it."""
-    return CurrentAreaMethods.set_current(user_id, area_id, conn=conn)
+    return await CurrentAreaMethods.set_current(user_id, area_id, conn=conn)
 
 
 AREA_TOOLS = [

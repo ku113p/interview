@@ -34,7 +34,10 @@ class TestLoadAreaData:
         area_id = uuid.uuid4()
         state = KnowledgeExtractionState(area_id=area_id)
 
-        with patch.object(db.LifeAreasManager, "get_by_id", return_value=None):
+        with patch.object(
+            db.LifeAreasManager, "get_by_id", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = None
             # Act
             result = await load_area_data(state)
 
@@ -75,14 +78,19 @@ class TestLoadAreaData:
         ]
 
         with (
-            patch.object(db.LifeAreasManager, "get_by_id", return_value=mock_area),
             patch.object(
-                db.CriteriaManager, "list_by_area", return_value=mock_criteria
-            ),
+                db.LifeAreasManager, "get_by_id", new_callable=AsyncMock
+            ) as mock_get,
             patch.object(
-                db.LifeAreaMessagesManager, "list_by_area", return_value=mock_messages
-            ),
+                db.CriteriaManager, "list_by_area", new_callable=AsyncMock
+            ) as mock_list_criteria,
+            patch.object(
+                db.LifeAreaMessagesManager, "list_by_area", new_callable=AsyncMock
+            ) as mock_list_messages,
         ):
+            mock_get.return_value = mock_area
+            mock_list_criteria.return_value = mock_criteria
+            mock_list_messages.return_value = mock_messages
             # Act
             result = await load_area_data(state)
 
@@ -110,10 +118,19 @@ class TestLoadAreaData:
         )
 
         with (
-            patch.object(db.LifeAreasManager, "get_by_id", return_value=mock_area),
-            patch.object(db.CriteriaManager, "list_by_area", return_value=[]),
-            patch.object(db.LifeAreaMessagesManager, "list_by_area", return_value=[]),
+            patch.object(
+                db.LifeAreasManager, "get_by_id", new_callable=AsyncMock
+            ) as mock_get,
+            patch.object(
+                db.CriteriaManager, "list_by_area", new_callable=AsyncMock
+            ) as mock_list_criteria,
+            patch.object(
+                db.LifeAreaMessagesManager, "list_by_area", new_callable=AsyncMock
+            ) as mock_list_messages,
         ):
+            mock_get.return_value = mock_area
+            mock_list_criteria.return_value = []
+            mock_list_messages.return_value = []
             # Act
             result = await load_area_data(state)
 
@@ -295,7 +312,9 @@ class TestSaveSummary:
 
         with (
             patch("src.infrastructure.embeddings.get_embedding_client") as mock_embed,
-            patch.object(db.AreaSummariesManager, "create") as mock_create,
+            patch.object(
+                db.AreaSummariesManager, "create", new_callable=AsyncMock
+            ) as mock_create,
         ):
             result = await save_summary(state)
 
@@ -321,7 +340,9 @@ class TestSaveSummary:
                 "src.infrastructure.embeddings.get_embedding_client",
                 return_value=mock_embed_client,
             ),
-            patch.object(db.AreaSummariesManager, "create") as mock_create,
+            patch.object(
+                db.AreaSummariesManager, "create", new_callable=AsyncMock
+            ) as mock_create,
         ):
             result = await save_summary(state)
 
@@ -455,7 +476,9 @@ class TestSaveKnowledge:
             ],
         )
 
-        with patch.object(db.UserKnowledgeManager, "create") as mock_create:
+        with patch.object(
+            db.UserKnowledgeManager, "create", new_callable=AsyncMock
+        ) as mock_create:
             result = await save_knowledge(state)
 
         assert result == {}
@@ -470,7 +493,9 @@ class TestSaveKnowledge:
             extracted_knowledge=[],
         )
 
-        with patch.object(db.UserKnowledgeManager, "create") as mock_create:
+        with patch.object(
+            db.UserKnowledgeManager, "create", new_callable=AsyncMock
+        ) as mock_create:
             result = await save_knowledge(state)
 
         assert result == {}
@@ -497,7 +522,7 @@ class TestSaveKnowledge:
         assert result == {}
 
         # Verify knowledge items were saved
-        all_knowledge = db.UserKnowledgeManager.list()
+        all_knowledge = await db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 2
 
         python_knowledge = next(k for k in all_knowledge if k.description == "Python")
@@ -511,26 +536,26 @@ class TestSaveKnowledge:
         assert google_knowledge.confidence == 1.0
 
         # Verify links were created
-        links = db.UserKnowledgeAreasManager.list_by_user(user_id)
+        links = await db.UserKnowledgeAreasManager.list_by_user(user_id)
         assert len(links) == 2
         assert all(link.user_id == user_id for link in links)
         assert all(link.area_id == area_id for link in links)
 
 
-def _create_area_with_data(area_id, user_id, criteria_titles, message_texts):
+async def _create_area_with_data(area_id, user_id, criteria_titles, message_texts):
     """Helper to create area with criteria and messages in database."""
     area = db.LifeArea(id=area_id, title="Career", parent_id=None, user_id=user_id)
-    db.LifeAreasManager.create(area_id, area)
+    await db.LifeAreasManager.create(area_id, area)
 
     for title in criteria_titles:
         c = db.Criteria(id=uuid.uuid4(), title=title, area_id=area_id)
-        db.CriteriaManager.create(c.id, c)
+        await db.CriteriaManager.create(c.id, c)
 
     for i, text in enumerate(message_texts):
         m = db.LifeAreaMessage(
             id=uuid.uuid4(), message_text=text, area_id=area_id, created_ts=1000.0 + i
         )
-        db.LifeAreaMessagesManager.create(m.id, m)
+        await db.LifeAreaMessagesManager.create(m.id, m)
 
 
 def _create_mock_llm_for_extraction(summary_result, knowledge_result):
@@ -562,7 +587,7 @@ class TestKnowledgeExtractionGraphIntegration:
         )
 
         area_id, user_id = uuid.uuid4(), uuid.uuid4()
-        _create_area_with_data(
+        await _create_area_with_data(
             area_id,
             user_id,
             ["Skills", "Goals"],
@@ -606,16 +631,16 @@ class TestKnowledgeExtractionGraphIntegration:
                 KnowledgeExtractionState(area_id=area_id, user_id=user_id)
             )
 
-        summaries = db.AreaSummariesManager.list_by_area(area_id)
+        summaries = await db.AreaSummariesManager.list_by_area(area_id)
         assert len(summaries) == 1
         assert (
             "Skills: Proficient in Python and JavaScript" in summaries[0].summary_text
         )
 
-        all_knowledge = db.UserKnowledgeManager.list()
+        all_knowledge = await db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 3
 
-        links = db.UserKnowledgeAreasManager.list_by_user(user_id)
+        links = await db.UserKnowledgeAreasManager.list_by_user(user_id)
         assert len(links) == 3
 
     @pytest.mark.asyncio
@@ -626,7 +651,7 @@ class TestKnowledgeExtractionGraphIntegration:
         )
 
         area_id, user_id = uuid.uuid4(), uuid.uuid4()
-        _create_area_with_data(area_id, user_id, ["Skills"], ["I know Python"])
+        await _create_area_with_data(area_id, user_id, ["Skills"], ["I know Python"])
 
         summary_result = ExtractionResult(
             summaries=[CriterionSummary(criterion="Skills", summary="Knows Python")]
@@ -648,8 +673,10 @@ class TestKnowledgeExtractionGraphIntegration:
                 KnowledgeExtractionState(area_id=area_id, user_id=user_id)
             )
 
-        assert len(db.AreaSummariesManager.list_by_area(area_id)) == 0
-        assert len(db.UserKnowledgeManager.list()) == 0
+        summaries = await db.AreaSummariesManager.list_by_area(area_id)
+        assert len(summaries) == 0
+        all_knowledge = await db.UserKnowledgeManager.list()
+        assert len(all_knowledge) == 0
 
     @pytest.mark.asyncio
     async def test_graph_skips_when_no_data(self, temp_db):
@@ -660,12 +687,14 @@ class TestKnowledgeExtractionGraphIntegration:
 
         area_id, user_id = uuid.uuid4(), uuid.uuid4()
         area = db.LifeArea(id=area_id, title="Empty", parent_id=None, user_id=user_id)
-        db.LifeAreasManager.create(area_id, area)
+        await db.LifeAreasManager.create(area_id, area)
 
         mock_llm = MagicMock()
         graph = build_knowledge_extraction_graph(llm=mock_llm)
         await graph.ainvoke(KnowledgeExtractionState(area_id=area_id, user_id=user_id))
 
         mock_llm.with_structured_output.assert_not_called()
-        assert len(db.AreaSummariesManager.list_by_area(area_id)) == 0
-        assert len(db.UserKnowledgeManager.list()) == 0
+        summaries = await db.AreaSummariesManager.list_by_area(area_id)
+        assert len(summaries) == 0
+        all_knowledge = await db.UserKnowledgeManager.list()
+        assert len(all_knowledge) == 0

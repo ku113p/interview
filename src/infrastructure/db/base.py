@@ -1,8 +1,9 @@
 """Base ORM framework classes."""
 
-import sqlite3
 import uuid
 from typing import Any, Generic, TypeVar
+
+import aiosqlite
 
 # Define a TypeVar that represents our Data Objects
 T = TypeVar("T")
@@ -17,7 +18,7 @@ class ORMBase(Generic[T]):
     _area_column: str | None = None  # Set to enable list_by_area
 
     @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> T:
+    def _row_to_obj(cls, row: aiosqlite.Row) -> T:
         """Convert database row to domain object. Must be implemented by subclasses."""
         raise NotImplementedError
 
@@ -27,11 +28,11 @@ class ORMBase(Generic[T]):
         raise NotImplementedError
 
     @classmethod
-    def _list_by_column(
+    async def _list_by_column(
         cls,
         column: str,
         value: str,
-        conn: sqlite3.Connection | None = None,
+        conn: aiosqlite.Connection | None = None,
         order_by: str | None = None,
     ) -> list[T]:
         """Query objects by a specific column value."""
@@ -41,66 +42,72 @@ class ORMBase(Generic[T]):
         if order_by is not None:
             query = f"{query} ORDER BY {order_by}"
         if conn is None:
-            with get_connection() as local_conn:
-                rows = local_conn.execute(query, (value,)).fetchall()
+            async with get_connection() as local_conn:
+                cursor = await local_conn.execute(query, (value,))
+                rows = await cursor.fetchall()
         else:
-            rows = conn.execute(query, (value,)).fetchall()
+            cursor = await conn.execute(query, (value,))
+            rows = await cursor.fetchall()
         return [cls._row_to_obj(row) for row in rows]
 
     @classmethod
-    def list_by_user(
-        cls, user_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    async def list_by_user(
+        cls, user_id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> list[T]:
         """List objects by user_id. Requires _user_column to be set."""
         if cls._user_column is None:
             raise NotImplementedError(f"{cls.__name__} does not support list_by_user")
-        return cls._list_by_column(cls._user_column, str(user_id), conn)
+        return await cls._list_by_column(cls._user_column, str(user_id), conn)
 
     @classmethod
-    def list_by_area(
-        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    async def list_by_area(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> list[T]:
         """List objects by area_id. Requires _area_column to be set."""
         if cls._area_column is None:
             raise NotImplementedError(f"{cls.__name__} does not support list_by_area")
-        return cls._list_by_column(cls._area_column, str(area_id), conn)
+        return await cls._list_by_column(cls._area_column, str(area_id), conn)
 
     @classmethod
-    def get_by_id(
-        cls, id: uuid.UUID, conn: sqlite3.Connection | None = None
+    async def get_by_id(
+        cls, id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> T | None:
         """Retrieve a single object by ID."""
         from src.infrastructure.db.connection import get_connection
 
         query = f"SELECT {', '.join(cls._columns)} FROM {cls._table} WHERE id = ?"
         if conn is None:
-            with get_connection() as local_conn:
-                row = local_conn.execute(query, (str(id),)).fetchone()
+            async with get_connection() as local_conn:
+                cursor = await local_conn.execute(query, (str(id),))
+                row = await cursor.fetchone()
         else:
-            row = conn.execute(query, (str(id),)).fetchone()
+            cursor = await conn.execute(query, (str(id),))
+            row = await cursor.fetchone()
         if row is None:
             return None
         return cls._row_to_obj(row)
 
     @classmethod
-    def list(cls, conn: sqlite3.Connection | None = None) -> list[T]:
+    async def list(cls, conn: aiosqlite.Connection | None = None) -> list[T]:
         """Retrieve all objects from the table."""
         from src.infrastructure.db.connection import get_connection
 
         query = f"SELECT {', '.join(cls._columns)} FROM {cls._table}"
         if conn is None:
-            with get_connection() as local_conn:
-                rows = local_conn.execute(query).fetchall()
+            async with get_connection() as local_conn:
+                cursor = await local_conn.execute(query)
+                rows = await cursor.fetchall()
         else:
-            rows = conn.execute(query).fetchall()
+            cursor = await conn.execute(query)
+            rows = await cursor.fetchall()
         return [cls._row_to_obj(row) for row in rows]
 
     @classmethod
-    def create(
+    async def create(
         cls,
         id: uuid.UUID,
         data: T,
-        conn: sqlite3.Connection | None = None,
+        conn: aiosqlite.Connection | None = None,
         auto_commit: bool = True,
     ):
         """Create or replace an object in the database.
@@ -122,29 +129,29 @@ class ORMBase(Generic[T]):
             f"INSERT OR REPLACE INTO {cls._table} ({columns}) VALUES ({placeholders})"
         )
         if conn is None:
-            with get_connection() as local_conn:
-                local_conn.execute(query, tuple(values.values()))
+            async with get_connection() as local_conn:
+                await local_conn.execute(query, tuple(values.values()))
                 if auto_commit:
-                    local_conn.commit()
+                    await local_conn.commit()
         else:
-            conn.execute(query, tuple(values.values()))
+            await conn.execute(query, tuple(values.values()))
 
     @classmethod
-    def update(
+    async def update(
         cls,
         id: uuid.UUID,
         data: T,
-        conn: sqlite3.Connection | None = None,
+        conn: aiosqlite.Connection | None = None,
         auto_commit: bool = True,
     ):
         """Update an object (uses create for simplicity)."""
-        cls.create(id, data, conn=conn, auto_commit=auto_commit)
+        await cls.create(id, data, conn=conn, auto_commit=auto_commit)
 
     @classmethod
-    def delete(
+    async def delete(
         cls,
         id: uuid.UUID,
-        conn: sqlite3.Connection | None = None,
+        conn: aiosqlite.Connection | None = None,
         auto_commit: bool = True,
     ):
         """Delete an object by ID.
@@ -158,9 +165,9 @@ class ORMBase(Generic[T]):
 
         query = f"DELETE FROM {cls._table} WHERE id = ?"
         if conn is None:
-            with get_connection() as local_conn:
-                local_conn.execute(query, (str(id),))
+            async with get_connection() as local_conn:
+                await local_conn.execute(query, (str(id),))
                 if auto_commit:
-                    local_conn.commit()
+                    await local_conn.commit()
         else:
-            conn.execute(query, (str(id),))
+            await conn.execute(query, (str(id),))

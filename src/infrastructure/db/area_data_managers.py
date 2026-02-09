@@ -1,8 +1,9 @@
 """Area data repository managers: LifeAreaMessages and AreaSummaries."""
 
-import sqlite3
 import uuid
 from typing import Any
+
+import aiosqlite
 
 from .base import ORMBase
 from .models import AreaSummary, LifeAreaMessage
@@ -29,10 +30,10 @@ class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
     _area_column = "area_id"
 
     @classmethod
-    def list_by_area(
-        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    async def list_by_area(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> list[LifeAreaMessage]:
-        return cls._list_by_column(
+        return await cls._list_by_column(
             "area_id",
             str(area_id),
             conn,
@@ -40,7 +41,7 @@ class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
         )
 
     @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> LifeAreaMessage:
+    def _row_to_obj(cls, row: aiosqlite.Row) -> LifeAreaMessage:
         return LifeAreaMessage(
             id=uuid.UUID(row["id"]),
             message_text=row["message_text"],
@@ -64,10 +65,10 @@ class AreaSummariesManager(ORMBase[AreaSummary]):
     _area_column = "area_id"
 
     @classmethod
-    def list_by_area(
-        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    async def list_by_area(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> list[AreaSummary]:
-        return cls._list_by_column(
+        return await cls._list_by_column(
             "area_id",
             str(area_id),
             conn,
@@ -75,14 +76,14 @@ class AreaSummariesManager(ORMBase[AreaSummary]):
         )
 
     @classmethod
-    def get_latest_by_area(
-        cls, area_id: uuid.UUID, conn: sqlite3.Connection | None = None
+    async def get_latest_by_area(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> AreaSummary | None:
-        results = cls.list_by_area(area_id, conn)
+        results = await cls.list_by_area(area_id, conn)
         return results[0] if results else None
 
     @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> AreaSummary:
+    def _row_to_obj(cls, row: aiosqlite.Row) -> AreaSummary:
         return AreaSummary(
             id=uuid.UUID(row["id"]),
             area_id=uuid.UUID(row["area_id"]),

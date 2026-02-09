@@ -1,9 +1,10 @@
 """Core repository managers: Users, History, LifeArea, Criteria."""
 
 import json
-import sqlite3
 import uuid
 from typing import Any
+
+import aiosqlite
 
 from .base import ORMBase
 from .models import Criteria, History, LifeArea, User
@@ -14,7 +15,7 @@ class UsersManager(ORMBase[User]):
     _columns = ("id", "name", "mode", "current_area_id")
 
     @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> User:
+    def _row_to_obj(cls, row: aiosqlite.Row) -> User:
         current_area_id = row["current_area_id"]
         return User(
             id=uuid.UUID(row["id"]),
@@ -41,7 +42,7 @@ class HistoriesManager(ORMBase[History]):
     _user_column = "user_id"
 
     @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> History:
+    def _row_to_obj(cls, row: aiosqlite.Row) -> History:
         return History(
             id=uuid.UUID(row["id"]),
             message_data=json.loads(row["message_data"]),
@@ -65,7 +66,7 @@ class LifeAreasManager(ORMBase[LifeArea]):
     _user_column = "user_id"
 
     @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> LifeArea:
+    def _row_to_obj(cls, row: aiosqlite.Row) -> LifeArea:
         parent_id = row["parent_id"]
         return LifeArea(
             id=uuid.UUID(row["id"]),
@@ -90,7 +91,7 @@ class CriteriaManager(ORMBase[Criteria]):
     _area_column = "area_id"
 
     @classmethod
-    def _row_to_obj(cls, row: sqlite3.Row) -> Criteria:
+    def _row_to_obj(cls, row: aiosqlite.Row) -> Criteria:
         return Criteria(
             id=uuid.UUID(row["id"]),
             title=row["title"],

@@ -3,9 +3,10 @@
 import os
 import tempfile
 import uuid
-from typing import Generator
+from collections.abc import AsyncGenerator
 
 import pytest
+import pytest_asyncio
 from src.domain.models import InputMode, User
 
 
@@ -18,8 +19,8 @@ def sample_user() -> User:
     )
 
 
-@pytest.fixture
-def temp_db() -> Generator[str, None, None]:
+@pytest_asyncio.fixture
+async def temp_db() -> AsyncGenerator[str, None]:
     """Create a temporary database for testing.
 
     Yields:
@@ -37,7 +38,7 @@ def temp_db() -> Generator[str, None, None]:
         # Initialize the schema
         from src.infrastructure.db.connection import get_connection
 
-        with get_connection():
+        async with get_connection():
             pass  # Schema is auto-initialized
 
         yield db_path

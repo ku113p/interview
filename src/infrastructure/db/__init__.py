@@ -13,7 +13,7 @@ from .managers import (
     User,
     UsersManager,
 )
-from .schema import init_schema
+from .schema import init_schema_async
 
 __all__ = [
     "get_connection",
@@ -28,5 +28,5 @@ __all__ = [
     "CriteriaManager",
     "LifeAreaMessage",
     "LifeAreaMessagesManager",
-    "init_schema",
+    "init_schema_async",
 ]

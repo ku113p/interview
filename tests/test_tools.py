@@ -9,10 +9,11 @@ from src.workflows.subgraphs.area_loop.tools import CurrentAreaMethods
 class TestSetCurrentArea:
     """Test the set_current_area tool."""
 
-    def test_set_current_area_success(self, temp_db, sample_user):
+    @pytest.mark.asyncio
+    async def test_set_current_area_success(self, temp_db, sample_user):
         """Setting current area should update user record."""
         # Arrange - create user in DB
-        db.UsersManager.create(
+        await db.UsersManager.create(
             sample_user.id,
             db.User(
                 id=sample_user.id,
@@ -30,21 +31,22 @@ class TestSetCurrentArea:
             parent_id=None,
             user_id=sample_user.id,
         )
-        db.LifeAreasManager.create(area_id, area)
+        await db.LifeAreasManager.create(area_id, area)
 
         # Act
-        result = CurrentAreaMethods.set_current(str(sample_user.id), str(area_id))
+        result = await CurrentAreaMethods.set_current(str(sample_user.id), str(area_id))
 
         # Assert
         assert result.id == area_id
-        updated_user = db.UsersManager.get_by_id(sample_user.id)
+        updated_user = await db.UsersManager.get_by_id(sample_user.id)
         assert updated_user is not None
         assert updated_user.current_area_id == area_id
 
-    def test_set_current_area_invalid_area(self, temp_db, sample_user):
+    @pytest.mark.asyncio
+    async def test_set_current_area_invalid_area(self, temp_db, sample_user):
         """Should raise KeyError for non-existent area."""
         # Arrange - create user in DB
-        db.UsersManager.create(
+        await db.UsersManager.create(
             sample_user.id,
             db.User(
                 id=sample_user.id,
@@ -58,12 +60,13 @@ class TestSetCurrentArea:
 
         # Act & Assert
         with pytest.raises(KeyError):
-            CurrentAreaMethods.set_current(str(sample_user.id), str(fake_area_id))
+            await CurrentAreaMethods.set_current(str(sample_user.id), str(fake_area_id))
 
-    def test_set_current_area_wrong_user(self, temp_db, sample_user):
+    @pytest.mark.asyncio
+    async def test_set_current_area_wrong_user(self, temp_db, sample_user):
         """Should raise KeyError when area belongs to different user."""
         # Arrange - create user in DB
-        db.UsersManager.create(
+        await db.UsersManager.create(
             sample_user.id,
             db.User(
                 id=sample_user.id,
@@ -75,7 +78,7 @@ class TestSetCurrentArea:
 
         # Create another user who owns the area
         other_user_id = new_id()
-        db.UsersManager.create(
+        await db.UsersManager.create(
             other_user_id,
             db.User(
                 id=other_user_id,
@@ -93,8 +96,8 @@ class TestSetCurrentArea:
             parent_id=None,
             user_id=other_user_id,
         )
-        db.LifeAreasManager.create(area_id, area)
+        await db.LifeAreasManager.create(area_id, area)
 
         # Act & Assert - sample_user tries to set other_user's area as current
         with pytest.raises(KeyError):
-            CurrentAreaMethods.set_current(str(sample_user.id), str(area_id))
+            await CurrentAreaMethods.set_current(str(sample_user.id), str(area_id))

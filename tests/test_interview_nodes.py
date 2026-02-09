@@ -46,7 +46,7 @@ class TestInterviewAnalysis:
             parent_id=None,
             user_id=user_id,
         )
-        db.LifeAreasManager.create(area_id, area)
+        await db.LifeAreasManager.create(area_id, area)
 
         state = _create_state(
             user=user,
@@ -70,7 +70,7 @@ class TestInterviewAnalysis:
         await interview_analysis(state, mock_llm)
 
         # Assert - message should be saved to DB
-        saved_messages = db.LifeAreaMessagesManager.list_by_area(area_id)
+        saved_messages = await db.LifeAreaMessagesManager.list_by_area(area_id)
         assert len(saved_messages) == 1
         assert (
             saved_messages[0].message_text
@@ -91,7 +91,7 @@ class TestInterviewAnalysis:
             parent_id=None,
             user_id=user_id,
         )
-        db.LifeAreasManager.create(area_id, area)
+        await db.LifeAreasManager.create(area_id, area)
 
         state = _create_state(
             user=user,
@@ -118,7 +118,7 @@ class TestInterviewAnalysis:
         await interview_analysis(state, mock_llm)
 
         # Assert - both question and answer should be saved
-        saved_messages = db.LifeAreaMessagesManager.list_by_area(area_id)
+        saved_messages = await db.LifeAreaMessagesManager.list_by_area(area_id)
         assert len(saved_messages) == 1
         expected = "AI: What is your Python experience?\nUser: I have 5 years"
         assert saved_messages[0].message_text == expected
@@ -137,7 +137,7 @@ class TestInterviewAnalysis:
             parent_id=None,
             user_id=user_id,
         )
-        db.LifeAreasManager.create(area_id, area)
+        await db.LifeAreasManager.create(area_id, area)
 
         state = _create_state(
             user=user,

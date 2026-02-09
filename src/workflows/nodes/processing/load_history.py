@@ -19,7 +19,7 @@ class LoadHistoryState(BaseModel):
 
 
 async def load_history(state: LoadHistoryState):
-    history_messages = get_formatted_history(state.user)
+    history_messages = await get_formatted_history(state.user)
     logger.info(
         "Loaded history",
         extra={"user_id": str(state.user.id), "count": len(history_messages)},
@@ -55,11 +55,11 @@ def _convert_tool_message(message_dict: dict[str, Any]) -> ToolMessage:
     )
 
 
-def get_formatted_history(
+async def get_formatted_history(
     user_obj: User, limit: int = HISTORY_LIMIT_GLOBAL
 ) -> list[BaseMessage]:
     history_entries = sorted(
-        db.HistoriesManager.list_by_user(user_obj.id), key=lambda x: x.created_ts
+        await db.HistoriesManager.list_by_user(user_obj.id), key=lambda x: x.created_ts
     )
     message_dicts = [entry.message_data for entry in history_entries[-limit:]]
 

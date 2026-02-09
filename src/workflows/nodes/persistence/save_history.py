@@ -44,7 +44,7 @@ def _message_to_dict(msg: BaseMessage) -> dict[str, object]:
     return data
 
 
-def save_history(state: SaveHistoryState) -> dict:
+async def save_history(state: SaveHistoryState) -> dict:
     messages_by_ts = state.messages_to_save or {}
     if not messages_by_ts:
         logger.debug("No messages to save", extra={"user_id": str(state.user.id)})
@@ -59,7 +59,7 @@ def save_history(state: SaveHistoryState) -> dict:
     for created_ts, messages in messages_by_ts.items():
         for msg in messages:
             history_id = new_id()
-            db.HistoriesManager.create(
+            await db.HistoriesManager.create(
                 history_id,
                 db.History(
                     id=history_id,

@@ -43,15 +43,15 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
         area_id=area_id,
         created_ts=get_timestamp(),
     )
-    db.LifeAreaMessagesManager.create(last_area_msg.id, last_area_msg)
+    await db.LifeAreaMessagesManager.create(last_area_msg.id, last_area_msg)
 
     # Get area data
     area_messages: list[str] = [
         message.message_text
-        for message in db.LifeAreaMessagesManager.list_by_area(area_id)
+        for message in await db.LifeAreaMessagesManager.list_by_area(area_id)
     ]
     area_criteria: list[str] = [
-        criterion.title for criterion in db.CriteriaManager.list_by_area(area_id)
+        criterion.title for criterion in await db.CriteriaManager.list_by_area(area_id)
     ]
 
     # Analyze coverage (structured output)

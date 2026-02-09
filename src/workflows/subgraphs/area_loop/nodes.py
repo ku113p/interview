@@ -1,9 +1,9 @@
 """Area loop graph nodes."""
 
 import logging
-import sqlite3
 from typing import cast
 
+import aiosqlite
 from langchain_core.messages import SystemMessage, ToolMessage
 from langchain_core.messages.tool import ToolCall
 
@@ -71,7 +71,7 @@ def _validate_tool_call(call_dict: dict[str, object]) -> tuple[str, str]:
 
 
 async def _execute_tool_call(
-    call: dict[str, object], conn: sqlite3.Connection
+    call: dict[str, object], conn: aiosqlite.Connection
 ) -> ToolMessage:
     """Execute a single tool call and return the result message."""
     call_id, call_name = _validate_tool_call(call)
@@ -105,8 +105,7 @@ async def _run_tool_calls(
     """Execute all tool calls within a transaction."""
     messages: list[ToolMessage] = []
     messages_to_save: MessageBuckets = {}
-    with transaction() as conn:
-        conn = cast(sqlite3.Connection, conn)
+    async with transaction() as conn:
         for call in tool_calls:
             msg = await _execute_tool_call(call, conn)
             messages.append(msg)

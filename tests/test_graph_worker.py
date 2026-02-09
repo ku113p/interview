@@ -11,10 +11,10 @@ from src.domain import ClientMessage
 from src.infrastructure.db import managers as db
 
 
-def _create_test_user(temp_db) -> uuid.UUID:
+async def _create_test_user(temp_db) -> uuid.UUID:
     """Create a test user in the database."""
     user_id = uuid.uuid4()
-    db.UsersManager.create(
+    await db.UsersManager.create(
         user_id,
         db.User(id=user_id, name="test", mode="auto", current_area_id=None),
     )
@@ -39,7 +39,7 @@ class TestGraphWorker:
     @pytest.mark.asyncio
     async def test_worker_processes_request_and_sends_response(self, temp_db):
         """Should process a request and send response with matching correlation_id."""
-        user_id = _create_test_user(temp_db)
+        user_id = await _create_test_user(temp_db)
         channels = Channels()
         corr_id = uuid.uuid4()
         await channels.requests.put(
@@ -60,7 +60,7 @@ class TestGraphWorker:
     @pytest.mark.asyncio
     async def test_worker_handles_multiple_requests(self, temp_db):
         """Should process multiple requests and match responses by correlation_id."""
-        user_id = _create_test_user(temp_db)
+        user_id = await _create_test_user(temp_db)
         channels = Channels()
         corr_ids = [uuid.uuid4(), uuid.uuid4()]
 
@@ -94,7 +94,7 @@ class TestGraphWorker:
     @pytest.mark.asyncio
     async def test_worker_handles_error_gracefully(self, temp_db):
         """Should send error response when processing fails."""
-        user_id = _create_test_user(temp_db)
+        user_id = await _create_test_user(temp_db)
         channels = Channels()
         corr_id = uuid.uuid4()
         await channels.requests.put(

@@ -25,7 +25,7 @@ from src.shared.utils.content import normalize_content
 logger = logging.getLogger(__name__)
 
 
-def _init_graph_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]:
+async def _init_graph_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]:
     """Initialize graph state and create temporary files for media processing."""
     media_tmp = tempfile.NamedTemporaryFile(delete=False)
     audio_tmp = tempfile.NamedTemporaryFile(delete=False)
@@ -33,7 +33,7 @@ def _init_graph_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]
     media_tmp.close()
     audio_tmp.close()
 
-    db_user = db.UsersManager.get_by_id(user.id)
+    db_user = await db.UsersManager.get_by_id(user.id)
     current_area_id = db_user.current_area_id if db_user is not None else None
     area_id = current_area_id if current_area_id is not None else new_id()
     text = msg.data if isinstance(msg.data, str) else ""
@@ -76,9 +76,9 @@ async def _enqueue_extract_if_covered(
         )
 
 
-def _get_user_from_db(user_id) -> User:
+async def _get_user_from_db(user_id) -> User:
     """Look up user from database by ID."""
-    db_user = db.UsersManager.get_by_id(user_id)
+    db_user = await db.UsersManager.get_by_id(user_id)
     if db_user is None:
         raise ValueError(f"User {user_id} not found in database")
     return User(id=db_user.id, mode=InputMode(db_user.mode))
@@ -88,7 +88,7 @@ async def _invoke_graph_and_get_response(
     msg: ClientMessage, user: User, graph, channels: Channels
 ) -> str:
     """Invoke the graph with a message and return the AI response."""
-    state, temp_files = _init_graph_state(msg, user)
+    state, temp_files = await _init_graph_state(msg, user)
     try:
         result = await graph.ainvoke(state)
         if not isinstance(result, dict):
@@ -107,7 +107,7 @@ async def _process_channel_request(
     """Process a channel request: invoke graph and send response."""
     try:
         logger.debug("Graph worker %d processing message", worker_id)
-        user = _get_user_from_db(request.user_id)
+        user = await _get_user_from_db(request.user_id)
         response = await _invoke_graph_and_get_response(
             request.client_message, user, graph, channels
         )
