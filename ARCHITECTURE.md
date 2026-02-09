@@ -79,27 +79,46 @@ Transports handle external communication (user I/O). Located in `src/application
 | Transport | Purpose |
 |-----------|---------|
 | CLI | Handles stdin/stdout, user creation |
+| Telegram | Bot interface via polling or webhook mode |
 
 Transports are single async coroutines (not pools) that communicate with worker pools via channels.
+
+### Telegram Transport
+
+Supports two modes via `TELEGRAM_MODE` environment variable:
+- **polling** (default): Long-polling for development/simple deployments
+- **webhook**: HTTPS webhook for production
+
+Required environment variables:
+- `TELEGRAM_BOT_TOKEN`: Bot token from @BotFather
+
+Additional webhook variables:
+- `TELEGRAM_WEBHOOK_URL`: Public HTTPS URL for webhook
+- `TELEGRAM_WEBHOOK_HOST`: Bind address (default: 0.0.0.0)
+- `TELEGRAM_WEBHOOK_PORT`: Port (default: 8443)
+- `TELEGRAM_WEBHOOK_SECRET`: Optional secret token for verification
+
+User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the same Telegram user always maps to the same internal user_id.
 
 ## Worker Architecture
 
 Flat peer-based architecture where transports and worker pools communicate through shared channels:
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Transport  │    │    Graph    │    │   Extract   │
-│    (CLI)    │◄──►│   Workers   │◄──►│   Workers   │
-└─────────────┘    └─────────────┘    └─────────────┘
-       │                  │                  │
-       └──────────────────┴──────────────────┘
-                    Channels (shared)
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Transport  │    │    Auth     │    │    Graph    │    │   Extract   │
+│ (CLI/Tg)    │◄──►│   Worker    │◄──►│   Workers   │◄──►│   Workers   │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+       │                  │                  │                  │
+       └──────────────────┴──────────────────┴──────────────────┘
+                              Channels (shared)
 ```
 
 ### Worker Pools
 
 | Pool | Size | Purpose |
 |------|------|---------|
+| Auth | 1 | Exchange external user IDs for internal user_ids |
 | Graph | 2 | Processes messages through main graph |
 | Extract | 2 | Knowledge extraction from covered areas |
 
@@ -109,6 +128,7 @@ Flat peer-based architecture where transports and worker pools communicate throu
 ChannelRequest   # transport → graph (correlation_id, user_id, client_message)
 ChannelResponse  # graph → transport (correlation_id, response_text)
 ExtractTask      # graph → extract (area_id, user_id)
+AuthRequest      # transport → auth (provider, external_id, display_name, response_future)
 ```
 
 ### Communication Flow
@@ -132,7 +152,9 @@ ExtractTask      # graph → extract (area_id, user_id)
 | File | Purpose |
 |------|---------|
 | `transports/cli.py` | CLI transport (stdin/stdout handling) |
+| `transports/telegram.py` | Telegram bot transport (polling/webhook) |
 | `workers/channels.py` | Channel types and Channels dataclass |
+| `workers/auth_worker.py` | Auth worker (external ID → user_id) |
 | `workers/graph_worker.py` | Graph worker pool |
 | `workers/extract_worker.py` | Extract worker pool |
 | `workers/pool.py` | Generic `run_worker_pool()` utility |

@@ -33,10 +33,21 @@ class ExtractTask:
 
 
 @dataclass
+class AuthRequest:
+    """Request to exchange external ID for internal user_id."""
+
+    provider: str
+    external_id: str
+    display_name: str | None
+    response_future: asyncio.Future[uuid.UUID]
+
+
+@dataclass
 class Channels:
     """Shared communication channels between all worker pools."""
 
     requests: asyncio.Queue[ChannelRequest] = field(default_factory=asyncio.Queue)
     responses: asyncio.Queue[ChannelResponse] = field(default_factory=asyncio.Queue)
     extract: asyncio.Queue[ExtractTask] = field(default_factory=asyncio.Queue)
+    auth_requests: asyncio.Queue[AuthRequest] = field(default_factory=asyncio.Queue)
     shutdown: asyncio.Event = field(default_factory=asyncio.Event)

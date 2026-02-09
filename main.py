@@ -3,7 +3,8 @@ import asyncio
 import logging
 import uuid
 
-from src.application.transports import parse_user_id, run_cli
+from src.application.transports import parse_user_id, run_cli, run_telegram
+from src.application.workers.auth_worker import run_auth_pool
 from src.application.workers.channels import Channels
 from src.application.workers.extract_worker import run_extract_pool
 from src.application.workers.graph_worker import run_graph_pool
@@ -22,10 +23,11 @@ async def run_application(transport: str, user_id: uuid.UUID) -> None:
         run_extract_pool(channels),
     ]
 
-    # Add transport based on selection
     if transport == "cli":
         tasks.append(run_cli(channels, user_id))
-    # Future: elif transport == "http": tasks.append(run_http(channels))
+    elif transport == "telegram":
+        tasks.append(run_auth_pool(channels))
+        tasks.append(run_telegram(channels))
 
     try:
         await asyncio.gather(*tasks)
@@ -40,7 +42,7 @@ def main() -> None:
     parser.add_argument(
         "--transport",
         default="cli",
-        choices=["cli", "http", "mcp"],
+        choices=["cli", "telegram"],
         help="Select the transport backend",
     )
     parser.add_argument(
@@ -51,8 +53,6 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    if args.transport != "cli":
-        raise RuntimeError(f"Transport '{args.transport}' not supported. Use: cli")
 
     try:
         asyncio.run(run_application(args.transport, args.user_id))
