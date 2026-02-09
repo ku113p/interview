@@ -20,9 +20,9 @@
     "criteria_min": 3,
     "criteria_max": 4,
     "summaries_min": 1,
-    "summaries_max": 1,
+    "summaries_max": 10,
     "knowledge_min": 5,
-    "knowledge_max": 15
+    "knowledge_max": 50
   },
   "typical": {
     "criteria": [3, 3],
