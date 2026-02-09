@@ -2,7 +2,7 @@
   "name": "Summarization - Scattered Information",
   "description": "Test summarization correctly aggregates scattered information",
   "inputs": [
-    "Track my fitness journey",
+    "Create area for Fitness Journey",
     "yes",
     "Add criteria for strength, cardio, and nutrition",
     "yes",

@@ -2,8 +2,7 @@
   "name": "Router - Mixed Commands",
   "description": "Test router correctly switches between areas and interview modes",
   "inputs": [
-    "I want to improve my cooking skills",
-    "yes",
+    "Create area for Cooking Skills",
     "yes",
     "Add a criterion for knife skills",
     "Now let me tell you about my cooking experience",

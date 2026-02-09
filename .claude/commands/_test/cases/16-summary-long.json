@@ -2,7 +2,7 @@
   "name": "Summarization - Extended Conversation",
   "description": "Test summarization preserves key information from long conversation",
   "inputs": [
-    "I want to evaluate my photography skills",
+    "Create area for Photography",
     "yes",
     "Add criteria for composition, lighting, and post-processing",
     "yes",

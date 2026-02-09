@@ -2,8 +2,9 @@
   "name": "Knowledge Extraction",
   "description": "Conversation with knowledge extraction",
   "inputs": [
-    "I'm looking to advance my career in software engineering",
+    "Create area for Career Development",
     "yes",
+    "Add criteria for technical skills, leadership experience, and career goals",
     "yes",
     "I have 5 years of experience, mostly in Python and JavaScript",
     "I want to become a tech lead within the next 2 years",

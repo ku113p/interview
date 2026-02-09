@@ -2,8 +2,9 @@
   "name": "Knowledge - Fact Extraction",
   "description": "Test extraction of concrete facts about user's life",
   "inputs": [
-    "I want to document my career history",
+    "Create area for Career History",
     "yes",
+    "Add criteria for work experience, education, and compensation",
     "yes",
     "I currently work at Google as a Senior Software Engineer since 2021.",
     "Before that I was at Microsoft for 3 years in the Azure team.",

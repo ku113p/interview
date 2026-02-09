@@ -2,8 +2,9 @@
   "name": "Answer Style - Detailed Responses",
   "description": "Test knowledge extraction from detailed, specific answers",
   "inputs": [
-    "I want to evaluate my data science skills",
+    "Create area for Data Science Skills",
     "yes",
+    "Add criteria for Python/ML libraries, data visualization, SQL, and certifications",
     "yes",
     "I have 3 years of professional experience working with Python pandas, numpy, and scikit-learn. I've built production ML models for customer churn prediction achieving 87% accuracy.",
     "For visualization I use matplotlib and seaborn daily, and I've created executive dashboards in Tableau that are used by C-level stakeholders.",
