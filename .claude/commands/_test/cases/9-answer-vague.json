@@ -2,8 +2,9 @@
   "name": "Answer Style - Vague Responses",
   "description": "Test how interviewer handles vague, non-committal answers",
   "inputs": [
-    "I want to track my programming skills",
+    "Create area for Programming Skills",
     "yes",
+    "Add criterion for coding proficiency",
     "yes",
     "I guess I know some programming",
     "yeah, I've done some stuff",

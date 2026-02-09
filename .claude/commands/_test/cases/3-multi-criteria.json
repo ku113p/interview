@@ -2,8 +2,9 @@
   "name": "Multi-Criteria Area",
   "description": "Life area with multiple evaluation criteria",
   "inputs": [
-    "I want to improve my relationships with family",
+    "Create area for Family Relationships",
     "yes",
+    "Add criteria for quality time with kids, listening skills, and parent communication",
     "yes",
     "I feel like I don't spend enough quality time with my kids",
     "I also want to be a better listener when my partner talks",

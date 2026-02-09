@@ -2,8 +2,9 @@
   "name": "Answer Style - Off-Topic Responses",
   "description": "Test how interviewer handles off-topic or tangential answers",
   "inputs": [
-    "I want to improve my public speaking",
+    "Create area for Public Speaking",
     "yes",
+    "Add criterion for presentation skills",
     "yes",
     "By the way, did you see the game last night? It was amazing!",
     "Speaking of which, I had pizza for lunch",

@@ -2,8 +2,9 @@
   "name": "Quick Interaction",
   "description": "Brief conversation with minimal input",
   "inputs": [
-    "I want to save more money",
+    "Create area for Saving Money",
     "yes",
+    "Add criteria for savings rate and financial goals",
     "yes",
     "Currently I save about 10% of my income each month",
     "I want to save for a house down payment",

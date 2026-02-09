@@ -2,9 +2,9 @@
   "name": "Answer Style - Multi-Criteria Single Response",
   "description": "Test that one detailed answer can satisfy multiple criteria",
   "inputs": [
-    "I want to track my web development skills",
+    "Create area for Web Development",
     "yes",
-    "Add criteria for: Frontend, Backend, Database, and DevOps",
+    "Add criteria for Frontend, Backend, Database, and DevOps",
     "yes",
     "Let me give you a complete picture: I build full-stack apps using React with TypeScript on the frontend, Node.js with Express for the backend API, PostgreSQL for data persistence with Prisma ORM, and I deploy everything using Docker containers on AWS with GitHub Actions for CI/CD.",
     "/exit"

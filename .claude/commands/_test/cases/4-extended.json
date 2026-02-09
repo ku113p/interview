@@ -2,8 +2,9 @@
   "name": "Extended Conversation",
   "description": "Longer conversation with more details",
   "inputs": [
-    "I want to learn Japanese",
+    "Create area for Japanese Learning",
     "yes",
+    "Add criteria for vocabulary, grammar, reading, and speaking practice",
     "yes",
     "I've tried Duolingo before but never stuck with it longer than a month",
     "My motivation is to travel to Japan and connect with the culture",

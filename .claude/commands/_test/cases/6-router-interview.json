@@ -2,8 +2,9 @@
   "name": "Router - Interview Mode",
   "description": "Test that conversational messages route to interview, not areas",
   "inputs": [
-    "I want to track my learning progress",
+    "Create area for Learning Progress",
     "yes",
+    "Add criterion for study habits",
     "yes",
     "Let me tell you about my experience",
     "I've been studying for 2 years now",
