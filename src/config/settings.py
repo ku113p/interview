@@ -28,6 +28,7 @@ HISTORY_LIMIT_INTERVIEW = 8  # History limit for interview response
 
 # Token Limits (max output tokens per node type)
 MAX_TOKENS_STRUCTURED = 1024  # For structured output (classification, analysis)
+MAX_TOKENS_ANALYSIS = 4096  # For interview analysis (variable-size criteria output)
 MAX_TOKENS_CHAT = 4096  # For conversational responses
 MAX_TOKENS_TRANSCRIPTION = 8192  # For audio transcription
 

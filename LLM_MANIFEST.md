@@ -33,7 +33,8 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 
 | Category | Limit | Used By |
 |----------|-------|---------|
-| Structured output | 1024 | `extract_target`, `interview_analysis` |
+| Structured output | 1024 | `extract_target` |
+| Analysis | 4096 | `interview_analysis` (variable-size criteria output) |
 | Conversational | 4096 | `interview_response`, `area_chat` |
 | Transcription | 8192 | `transcribe` |
 
@@ -61,7 +62,7 @@ LLM instances are created via lazy-initialized getters in `src/infrastructure/ll
 |--------|-------|-------------|------------|
 | `get_llm_extract_target()` | flash-lite | 0.0 | 1024 |
 | `get_llm_transcribe()` | flash-lite | 0.0 | 8192 |
-| `get_llm_interview_analysis()` | flash | 0.2 | 1024 |
+| `get_llm_interview_analysis()` | flash | 0.2 | 4096 |
 | `get_llm_area_chat()` | flash | 0.2 | 4096 |
 | `get_llm_interview_response()` | gpt-5.1 | 0.5 | 4096 |
 

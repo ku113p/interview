@@ -8,6 +8,7 @@ from functools import lru_cache
 from langchain_openai import ChatOpenAI
 
 from src.config.settings import (
+    MAX_TOKENS_ANALYSIS,
     MAX_TOKENS_CHAT,
     MAX_TOKENS_STRUCTURED,
     MAX_TOKENS_TRANSCRIPTION,
@@ -52,7 +53,7 @@ def get_llm_transcribe() -> ChatOpenAI:
 def get_llm_interview_analysis() -> ChatOpenAI:
     """Get LLM for interview analysis."""
     return _build_llm(
-        MODEL_INTERVIEW_ANALYSIS, TEMPERATURE_STRUCTURED, MAX_TOKENS_STRUCTURED
+        MODEL_INTERVIEW_ANALYSIS, TEMPERATURE_STRUCTURED, MAX_TOKENS_ANALYSIS
     )
 
 
