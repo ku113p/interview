@@ -1,0 +1,28 @@
+{
+  "name": "Multi-Criteria Area",
+  "description": "Life area with multiple evaluation criteria",
+  "inputs": [
+    "I want to improve my relationships with family",
+    "yes",
+    "yes",
+    "I feel like I don't spend enough quality time with my kids",
+    "I also want to be a better listener when my partner talks",
+    "I'd like to call my parents at least once a week",
+    "yes",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 1,
+    "criteria_min": 1,
+    "criteria_max": 8,
+    "summaries_min": 0,
+    "summaries_max": 1,
+    "knowledge_min": 0,
+    "knowledge_max": 5
+  },
+  "typical": {
+    "criteria": [2, 4],
+    "summaries": [0, 0],
+    "knowledge": [0, 2]
+  }
+}

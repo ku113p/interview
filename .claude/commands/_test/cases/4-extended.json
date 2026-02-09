@@ -1,0 +1,31 @@
+{
+  "name": "Extended Conversation",
+  "description": "Longer conversation with more details",
+  "inputs": [
+    "I want to learn Japanese",
+    "yes",
+    "yes",
+    "I've tried Duolingo before but never stuck with it longer than a month",
+    "My motivation is to travel to Japan and connect with the culture",
+    "I have about 30 minutes a day to dedicate to learning",
+    "yes",
+    "I prefer structured learning with clear milestones and textbooks",
+    "I already know hiragana and about 50 kanji characters",
+    "My goal is to pass JLPT N4 within a year",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 1,
+    "criteria_min": 1,
+    "criteria_max": 8,
+    "summaries_min": 0,
+    "summaries_max": 2,
+    "knowledge_min": 0,
+    "knowledge_max": 6
+  },
+  "typical": {
+    "criteria": [2, 5],
+    "summaries": [0, 1],
+    "knowledge": [1, 4]
+  }
+}

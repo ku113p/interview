@@ -1,0 +1,27 @@
+{
+  "name": "CRUD Operations",
+  "description": "Basic life area creation with criteria",
+  "inputs": [
+    "I want to improve my fitness routine",
+    "yes",
+    "yes",
+    "I exercise 3 times a week, mostly running and some weights",
+    "My main goal is to run a half marathon in 6 months",
+    "I also want to build more muscle and improve my endurance",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 1,
+    "criteria_min": 1,
+    "criteria_max": 8,
+    "summaries_min": 0,
+    "summaries_max": 1,
+    "knowledge_min": 0,
+    "knowledge_max": 5
+  },
+  "typical": {
+    "criteria": [2, 4],
+    "summaries": [0, 0],
+    "knowledge": [0, 2]
+  }
+}
