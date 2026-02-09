@@ -6,6 +6,7 @@ import logging
 import uuid
 
 from aiogram import Bot, Dispatcher, F, Router
+from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
@@ -210,6 +211,17 @@ def _create_router(
 ) -> Router:
     """Create message router with handlers."""
     router = Router()
+
+    @router.message(Command("start"))
+    async def on_start(message: Message) -> None:
+        await message.reply(
+            "Hello! I'm your interview assistant.\n\n"
+            "Send me a text or voice message to start a conversation."
+        )
+
+    @router.message(Command("help"))
+    async def on_help(message: Message) -> None:
+        await _handle_text_message(message, bot, channels, pending_responses)
 
     @router.message(F.text, _is_not_command)
     async def on_text(message: Message) -> None:
