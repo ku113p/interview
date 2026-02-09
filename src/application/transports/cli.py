@@ -16,9 +16,13 @@ MAX_MESSAGE_LENGTH = 10_000
 MIN_PRINTABLE_CHAR = 32
 
 HELP_TEXT = """Commands:
-  /help      Show this help
-  /exit      Exit immediately
-  /exit_N    Wait N seconds then exit (e.g., /exit_5)
+  /help           Show this help
+  /clear          Clear conversation history
+  /delete         Delete your account (requires confirmation)
+  /mode           Show current input mode
+  /mode <name>    Change mode (auto, interview, areas)
+  /exit           Exit CLI
+  /exit_N         Wait N seconds then exit (e.g., /exit_5)
 
 Type your message and press Enter to continue.
 """
@@ -113,11 +117,10 @@ async def _handle_user_input(
     pending: dict[uuid.UUID, asyncio.Future],
 ) -> tuple[str, int]:
     """Handle user input. Returns (action, wait_seconds)."""
-    if not text or text == "/help":
-        if text == "/help":
-            print(HELP_TEXT)
+    if not text:
         return ("continue", 0)
 
+    # Handle /exit locally (CLI-only command)
     wait_seconds = _parse_exit_command(text)
     if wait_seconds is not None:
         return ("exit", wait_seconds)
@@ -127,6 +130,7 @@ async def _handle_user_input(
         logger.info("Rejected user input", extra={"length": len(normalized)})
         print(f"Error: {error}")
     else:
+        # Send to graph (handles /help, /clear, /delete, /mode and regular messages)
         print(await _send_request(normalized, user_id, channels, pending))
     return ("continue", 0)
 
