@@ -19,7 +19,7 @@
     "summaries_min": 0,
     "summaries_max": 1,
     "knowledge_min": 3,
-    "knowledge_max": 12
+    "knowledge_max": 50
   },
   "typical": {
     "criteria": [2, 4],
