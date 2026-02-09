@@ -1,0 +1,28 @@
+{
+  "name": "Answer Style - Detailed Responses",
+  "description": "Test knowledge extraction from detailed, specific answers",
+  "inputs": [
+    "I want to evaluate my data science skills",
+    "yes",
+    "yes",
+    "I have 3 years of professional experience working with Python pandas, numpy, and scikit-learn. I've built production ML models for customer churn prediction achieving 87% accuracy.",
+    "For visualization I use matplotlib and seaborn daily, and I've created executive dashboards in Tableau that are used by C-level stakeholders.",
+    "I'm proficient in SQL - I write complex queries with CTEs, window functions, and optimize for performance. I work with PostgreSQL and BigQuery.",
+    "I've completed Coursera's Deep Learning specialization and I'm currently studying for the AWS ML Specialty certification.",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 1,
+    "criteria_min": 1,
+    "criteria_max": 5,
+    "summaries_min": 0,
+    "summaries_max": 1,
+    "knowledge_min": 3,
+    "knowledge_max": 12
+  },
+  "typical": {
+    "criteria": [2, 4],
+    "summaries": [0, 1],
+    "knowledge": [5, 10]
+  }
+}

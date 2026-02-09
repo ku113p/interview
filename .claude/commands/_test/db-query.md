@@ -8,7 +8,6 @@ $ARGUMENTS: SQL query string
 ## Instructions
 
 ```bash
-cd /home/ubuntu/docs/python/interview
 sqlite3 -header -column interview.db "$ARGUMENTS"
 ```
 

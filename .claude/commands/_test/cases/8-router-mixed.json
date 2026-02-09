@@ -1,0 +1,29 @@
+{
+  "name": "Router - Mixed Commands",
+  "description": "Test router correctly switches between areas and interview modes",
+  "inputs": [
+    "I want to improve my cooking skills",
+    "yes",
+    "yes",
+    "Add a criterion for knife skills",
+    "Now let me tell you about my cooking experience",
+    "I cook dinner 5 times a week and can make basic dishes",
+    "Add another criterion for meal planning",
+    "I usually plan my meals on Sunday",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 1,
+    "criteria_min": 2,
+    "criteria_max": 4,
+    "summaries_min": 0,
+    "summaries_max": 1,
+    "knowledge_min": 0,
+    "knowledge_max": 3
+  },
+  "typical": {
+    "criteria": [2, 3],
+    "summaries": [0, 1],
+    "knowledge": [0, 2]
+  }
+}

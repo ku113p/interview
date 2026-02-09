@@ -1,0 +1,29 @@
+{
+  "name": "Knowledge - Fact Extraction",
+  "description": "Test extraction of concrete facts about user's life",
+  "inputs": [
+    "I want to document my career history",
+    "yes",
+    "yes",
+    "I currently work at Google as a Senior Software Engineer since 2021.",
+    "Before that I was at Microsoft for 3 years in the Azure team.",
+    "I graduated from MIT in 2018 with a BS in Computer Science.",
+    "I'm based in Seattle but our team is distributed across 4 time zones.",
+    "My salary is in the 200-250k range with RSUs vesting quarterly.",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 1,
+    "criteria_min": 1,
+    "criteria_max": 4,
+    "summaries_min": 0,
+    "summaries_max": 1,
+    "knowledge_min": 5,
+    "knowledge_max": 12
+  },
+  "typical": {
+    "criteria": [2, 3],
+    "summaries": [0, 1],
+    "knowledge": [7, 10]
+  }
+}

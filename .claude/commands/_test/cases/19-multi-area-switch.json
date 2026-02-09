@@ -1,0 +1,31 @@
+{
+  "name": "Multi-Area - Switching",
+  "description": "Test switching between areas and adding criteria to each",
+  "inputs": [
+    "Create an area called Work",
+    "yes",
+    "Add criterion 'Project Management'",
+    "Create another area called Health",
+    "yes",
+    "Add criterion 'Exercise Routine'",
+    "Switch to Work area",
+    "Add criterion 'Communication Skills'",
+    "Switch to Health area",
+    "I exercise 4 times a week doing CrossFit",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 2,
+    "criteria_min": 2,
+    "criteria_max": 4,
+    "summaries_min": 0,
+    "summaries_max": 1,
+    "knowledge_min": 0,
+    "knowledge_max": 3
+  },
+  "typical": {
+    "criteria": [3, 3],
+    "summaries": [0, 1],
+    "knowledge": [0, 2]
+  }
+}

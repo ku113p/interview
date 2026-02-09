@@ -1,0 +1,34 @@
+{
+  "name": "Summarization - Scattered Information",
+  "description": "Test summarization correctly aggregates scattered information",
+  "inputs": [
+    "Track my fitness journey",
+    "yes",
+    "Add criteria for strength, cardio, and nutrition",
+    "yes",
+    "I do bench press, about 185 lbs",
+    "I try to eat healthy",
+    "Running is hard for me",
+    "Oh and I squat 225",
+    "I meal prep on Sundays",
+    "I can run a 5K in 28 minutes",
+    "Deadlift is my best - 275 lbs",
+    "I track macros, aiming for 150g protein daily",
+    "Working on improving my mile time from 8:30",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 1,
+    "criteria_min": 3,
+    "criteria_max": 4,
+    "summaries_min": 1,
+    "summaries_max": 1,
+    "knowledge_min": 4,
+    "knowledge_max": 12
+  },
+  "typical": {
+    "criteria": [3, 3],
+    "summaries": [1, 1],
+    "knowledge": [6, 10]
+  }
+}
