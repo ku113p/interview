@@ -2,8 +2,6 @@
 
 from .connection import execute_with_retry, get_connection, transaction
 from .managers import (
-    Criteria,
-    CriteriaManager,
     HistoriesManager,
     History,
     LifeArea,
@@ -25,8 +23,6 @@ __all__ = [
     "HistoriesManager",
     "LifeArea",
     "LifeAreasManager",
-    "Criteria",
-    "CriteriaManager",
     "LifeAreaMessage",
     "LifeAreaMessagesManager",
     "init_schema_async",

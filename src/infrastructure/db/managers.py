@@ -12,7 +12,6 @@ from .area_data_managers import (
 
 # Core Managers
 from .core_managers import (
-    CriteriaManager,
     HistoriesManager,
     LifeAreasManager,
     UsersManager,
@@ -25,7 +24,6 @@ from .knowledge_managers import (
 )
 from .models import (
     AreaSummary,
-    Criteria,
     History,
     LifeArea,
     LifeAreaMessage,
@@ -37,7 +35,6 @@ from .models import (
 __all__ = [
     # Models
     "AreaSummary",
-    "Criteria",
     "History",
     "LifeArea",
     "LifeAreaMessage",
@@ -46,7 +43,6 @@ __all__ = [
     "UserKnowledgeArea",
     # Managers
     "AreaSummariesManager",
-    "CriteriaManager",
     "HistoriesManager",
     "LifeAreasManager",
     "LifeAreaMessagesManager",

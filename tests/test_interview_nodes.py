@@ -8,7 +8,7 @@ from src.application.state import State, Target
 from src.domain import ClientMessage, InputMode, User
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
-from src.shared.interview_models import CriteriaAnalysis, CriterionCoverage
+from src.shared.interview_models import AreaCoverageAnalysis, SubAreaCoverage
 from src.workflows.nodes.processing.interview_analysis import interview_analysis
 from src.workflows.nodes.processing.interview_response import interview_response
 
@@ -24,7 +24,7 @@ def _create_state(user: User, area_id, messages, **kwargs) -> State:
         messages=messages,
         messages_to_save=kwargs.get("messages_to_save", {}),
         is_fully_covered=kwargs.get("is_fully_covered", False),
-        criteria_analysis=kwargs.get("criteria_analysis"),
+        coverage_analysis=kwargs.get("coverage_analysis"),
     )
 
 
@@ -54,8 +54,8 @@ class TestInterviewAnalysis:
             messages=[HumanMessage(content="I have 5 years of Python experience")],
         )
 
-        mock_analysis = CriteriaAnalysis(
-            criteria=[CriterionCoverage(title="Python experience", covered=True)],
+        mock_analysis = AreaCoverageAnalysis(
+            sub_areas=[SubAreaCoverage(title="Python experience", covered=True)],
             all_covered=False,
             next_uncovered="JavaScript experience",
         )
@@ -102,8 +102,8 @@ class TestInterviewAnalysis:
             ],
         )
 
-        mock_analysis = CriteriaAnalysis(
-            criteria=[CriterionCoverage(title="Python experience", covered=True)],
+        mock_analysis = AreaCoverageAnalysis(
+            sub_areas=[SubAreaCoverage(title="Python experience", covered=True)],
             all_covered=False,
             next_uncovered="JavaScript experience",
         )
@@ -124,8 +124,8 @@ class TestInterviewAnalysis:
         assert saved_messages[0].message_text == expected
 
     @pytest.mark.asyncio
-    async def test_interview_analysis_returns_criteria_analysis(self, temp_db):
-        """Verify structured CriteriaAnalysis is returned."""
+    async def test_interview_analysis_returns_coverage_analysis(self, temp_db):
+        """Verify structured AreaCoverageAnalysis is returned."""
         # Arrange
         area_id = new_id()
         user_id = new_id()
@@ -145,13 +145,13 @@ class TestInterviewAnalysis:
             messages=[HumanMessage(content="Test message")],
         )
 
-        mock_analysis = CriteriaAnalysis(
-            criteria=[
-                CriterionCoverage(title="Criterion A", covered=True),
-                CriterionCoverage(title="Criterion B", covered=False),
+        mock_analysis = AreaCoverageAnalysis(
+            sub_areas=[
+                SubAreaCoverage(title="Sub-area A", covered=True),
+                SubAreaCoverage(title="Sub-area B", covered=False),
             ],
             all_covered=False,
-            next_uncovered="Criterion B",
+            next_uncovered="Sub-area B",
         )
 
         mock_structured_llm = MagicMock()
@@ -164,10 +164,10 @@ class TestInterviewAnalysis:
         result = await interview_analysis(state, mock_llm)
 
         # Assert
-        assert "criteria_analysis" in result
-        assert isinstance(result["criteria_analysis"], CriteriaAnalysis)
-        assert len(result["criteria_analysis"].criteria) == 2
-        assert result["criteria_analysis"].next_uncovered == "Criterion B"
+        assert "coverage_analysis" in result
+        assert isinstance(result["coverage_analysis"], AreaCoverageAnalysis)
+        assert len(result["coverage_analysis"].sub_areas) == 2
+        assert result["coverage_analysis"].next_uncovered == "Sub-area B"
         assert result["is_fully_covered"] is False
 
 
@@ -186,8 +186,8 @@ class TestInterviewResponse:
             HumanMessage(content="Tell me about the role"),
         ]
 
-        analysis = CriteriaAnalysis(
-            criteria=[CriterionCoverage(title="Experience", covered=False)],
+        analysis = AreaCoverageAnalysis(
+            sub_areas=[SubAreaCoverage(title="Experience", covered=False)],
             all_covered=False,
             next_uncovered="Experience",
         )
@@ -196,7 +196,7 @@ class TestInterviewResponse:
             user=user,
             area_id=area_id,
             messages=history_messages,
-            criteria_analysis=analysis,
+            coverage_analysis=analysis,
         )
 
         mock_response = MagicMock()
@@ -215,7 +215,7 @@ class TestInterviewResponse:
 
     @pytest.mark.asyncio
     async def test_interview_response_requires_analysis(self):
-        """Verify null check raises ValueError when criteria_analysis is None."""
+        """Verify null check raises ValueError when coverage_analysis is None."""
         # Arrange
         user = User(id=new_id(), mode=InputMode.auto)
         area_id = new_id()
@@ -224,11 +224,11 @@ class TestInterviewResponse:
             user=user,
             area_id=area_id,
             messages=[HumanMessage(content="Hello")],
-            criteria_analysis=None,  # Explicitly None
+            coverage_analysis=None,  # Explicitly None
         )
 
         mock_llm = AsyncMock()
 
         # Act & Assert
-        with pytest.raises(ValueError, match="requires criteria_analysis"):
+        with pytest.raises(ValueError, match="requires coverage_analysis"):
             await interview_response(state, mock_llm)

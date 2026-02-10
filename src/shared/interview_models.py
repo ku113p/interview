@@ -3,16 +3,16 @@
 from pydantic import BaseModel
 
 
-class CriterionCoverage(BaseModel):
-    """Coverage status for a single criterion."""
+class SubAreaCoverage(BaseModel):
+    """Coverage status for a single sub-area."""
 
     title: str
     covered: bool
 
 
-class CriteriaAnalysis(BaseModel):
-    """Result of analyzing criteria coverage in an interview."""
+class AreaCoverageAnalysis(BaseModel):
+    """Result of analyzing sub-area coverage in an interview."""
 
-    criteria: list[CriterionCoverage]
+    sub_areas: list[SubAreaCoverage]
     all_covered: bool
-    next_uncovered: str | None  # Which criterion to ask about next
+    next_uncovered: str | None  # Which sub-area to ask about next

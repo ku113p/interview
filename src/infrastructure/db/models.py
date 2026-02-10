@@ -29,13 +29,6 @@ class LifeArea:
 
 
 @dataclass
-class Criteria:
-    id: uuid.UUID
-    title: str
-    area_id: uuid.UUID
-
-
-@dataclass
 class LifeAreaMessage:
     id: uuid.UUID
     message_text: str

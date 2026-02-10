@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 from src.application.state import State
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
-from src.shared.interview_models import CriteriaAnalysis
+from src.shared.interview_models import AreaCoverageAnalysis
 from src.shared.prompts import PROMPT_INTERVIEW_ANALYSIS
 from src.shared.retry import invoke_with_retry
 from src.shared.timestamp import get_timestamp
@@ -20,7 +20,7 @@ _MIN_MESSAGES_FOR_CONTEXT = 2
 
 
 def _format_qa_data(messages: list[BaseMessage]) -> str:
-    """Format user answer with preceding AI question for criteria coverage context."""
+    """Format user answer with preceding AI question for sub-area coverage context."""
     user_content = normalize_content(messages[-1].content)
 
     # Include preceding AI question so LLM understands what user was responding to
@@ -33,7 +33,7 @@ def _format_qa_data(messages: list[BaseMessage]) -> str:
 
 
 async def interview_analysis(state: State, llm: ChatOpenAI):
-    """Analyze criteria coverage without generating response."""
+    """Analyze sub-area coverage without generating response."""
     area_id = state.area_id
 
     # Prepare message for saving (but don't save yet - wait for successful analysis)
@@ -44,17 +44,15 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
         message.message_text
         for message in await db.LifeAreaMessagesManager.list_by_area(area_id)
     ]
-    area_criteria: list[str] = [
-        criterion.title for criterion in await db.CriteriaManager.list_by_area(area_id)
+    sub_areas: list[str] = [
+        area.title for area in await db.LifeAreasManager.get_descendants(area_id)
     ]
 
     # Include current message in analysis (even though not yet saved)
     messages_for_analysis = area_messages + [current_message_text]
 
     # Analyze coverage (structured output)
-    analysis = await _analyze_criteria_coverage(
-        messages_for_analysis, area_criteria, llm
-    )
+    analysis = await _analyze_sub_area_coverage(messages_for_analysis, sub_areas, llm)
 
     # Save message only after successful analysis
     last_area_msg = db.LifeAreaMessage(
@@ -66,34 +64,34 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
     await db.LifeAreaMessagesManager.create(last_area_msg.id, last_area_msg)
 
     logger.info(
-        "Interview criteria analyzed",
+        "Interview sub-areas analyzed",
         extra={
             "area_id": str(area_id),
             "message_count": len(area_messages),
-            "criteria_count": len(area_criteria),
+            "sub_area_count": len(sub_areas),
             "all_covered": analysis.all_covered,
             "next_uncovered": analysis.next_uncovered,
         },
     )
 
     return {
-        "criteria_analysis": analysis,
+        "coverage_analysis": analysis,
         "is_fully_covered": analysis.all_covered,
     }
 
 
-async def _analyze_criteria_coverage(
+async def _analyze_sub_area_coverage(
     interview_messages: list[str],
-    area_criteria: list[str],
+    sub_areas: list[str],
     llm: ChatOpenAI,
-) -> CriteriaAnalysis:
-    """Analyze which interview criteria are covered by the collected messages."""
+) -> AreaCoverageAnalysis:
+    """Analyze which sub-areas are covered by the collected messages."""
     user_prompt = {
         "interview_messages": interview_messages,
-        "criteria": area_criteria,
+        "sub_areas": sub_areas,
     }
 
-    structured_llm = llm.with_structured_output(CriteriaAnalysis)
+    structured_llm = llm.with_structured_output(AreaCoverageAnalysis)
     messages = [
         {"role": "system", "content": PROMPT_INTERVIEW_ANALYSIS},
         {"role": "user", "content": json.dumps(user_prompt)},
@@ -101,7 +99,7 @@ async def _analyze_criteria_coverage(
 
     result = await invoke_with_retry(lambda: structured_llm.ainvoke(messages))
 
-    if not isinstance(result, CriteriaAnalysis):
-        result = CriteriaAnalysis.model_validate(result)
+    if not isinstance(result, AreaCoverageAnalysis):
+        result = AreaCoverageAnalysis.model_validate(result)
 
     return result

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Interview assistant using LangGraph for workflow orchestration. Collects structured information through conversation, manages life areas (topics) with criteria, and extracts knowledge from completed interviews.
+Interview assistant using LangGraph for workflow orchestration. Collects structured information through conversation, manages hierarchical life areas (topics), and extracts knowledge from completed interviews. Sub-areas at any depth serve as interview topics for their ancestors.
 
 ## Layer Structure
 
@@ -72,7 +72,7 @@ Commands are handled in the graph via `handle_command` node, making them transpo
 When deleting a user, data is removed in this order:
 1. `user_knowledge_areas` links
 2. `user_knowledge` items
-3. Per-area: `area_summaries`, `life_area_messages`, `criteria`
+3. Per-area: `area_summaries`, `life_area_messages`
 4. `life_areas`
 5. `histories`
 6. `users`
@@ -93,16 +93,17 @@ Handles media input processing.
 - Transcribes audio to text
 
 ### area_loop
-Tool-calling loop for area/criteria management.
+Tool-calling loop for hierarchical area management.
 - `area_chat`: LLM with bound tools
 - `area_tools`: Execute tool calls in transaction
 - `area_end`: Finalize with success flag
 - Max 10 iterations (recursion limit: 23)
+- Sub-areas are created using `parent_id` to form a tree structure
 
 ### knowledge_extraction
-Post-interview knowledge extraction (triggered when all criteria covered).
-- `load_area_data`: Fetch area messages
-- `extract_summaries`: LLM summarizes per criterion
+Post-interview knowledge extraction (triggered when all sub-areas covered).
+- `load_area_data`: Fetch area messages and descendant sub-areas
+- `extract_summaries`: LLM summarizes per sub-area
 - `save_summary`: Persist with embedding
 - `extract_knowledge`: Extract skills/facts
 - `save_knowledge`: Persist knowledge items
@@ -200,8 +201,7 @@ AuthRequest      # transport → auth (provider, external_id, display_name, resp
 |-------|---------|
 | `users` | User profiles (id, mode, current_area_id) |
 | `histories` | Conversation messages (JSON) |
-| `life_areas` | Topics with hierarchy (parent_id) |
-| `criteria` | Evaluation criteria per area |
+| `life_areas` | Topics with hierarchy (parent_id for tree structure; descendants serve as interview topics) |
 | `life_area_messages` | Interview responses per area |
 | `area_summaries` | Extracted summaries + embeddings |
 | `user_knowledge` | Skills/facts extracted |
@@ -277,8 +277,8 @@ State:
   messages_to_save: MessageBuckets
   is_successful: bool          # Operation success flag
   area_id: UUID
-  criteria_analysis: CriteriaAnalysis
-  is_fully_covered: bool       # All criteria covered, triggers extract worker
+  coverage_analysis: AreaCoverageAnalysis
+  is_fully_covered: bool       # All sub-areas covered, triggers extract worker
   command_response: str | None # Set when command handled (ends workflow early)
 ```
 

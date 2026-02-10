@@ -24,11 +24,6 @@ _SCHEMA_SQL = """
         parent_id TEXT,
         user_id TEXT NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS criteria (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        area_id TEXT NOT NULL
-    );
     CREATE TABLE IF NOT EXISTS life_area_messages (
         id TEXT PRIMARY KEY,
         message_text TEXT NOT NULL,
@@ -41,8 +36,8 @@ _SCHEMA_SQL = """
         ON histories(created_ts);
     CREATE INDEX IF NOT EXISTS life_areas_user_id_idx
         ON life_areas(user_id);
-    CREATE INDEX IF NOT EXISTS criteria_area_id_idx
-        ON criteria(area_id);
+    CREATE INDEX IF NOT EXISTS life_areas_parent_id_idx
+        ON life_areas(parent_id);
     CREATE INDEX IF NOT EXISTS life_area_messages_area_id_idx
         ON life_area_messages(area_id);
     CREATE INDEX IF NOT EXISTS life_area_messages_created_ts_idx
@@ -127,5 +122,8 @@ async def init_schema_async(conn: aiosqlite.Connection, db_path: str) -> None:
             "current_area_id",
             "current_area_id TEXT",
         )
+        # Migration: drop deprecated criteria table if it exists
+        await conn.execute("DROP TABLE IF EXISTS criteria")
+
         await conn.commit()
         _db_initialized_paths.add(db_path)

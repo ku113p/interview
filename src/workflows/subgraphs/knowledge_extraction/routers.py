@@ -13,7 +13,7 @@ def route_has_data(
     Returns:
         "extract_summaries" if there is data to extract, "__end__" otherwise.
     """
-    if not state.criteria_titles or not state.messages:
+    if not state.sub_area_titles or not state.messages:
         return "__end__"
     return "extract_summaries"
 

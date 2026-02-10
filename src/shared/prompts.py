@@ -12,16 +12,16 @@ PROMPT_EXTRACT_TARGET_TEMPLATE = """\
 You are a routing classifier. Analyze the user's message and determine which module should handle it.
 
 **Return 'manage_areas' when the user wants to:**
-- Manage life areas (also called topics) or their evaluation criteria
+- Manage life areas (topics) or their sub-areas
 - Use any of these area management operations:
 {areas_tools_desc}
-- Ask questions about criteria setup (e.g., 'what criteria should we use?', 'which criteria can we create?')
-- Discuss area/criteria configuration or management
+- Ask questions about sub-area setup (e.g., 'what sub-areas should we add?', 'which topics can we create?')
+- Discuss area configuration or management
 
 **Examples that route to 'manage_areas':**
 - "Create area for X" → manage_areas
-- "Add criterion for Y" → manage_areas
-- "Add criteria for A, B, C" → manage_areas
+- "Add sub-area Y under X" → manage_areas
+- "Create topics for A, B, C" → manage_areas
 - "List my areas" → manage_areas
 - "Delete the fitness area" → manage_areas
 
@@ -38,7 +38,7 @@ You are a routing classifier. Analyze the user's message and determine which mod
 - "I exercise 3 times a week" → conduct_interview (answering)
 
 **Key distinction:**
-- 'manage_areas' = managing the structure (what to evaluate, setup, configuration)
+- 'manage_areas' = managing the structure (what topics to cover, setup, configuration)
 - 'conduct_interview' = the actual conversation (being evaluated, sharing experiences)
 
 Classify based on message intent only, ignoring conversation history."""
@@ -50,21 +50,21 @@ def build_extract_target_prompt(areas_tools_desc: str) -> str:
 
 
 # =============================================================================
-# Interview Analysis (Criteria Coverage)
+# Interview Analysis (Sub-Area Coverage)
 # =============================================================================
 
 PROMPT_INTERVIEW_ANALYSIS = """\
 You are an interview analysis agent.
 Your task is to analyze the interview messages and determine:
-1. For EACH criterion, whether it is clearly covered by the interview
-2. Which criterion should be asked about next (if any remain uncovered)
+1. For EACH sub-area, whether it is clearly covered by the interview
+2. Which sub-area should be asked about next (if any remain uncovered)
 
 Rules:
 - Be strict: unclear or partial answers = NOT covered
-- If NO criteria exist, set all_covered=false and next_uncovered=null
-- Pick the most logical next criterion to ask about
+- If NO sub-areas exist, set all_covered=false and next_uncovered=null
+- Pick the most logical next sub-area to ask about
 - Output ONLY the required JSON fields, no explanations or reasoning
-- Keep criterion titles exactly as provided, do not expand or translate them"""
+- Keep sub-area titles exactly as provided, do not expand or translate them"""
 
 
 # =============================================================================
@@ -74,15 +74,15 @@ Rules:
 PROMPT_INTERVIEW_RESPONSE_TEMPLATE = """\
 You are a friendly interview assistant.
 Based on the analysis provided, respond naturally:
-- Criteria status: {covered_count}/{total_count} covered
+- Sub-areas status: {covered_count}/{total_count} covered
 - Next topic: {next_topic}
 
 Rules:
 - Do NOT repeat greetings if conversation has already started
-- If no criteria exist: Tell the user "No evaluation criteria are defined for this area yet. \
-Please add some criteria first (e.g., 'Add criterion for X') so I can conduct a proper interview."
-- If all criteria covered: thank them and close politely
-- If criteria remain: ask about the next uncovered topic
+- If no sub-areas exist: Tell the user "No sub-areas are defined for this topic yet. \
+Please add some sub-areas first (e.g., 'Create area X under Y') so I can conduct a proper interview."
+- If all sub-areas covered: thank them and close politely
+- If sub-areas remain: ask about the next uncovered topic
 - Ask only ONE question at a time
 - Be polite, natural, and conversational"""
 
@@ -92,7 +92,7 @@ def build_interview_response_prompt(
     total_count: int,
     next_uncovered: str | None,
 ) -> str:
-    """Build the interview response prompt with criteria status."""
+    """Build the interview response prompt with sub-area status."""
     next_topic = next_uncovered or "All covered!"
     return PROMPT_INTERVIEW_RESPONSE_TEMPLATE.format(
         covered_count=covered_count,
@@ -106,32 +106,31 @@ def build_interview_response_prompt(
 # =============================================================================
 
 PROMPT_AREA_CHAT_TEMPLATE = """\
-You are a helpful assistant for managing life areas (also called topics) and their criteria. \
-You have access to tools to create, view, modify, and delete life areas and their criteria. \
+You are a helpful assistant for managing life areas (topics). \
+Life areas can be nested hierarchically - create sub-areas to define interview topics. \
 User ID: {user_id}
 
 **BE ACTION-ORIENTED:** When the user gives a clear command, execute it immediately.
 - "Create area for X" → Create the area AND set it as current in one flow
-- "Add criterion for Y" → Add the criterion immediately
-- "Add criteria for A, B, C" → Add all criteria immediately
+- "Create sub-area Y under X" → Create a child area under the parent
 
 **WORKFLOW FOR AREA CREATION:**
 1. When user says "Create area for X", create the area using 'create_life_area'
 2. Immediately set it as current using 'set_current_area' (don't ask, just do it)
 3. Confirm: "Created area 'X' and set it as current."
 
-**WORKFLOW FOR CRITERIA:**
-1. When user says "Add criterion/criteria for...", add them using 'add_criterion'
-2. If you don't know the area_id, call 'list_life_areas' first
-3. Extract the 'id' field from responses, never use the title as area_id
+**WORKFLOW FOR SUB-AREAS (used as interview topics):**
+1. When user says "Add sub-area Y under X", first get X's id via 'list_life_areas'
+2. Create Y with parent_id = X's id using 'create_life_area'
+3. Sub-areas serve as interview topics for their parent area
 
 **IMPORTANT: Area IDs are UUIDs** (e.g., '06985990-c0d4-7293-8000-...')
 
 **ONLY ASK FOR CONFIRMATION on destructive operations:**
-- Deleting areas or criteria → Ask first
+- Deleting areas → Ask first
 - Creating or adding → Just do it
 
-You can also help users by suggesting relevant criteria when asked, but prioritize executing their commands quickly."""
+You can also help users by suggesting relevant sub-areas when asked, but prioritize executing their commands quickly."""
 
 
 def build_area_chat_prompt(user_id: str) -> str:

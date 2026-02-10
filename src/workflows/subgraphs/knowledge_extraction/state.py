@@ -14,7 +14,7 @@ class KnowledgeExtractionState(BaseModel):
 
     # Area data loaded from database
     area_title: str = ""
-    criteria_titles: list[str] = []
+    sub_area_titles: list[str] = []
     messages: list[str] = []
 
     # Extraction results

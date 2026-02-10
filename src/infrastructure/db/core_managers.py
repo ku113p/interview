@@ -1,4 +1,4 @@
-"""Core repository managers: Users, History, LifeArea, Criteria."""
+"""Core repository managers: Users, History, LifeArea."""
 
 import json
 import uuid
@@ -7,7 +7,7 @@ from typing import Any
 import aiosqlite
 
 from .base import ORMBase
-from .models import Criteria, History, LifeArea, User
+from .models import History, LifeArea, User
 
 
 class UsersManager(ORMBase[User]):
@@ -84,24 +84,31 @@ class LifeAreasManager(ORMBase[LifeArea]):
             "user_id": str(data.user_id),
         }
 
-
-class CriteriaManager(ORMBase[Criteria]):
-    _table = "criteria"
-    _columns = ("id", "title", "area_id")
-    _area_column = "area_id"
-
     @classmethod
-    def _row_to_obj(cls, row: aiosqlite.Row) -> Criteria:
-        return Criteria(
-            id=uuid.UUID(row["id"]),
-            title=row["title"],
-            area_id=uuid.UUID(row["area_id"]),
-        )
+    async def get_descendants(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
+    ) -> list[LifeArea]:
+        """Get all descendant areas recursively using CTE."""
+        from .connection import get_connection
 
-    @classmethod
-    def _obj_to_row(cls, data: Criteria) -> dict[str, Any]:
-        return {
-            "id": str(data.id),
-            "title": data.title,
-            "area_id": str(data.area_id),
-        }
+        query = """
+            WITH RECURSIVE descendants AS (
+                SELECT id, title, parent_id, user_id
+                FROM life_areas
+                WHERE parent_id = ?
+                UNION ALL
+                SELECT la.id, la.title, la.parent_id, la.user_id
+                FROM life_areas la
+                JOIN descendants d ON la.parent_id = d.id
+            )
+            SELECT id, title, parent_id, user_id FROM descendants
+            ORDER BY title
+        """
+        if conn is None:
+            async with get_connection() as local_conn:
+                cursor = await local_conn.execute(query, (str(area_id),))
+                rows = await cursor.fetchall()
+        else:
+            cursor = await conn.execute(query, (str(area_id),))
+            rows = await cursor.fetchall()
+        return [cls._row_to_obj(row) for row in rows]

@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from src.infrastructure.db import managers as db
 from src.workflows.subgraphs.knowledge_extraction.nodes import (
-    CriterionSummary,
     ExtractionResult,
     KnowledgeExtractionResult,
     KnowledgeItem,
+    SubAreaSummary,
     _build_summary_content,
     extract_knowledge,
     extract_summaries,
@@ -58,9 +58,13 @@ class TestLoadAreaData:
             parent_id=None,
             user_id=user_id,
         )
-        mock_criteria = [
-            db.Criteria(id=uuid.uuid4(), title="Skills", area_id=area_id),
-            db.Criteria(id=uuid.uuid4(), title="Goals", area_id=area_id),
+        mock_sub_areas = [
+            db.LifeArea(
+                id=uuid.uuid4(), title="Skills", parent_id=area_id, user_id=user_id
+            ),
+            db.LifeArea(
+                id=uuid.uuid4(), title="Goals", parent_id=area_id, user_id=user_id
+            ),
         ]
         mock_messages = [
             db.LifeAreaMessage(
@@ -82,29 +86,29 @@ class TestLoadAreaData:
                 db.LifeAreasManager, "get_by_id", new_callable=AsyncMock
             ) as mock_get,
             patch.object(
-                db.CriteriaManager, "list_by_area", new_callable=AsyncMock
-            ) as mock_list_criteria,
+                db.LifeAreasManager, "get_descendants", new_callable=AsyncMock
+            ) as mock_get_descendants,
             patch.object(
                 db.LifeAreaMessagesManager, "list_by_area", new_callable=AsyncMock
             ) as mock_list_messages,
         ):
             mock_get.return_value = mock_area
-            mock_list_criteria.return_value = mock_criteria
+            mock_get_descendants.return_value = mock_sub_areas
             mock_list_messages.return_value = mock_messages
             # Act
             result = await load_area_data(state)
 
         # Assert
         assert result["area_title"] == "Career"
-        assert result["criteria_titles"] == ["Skills", "Goals"]
+        assert result["sub_area_titles"] == ["Skills", "Goals"]
         assert result["messages"] == [
             "I want to learn Python",
             "My goal is to become a senior developer",
         ]
 
     @pytest.mark.asyncio
-    async def test_load_area_data_empty_criteria_and_messages(self):
-        """Should handle areas with no criteria or messages."""
+    async def test_load_area_data_empty_sub_areas_and_messages(self):
+        """Should handle areas with no sub-areas or messages."""
         # Arrange
         area_id = uuid.uuid4()
         user_id = uuid.uuid4()
@@ -122,21 +126,21 @@ class TestLoadAreaData:
                 db.LifeAreasManager, "get_by_id", new_callable=AsyncMock
             ) as mock_get,
             patch.object(
-                db.CriteriaManager, "list_by_area", new_callable=AsyncMock
-            ) as mock_list_criteria,
+                db.LifeAreasManager, "get_descendants", new_callable=AsyncMock
+            ) as mock_get_descendants,
             patch.object(
                 db.LifeAreaMessagesManager, "list_by_area", new_callable=AsyncMock
             ) as mock_list_messages,
         ):
             mock_get.return_value = mock_area
-            mock_list_criteria.return_value = []
+            mock_get_descendants.return_value = []
             mock_list_messages.return_value = []
             # Act
             result = await load_area_data(state)
 
         # Assert
         assert result["area_title"] == "Empty Area"
-        assert result["criteria_titles"] == []
+        assert result["sub_area_titles"] == []
         assert result["messages"] == []
 
 
@@ -151,15 +155,15 @@ class TestExtractSummaries:
         state = KnowledgeExtractionState(
             area_id=area_id,
             area_title="Career",
-            criteria_titles=["Skills", "Goals"],
+            sub_area_titles=["Skills", "Goals"],
             messages=["I want to learn Python", "My goal is to become senior"],
         )
 
         mock_result = ExtractionResult(
             summaries=[
-                CriterionSummary(criterion="Skills", summary="Wants to learn Python"),
-                CriterionSummary(
-                    criterion="Goals", summary="Aspires to become senior developer"
+                SubAreaSummary(sub_area="Skills", summary="Wants to learn Python"),
+                SubAreaSummary(
+                    sub_area="Goals", summary="Aspires to become senior developer"
                 ),
             ]
         )
@@ -189,7 +193,7 @@ class TestExtractSummaries:
         state = KnowledgeExtractionState(
             area_id=area_id,
             area_title="Career",
-            criteria_titles=["Skills"],
+            sub_area_titles=["Skills"],
             messages=["Some message"],
         )
 
@@ -210,11 +214,11 @@ class TestExtractSummaries:
 class TestRouters:
     """Test the router functions."""
 
-    def test_route_has_data_returns_end_when_no_criteria(self):
-        """Should return __end__ when criteria_titles is empty."""
+    def test_route_has_data_returns_end_when_no_sub_areas(self):
+        """Should return __end__ when sub_area_titles is empty."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            criteria_titles=[],
+            sub_area_titles=[],
             messages=["Some message"],
         )
         assert route_has_data(state) == "__end__"
@@ -223,16 +227,16 @@ class TestRouters:
         """Should return __end__ when messages is empty."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            criteria_titles=["Skills"],
+            sub_area_titles=["Skills"],
             messages=[],
         )
         assert route_has_data(state) == "__end__"
 
     def test_route_has_data_returns_extract_summaries_when_data_exists(self):
-        """Should return extract_summaries when both criteria and messages exist."""
+        """Should return extract_summaries when both sub-areas and messages exist."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            criteria_titles=["Skills"],
+            sub_area_titles=["Skills"],
             messages=["Some message"],
         )
         assert route_has_data(state) == "extract_summaries"
@@ -542,14 +546,16 @@ class TestSaveKnowledge:
         assert all(link.area_id == area_id for link in links)
 
 
-async def _create_area_with_data(area_id, user_id, criteria_titles, message_texts):
-    """Helper to create area with criteria and messages in database."""
+async def _create_area_with_data(area_id, user_id, sub_area_titles, message_texts):
+    """Helper to create area with sub-areas and messages in database."""
     area = db.LifeArea(id=area_id, title="Career", parent_id=None, user_id=user_id)
     await db.LifeAreasManager.create(area_id, area)
 
-    for title in criteria_titles:
-        c = db.Criteria(id=uuid.uuid4(), title=title, area_id=area_id)
-        await db.CriteriaManager.create(c.id, c)
+    for title in sub_area_titles:
+        sub_area = db.LifeArea(
+            id=uuid.uuid4(), title=title, parent_id=area_id, user_id=user_id
+        )
+        await db.LifeAreasManager.create(sub_area.id, sub_area)
 
     for i, text in enumerate(message_texts):
         m = db.LifeAreaMessage(
@@ -596,11 +602,11 @@ class TestKnowledgeExtractionGraphIntegration:
 
         summary_result = ExtractionResult(
             summaries=[
-                CriterionSummary(
-                    criterion="Skills", summary="Proficient in Python and JavaScript"
+                SubAreaSummary(
+                    sub_area="Skills", summary="Proficient in Python and JavaScript"
                 ),
-                CriterionSummary(
-                    criterion="Goals", summary="Aspires to become a tech lead"
+                SubAreaSummary(
+                    sub_area="Goals", summary="Aspires to become a tech lead"
                 ),
             ]
         )
@@ -654,7 +660,7 @@ class TestKnowledgeExtractionGraphIntegration:
         await _create_area_with_data(area_id, user_id, ["Skills"], ["I know Python"])
 
         summary_result = ExtractionResult(
-            summaries=[CriterionSummary(criterion="Skills", summary="Knows Python")]
+            summaries=[SubAreaSummary(sub_area="Skills", summary="Knows Python")]
         )
         mock_structured = AsyncMock()
         mock_structured.ainvoke.return_value = summary_result
@@ -680,7 +686,7 @@ class TestKnowledgeExtractionGraphIntegration:
 
     @pytest.mark.asyncio
     async def test_graph_skips_when_no_data(self, temp_db):
-        """Test that graph exits early when area has no criteria or messages."""
+        """Test that graph exits early when area has no sub-areas or messages."""
         from src.workflows.subgraphs.knowledge_extraction.graph import (
             build_knowledge_extraction_graph,
         )

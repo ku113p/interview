@@ -100,7 +100,7 @@ async def _delete_knowledge(user_id: uuid.UUID, conn: aiosqlite.Connection) -> N
 
 
 async def _delete_area_data(area_id: uuid.UUID, conn: aiosqlite.Connection) -> None:
-    """Delete all data for a single area (summaries, messages, criteria)."""
+    """Delete all data for a single area (summaries, messages)."""
     summaries = await db.AreaSummariesManager.list_by_area(area_id, conn)
     for s in summaries:
         await db.AreaSummariesManager.delete(s.id, conn=conn, auto_commit=False)
@@ -108,10 +108,6 @@ async def _delete_area_data(area_id: uuid.UUID, conn: aiosqlite.Connection) -> N
     messages = await db.LifeAreaMessagesManager.list_by_area(area_id, conn)
     for m in messages:
         await db.LifeAreaMessagesManager.delete(m.id, conn=conn, auto_commit=False)
-
-    criteria = await db.CriteriaManager.list_by_area(area_id, conn)
-    for c in criteria:
-        await db.CriteriaManager.delete(c.id, conn=conn, auto_commit=False)
 
 
 async def _delete_user_data(user_id: uuid.UUID) -> None:

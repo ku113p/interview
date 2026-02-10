@@ -11,7 +11,7 @@ from pydantic import AfterValidator, BaseModel, Field
 
 from src.infrastructure.db import managers as db
 
-from .methods import CriteriaMethods, CurrentAreaMethods, LifeAreaMethods
+from .methods import CurrentAreaMethods, LifeAreaMethods
 
 logger = logging.getLogger(__name__)
 
@@ -76,40 +76,6 @@ class DeleteLifeAreaArgs(BaseModel):
         ..., description="UUID of the user (provided in system message)"
     )
     area_id: UUIDStr = Field(..., description="UUID of the life area to delete")
-
-
-class ListCriteriaArgs(BaseModel):
-    """Arguments for listing criteria."""
-
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
-    area_id: UUIDStr = Field(
-        ...,
-        description="UUID of the life area. Use 'list_life_areas' first if you don't have the ID.",
-    )
-
-
-class CreateCriteriaArgs(BaseModel):
-    """Arguments for creating a criteria item."""
-
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
-    area_id: UUIDStr = Field(
-        ...,
-        description="UUID of the life area. Call 'list_life_areas' to get available area IDs, then extract the 'id' field from the response.",
-    )
-    title: str = Field(..., description="Title/name for the new criteria item")
-
-
-class DeleteCriteriaArgs(BaseModel):
-    """Arguments for deleting a criteria item."""
-
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
-    criteria_id: UUIDStr = Field(..., description="UUID of the criteria item to delete")
 
 
 class SetCurrentAreaArgs(BaseModel):
@@ -190,33 +156,6 @@ async def delete_life_area(
     await LifeAreaMethods.delete(user_id, area_id, conn=conn)
 
 
-@tool(args_schema=ListCriteriaArgs)
-async def list_criteria(
-    user_id: str, area_id: str, conn: aiosqlite.Connection | None = None
-) -> list[db.Criteria]:
-    """List criteria belonging to a life area."""
-    return await CriteriaMethods.list(user_id, area_id, conn=conn)
-
-
-@tool(args_schema=DeleteCriteriaArgs)
-async def delete_criteria(
-    user_id: str, criteria_id: str, conn: aiosqlite.Connection | None = None
-) -> None:
-    """Delete a criteria item by id for a user."""
-    await CriteriaMethods.delete(user_id, criteria_id, conn=conn)
-
-
-@tool(args_schema=CreateCriteriaArgs)
-async def create_criteria(
-    user_id: str,
-    area_id: str,
-    title: str,
-    conn: aiosqlite.Connection | None = None,
-) -> db.Criteria:
-    """Create a criteria item under a life area."""
-    return await CriteriaMethods.create(user_id, area_id, title, conn=conn)
-
-
 @tool(args_schema=SetCurrentAreaArgs)
 async def set_current_area(
     user_id: str, area_id: str, conn: aiosqlite.Connection | None = None
@@ -230,9 +169,6 @@ AREA_TOOLS = [
     delete_life_area,
     get_life_area,
     list_life_areas,
-    create_criteria,
-    delete_criteria,
-    list_criteria,
     set_current_area,
 ]
 

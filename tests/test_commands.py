@@ -417,13 +417,6 @@ class TestDeleteUserDataCascade:
             ),
         )
 
-        # Create criteria for area
-        criteria_id = new_id()
-        await db.CriteriaManager.create(
-            criteria_id,
-            db.Criteria(id=criteria_id, title="Test Criteria", area_id=area_id),
-        )
-
         # Create area message
         msg_id = new_id()
         await db.LifeAreaMessagesManager.create(
@@ -459,7 +452,6 @@ class TestDeleteUserDataCascade:
         # Assert - all data should be deleted
         assert await db.UsersManager.get_by_id(sample_user.id) is None
         assert len(await db.LifeAreasManager.list_by_user(sample_user.id)) == 0
-        assert len(await db.CriteriaManager.list_by_area(area_id)) == 0
         assert len(await db.LifeAreaMessagesManager.list_by_area(area_id)) == 0
         assert len(await db.HistoriesManager.list_by_user(sample_user.id)) == 0
 
