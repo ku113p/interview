@@ -6,6 +6,7 @@ import logging
 import uuid
 
 from aiogram import Bot, Dispatcher, F, Router
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
@@ -35,6 +36,36 @@ logger = logging.getLogger(__name__)
 
 
 AUTH_TIMEOUT_SECONDS = 30.0
+SEND_RETRY_ATTEMPTS = 3
+SEND_RETRY_BASE_DELAY = 1.0  # seconds
+
+
+async def _retry_send(coro_factory, description: str) -> None:
+    """Retry a send operation with exponential backoff."""
+    for attempt in range(SEND_RETRY_ATTEMPTS):
+        try:
+            await coro_factory()
+            return
+        except TelegramNetworkError:
+            if attempt == SEND_RETRY_ATTEMPTS - 1:
+                raise
+            delay = SEND_RETRY_BASE_DELAY * (2**attempt)
+            logger.warning(
+                "Network error %s, retrying in %.1fs (attempt %d/%d)",
+                description,
+                delay,
+                attempt + 1,
+                SEND_RETRY_ATTEMPTS,
+            )
+            await asyncio.sleep(delay)
+
+
+async def _safe_reply(message: Message, text: str) -> None:
+    """Send a reply, logging if network is unavailable."""
+    try:
+        await message.reply(text)
+    except TelegramNetworkError:
+        logger.warning("Could not send reply - network unavailable")
 
 
 async def _get_user_id(
@@ -95,7 +126,10 @@ def _split_message(text: str, max_length: int) -> list[str]:
 async def _send_response(bot: Bot, chat_id: int, text: str) -> None:
     """Send response, splitting if too long."""
     for chunk in _split_message(text, TELEGRAM_MAX_MESSAGE_LENGTH):
-        await bot.send_message(chat_id, chunk)
+        await _retry_send(
+            lambda c=chunk: bot.send_message(chat_id, c),
+            "sending response",
+        )
 
 
 async def _dispatch_responses(
@@ -144,10 +178,10 @@ async def _handle_text_message(
         response = await _send_request(user_id, client_msg, channels, pending_responses)
         await _send_response(bot, message.chat.id, response)
     except asyncio.TimeoutError:
-        await message.reply("Service temporarily unavailable. Please try again.")
+        await _safe_reply(message, "Service temporarily unavailable. Please try again.")
     except Exception:
         logger.exception("Failed to process text message")
-        await message.reply("An error occurred. Please try again.")
+        await _safe_reply(message, "An error occurred. Please try again.")
 
 
 async def _download_voice(message: Message, bot: Bot) -> io.BytesIO | None:
@@ -173,7 +207,7 @@ async def _process_voice(
     )
     voice_data = await _download_voice(message, bot)
     if not voice_data:
-        await message.reply("Failed to download voice message")
+        await _safe_reply(message, "Failed to download voice message")
         return
     media = MediaMessage(type=MessageType.audio, content=voice_data)
     client_msg = ClientMessage(data=media)
@@ -193,10 +227,10 @@ async def _handle_voice_message(
     try:
         await _process_voice(message, bot, channels, pending_responses)
     except asyncio.TimeoutError:
-        await message.reply("Service temporarily unavailable. Please try again.")
+        await _safe_reply(message, "Service temporarily unavailable. Please try again.")
     except Exception:
         logger.exception("Failed to process voice message")
-        await message.reply("An error occurred. Please try again.")
+        await _safe_reply(message, "An error occurred. Please try again.")
 
 
 def _is_not_command(message: Message) -> bool:
