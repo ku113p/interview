@@ -3,6 +3,7 @@
 import pytest
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
+from src.workflows.subgraphs.area_loop.methods import LifeAreaMethods
 
 
 class TestGetDescendants:
@@ -195,3 +196,189 @@ class TestGetDescendants:
         # Assert - should only include LeafA, not BranchB or LeafB
         assert len(descendants) == 1
         assert descendants[0].title == "LeafA"
+
+
+class TestGetAncestors:
+    """Test the get_ancestors recursive CTE query."""
+
+    @pytest.mark.asyncio
+    async def test_get_ancestors_empty_for_root(self, temp_db):
+        """Should return empty list for root area (no parent)."""
+        # Arrange
+        user_id = new_id()
+        area_id = new_id()
+        area = db.LifeArea(id=area_id, title="Root", parent_id=None, user_id=user_id)
+        await db.LifeAreasManager.create(area_id, area)
+
+        # Act
+        ancestors = await db.LifeAreasManager.get_ancestors(area_id)
+
+        # Assert
+        assert ancestors == []
+
+    @pytest.mark.asyncio
+    async def test_get_ancestors_returns_parent(self, temp_db):
+        """Should return direct parent."""
+        # Arrange
+        user_id = new_id()
+        parent_id = new_id()
+        parent = db.LifeArea(
+            id=parent_id, title="Parent", parent_id=None, user_id=user_id
+        )
+        await db.LifeAreasManager.create(parent_id, parent)
+
+        child_id = new_id()
+        child = db.LifeArea(
+            id=child_id, title="Child", parent_id=parent_id, user_id=user_id
+        )
+        await db.LifeAreasManager.create(child_id, child)
+
+        # Act
+        ancestors = await db.LifeAreasManager.get_ancestors(child_id)
+
+        # Assert
+        assert len(ancestors) == 1
+        assert ancestors[0].id == parent_id
+
+    @pytest.mark.asyncio
+    async def test_get_ancestors_full_chain(self, temp_db):
+        """Should return full ancestor chain from leaf to root."""
+        # Arrange: Grandparent -> Parent -> Child
+        user_id = new_id()
+
+        grandparent_id = new_id()
+        grandparent = db.LifeArea(
+            id=grandparent_id, title="Grandparent", parent_id=None, user_id=user_id
+        )
+        await db.LifeAreasManager.create(grandparent_id, grandparent)
+
+        parent_id = new_id()
+        parent = db.LifeArea(
+            id=parent_id, title="Parent", parent_id=grandparent_id, user_id=user_id
+        )
+        await db.LifeAreasManager.create(parent_id, parent)
+
+        child_id = new_id()
+        child = db.LifeArea(
+            id=child_id, title="Child", parent_id=parent_id, user_id=user_id
+        )
+        await db.LifeAreasManager.create(child_id, child)
+
+        # Act
+        ancestors = await db.LifeAreasManager.get_ancestors(child_id)
+
+        # Assert - should include Parent and Grandparent
+        assert len(ancestors) == 2
+        ancestor_ids = [a.id for a in ancestors]
+        assert parent_id in ancestor_ids
+        assert grandparent_id in ancestor_ids
+
+
+class TestWouldCreateCycle:
+    """Test the would_create_cycle validation method."""
+
+    @pytest.mark.asyncio
+    async def test_self_reference_is_cycle(self, temp_db):
+        """Setting parent to self should be detected as cycle."""
+        # Arrange
+        user_id = new_id()
+        area_id = new_id()
+        area = db.LifeArea(id=area_id, title="Area", parent_id=None, user_id=user_id)
+        await db.LifeAreasManager.create(area_id, area)
+
+        # Act
+        is_cycle = await db.LifeAreasManager.would_create_cycle(area_id, area_id)
+
+        # Assert
+        assert is_cycle is True
+
+    @pytest.mark.asyncio
+    async def test_descendant_as_parent_is_cycle(self, temp_db):
+        """Setting child as parent of its ancestor should be cycle."""
+        # Arrange: Parent -> Child
+        user_id = new_id()
+
+        parent_id = new_id()
+        parent = db.LifeArea(
+            id=parent_id, title="Parent", parent_id=None, user_id=user_id
+        )
+        await db.LifeAreasManager.create(parent_id, parent)
+
+        child_id = new_id()
+        child = db.LifeArea(
+            id=child_id, title="Child", parent_id=parent_id, user_id=user_id
+        )
+        await db.LifeAreasManager.create(child_id, child)
+
+        # Act - try to make Parent's parent be Child (would create cycle)
+        is_cycle = await db.LifeAreasManager.would_create_cycle(parent_id, child_id)
+
+        # Assert
+        assert is_cycle is True
+
+    @pytest.mark.asyncio
+    async def test_valid_parent_is_not_cycle(self, temp_db):
+        """Setting a non-descendant as parent should not be cycle."""
+        # Arrange: Two separate areas
+        user_id = new_id()
+
+        area_a_id = new_id()
+        area_a = db.LifeArea(
+            id=area_a_id, title="Area A", parent_id=None, user_id=user_id
+        )
+        await db.LifeAreasManager.create(area_a_id, area_a)
+
+        area_b_id = new_id()
+        area_b = db.LifeArea(
+            id=area_b_id, title="Area B", parent_id=None, user_id=user_id
+        )
+        await db.LifeAreasManager.create(area_b_id, area_b)
+
+        # Act - A can have B as parent (no cycle)
+        is_cycle = await db.LifeAreasManager.would_create_cycle(area_a_id, area_b_id)
+
+        # Assert
+        assert is_cycle is False
+
+
+class TestLifeAreaMethodsCreate:
+    """Test parent validation in LifeAreaMethods.create."""
+
+    @pytest.mark.asyncio
+    async def test_create_with_valid_parent(self, temp_db, sample_user):
+        """Should create area when parent exists and belongs to user."""
+        # Arrange
+        parent = await LifeAreaMethods.create(str(sample_user.id), "Parent")
+
+        # Act
+        child = await LifeAreaMethods.create(
+            str(sample_user.id), "Child", str(parent.id)
+        )
+
+        # Assert
+        assert child.parent_id == parent.id
+        assert child.user_id == sample_user.id
+
+    @pytest.mark.asyncio
+    async def test_create_with_nonexistent_parent_fails(self, temp_db, sample_user):
+        """Should raise KeyError when parent doesn't exist."""
+        fake_parent_id = str(new_id())
+
+        with pytest.raises(KeyError, match="not found"):
+            await LifeAreaMethods.create(str(sample_user.id), "Child", fake_parent_id)
+
+    @pytest.mark.asyncio
+    async def test_create_with_other_users_parent_fails(self, temp_db, sample_user):
+        """Should raise KeyError when parent belongs to different user."""
+        # Arrange - create area for different user
+        other_user_id = new_id()
+        other_user = db.User(id=other_user_id, name="Other", mode="auto")
+        await db.UsersManager.create(other_user_id, other_user)
+
+        other_area = await LifeAreaMethods.create(str(other_user_id), "Other's Area")
+
+        # Act & Assert - sample_user can't use other's area as parent
+        with pytest.raises(KeyError, match="does not belong to user"):
+            await LifeAreaMethods.create(
+                str(sample_user.id), "Child", str(other_area.id)
+            )

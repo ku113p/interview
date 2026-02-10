@@ -112,3 +112,48 @@ class LifeAreasManager(ORMBase[LifeArea]):
             cursor = await conn.execute(query, (str(area_id),))
             rows = await cursor.fetchall()
         return [cls._row_to_obj(row) for row in rows]
+
+    @classmethod
+    async def get_ancestors(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
+    ) -> list[LifeArea]:
+        """Get all ancestor areas recursively using CTE (parent chain to root)."""
+        from .connection import get_connection
+
+        query = """
+            WITH RECURSIVE ancestors AS (
+                SELECT id, title, parent_id, user_id
+                FROM life_areas
+                WHERE id = (SELECT parent_id FROM life_areas WHERE id = ?)
+                UNION ALL
+                SELECT la.id, la.title, la.parent_id, la.user_id
+                FROM life_areas la
+                JOIN ancestors a ON la.id = a.parent_id
+            )
+            SELECT id, title, parent_id, user_id FROM ancestors
+        """
+        if conn is None:
+            async with get_connection() as local_conn:
+                cursor = await local_conn.execute(query, (str(area_id),))
+                rows = await cursor.fetchall()
+        else:
+            cursor = await conn.execute(query, (str(area_id),))
+            rows = await cursor.fetchall()
+        return [cls._row_to_obj(row) for row in rows]
+
+    @classmethod
+    async def would_create_cycle(
+        cls,
+        area_id: uuid.UUID,
+        new_parent_id: uuid.UUID,
+        conn: aiosqlite.Connection | None = None,
+    ) -> bool:
+        """Check if setting new_parent_id would create a cycle.
+
+        A cycle occurs if new_parent_id is a descendant of area_id.
+        Used for validating parent changes on update operations.
+        """
+        if area_id == new_parent_id:
+            return True
+        descendants = await cls.get_descendants(area_id, conn=conn)
+        return any(d.id == new_parent_id for d in descendants)

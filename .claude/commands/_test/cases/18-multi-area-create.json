@@ -2,27 +2,17 @@
   "name": "Multi-Area - Creation",
   "description": "Test creating multiple life areas in single session",
   "inputs": [
-    "Create a life area for my career",
-    "no",
-    "Create another area for my health",
-    "no",
-    "Create a third area for my relationships",
-    "no",
+    "Create area Career",
+    "Create area Health",
+    "Create area Relationships",
     "List all my areas",
     "/exit"
   ],
   "expected": {
     "life_areas": 3,
-    "criteria_min": 0,
-    "criteria_max": 0,
-    "summaries_min": 0,
-    "summaries_max": 0,
-    "knowledge_min": 0,
-    "knowledge_max": 0
-  },
-  "typical": {
-    "criteria": [0, 0],
-    "summaries": [0, 0],
-    "knowledge": [0, 0]
+    "sub_areas_min": 0,
+    "sub_areas_max": 0,
+    "summaries": false,
+    "knowledge": false
   }
 }

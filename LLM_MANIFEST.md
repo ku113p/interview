@@ -35,6 +35,7 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 |----------|-------|---------|
 | Structured output | 1024 | `extract_target` |
 | Analysis | 4096 | `interview_analysis` (variable-size sub-area output) |
+| Knowledge extraction | 4096 | `knowledge_extraction` (needs reasoning tokens) |
 | Conversational | 4096 | `interview_response`, `area_chat` |
 | Transcription | 8192 | `transcribe` |
 
@@ -67,6 +68,14 @@ LLM instances are created via lazy-initialized getters in `src/infrastructure/ll
 | `get_llm_interview_response()` | gpt-5.2 | 0.5 | 4096 | |
 
 These getters use `@lru_cache` to ensure each LLM is only instantiated once. Called by `src/application/graph.py` at graph build time.
+
+### Worker Pool LLMs
+
+The extract worker pool creates its own LLM instance in `src/application/workers/extract_worker.py`:
+
+| Worker | Model | Max Tokens | Notes |
+|--------|-------|------------|-------|
+| `knowledge_extraction` | gpt-5.1-codex-mini | 4096 | Needs extra tokens for reasoning |
 
 ## Prompt Locations
 

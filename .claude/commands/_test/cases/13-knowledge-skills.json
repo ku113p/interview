@@ -2,24 +2,16 @@
   "name": "Knowledge - Skill Extraction",
   "description": "Test extraction of technical skills from interview answers",
   "inputs": [
-    "Create area for Technical Skills and set it as current",
-    "yes",
-    "Add criterion for Python experience",
-    "I've been working with Python for 7 years. I use it for data analysis with pandas and for building APIs with FastAPI. I also lead a team of 5 engineers.",
+    "Create area Technical Skills with sub-areas: Languages, Frameworks",
+    "I've been working with Python for 7 years. I use pandas for data analysis and FastAPI for APIs.",
+    "yes that covers my skills",
     "/exit"
   ],
   "expected": {
-    "life_areas": 1,
-    "criteria_min": 1,
-    "criteria_max": 2,
-    "summaries_min": 0,
-    "summaries_max": 1,
-    "knowledge_min": 2,
-    "knowledge_max": 8
-  },
-  "typical": {
-    "criteria": [1, 1],
-    "summaries": [0, 1],
-    "knowledge": [3, 5]
+    "life_areas": 3,
+    "sub_areas_min": 2,
+    "sub_areas_max": 2,
+    "summaries": true,
+    "knowledge": true
   }
 }
