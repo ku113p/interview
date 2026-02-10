@@ -4,20 +4,22 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Cases | 5 |
-| Passed | 4 |
-| Failed | 1 |
-| Pass Rate | 80% |
+| Total Cases | 7 |
+| Passed | 5 |
+| Failed | 2 |
+| Pass Rate | 71% |
 
 ## Results by Case
 
 | # | Case Name | Status | Areas | Sub-Areas | Summaries | Knowledge | Last Run |
 |---|-----------|--------|-------|-----------|-----------|-----------|----------|
-| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 6/true | 2026-02-10 22:34 |
-| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-10 22:34 |
-| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-10 22:34 |
-| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-10 22:34 |
-| 21 | Tree Sub-Areas Full Flow | FAIL | 1/4 | 0/3-3 | 0/true | 0/true | 2026-02-10 22:34 |
+| 1 | CRUD Operations | FAIL | 3/3 | 2/2-2 | 0/true | 8/true | 2026-02-11 |
+| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-11 |
+| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-11 |
+| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-11 |
+| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 21/true | 2026-02-11 |
+| 22 | Subtree - Bulk Create | FAIL | 7/5 | 6/4-4 | 0/false | 0/false | 2026-02-11 |
+| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-11 |
 
 ## Test Case Descriptions
 
@@ -28,6 +30,8 @@
 | 13 | Knowledge - Skill Extraction | Technical skill extraction from interview |
 | 18 | Multi-Area - Creation | Creating multiple root areas in one session |
 | 21 | Tree Sub-Areas Full Flow | Hierarchical sub-areas with nested parent-child relationships |
+| 22 | Subtree - Bulk Create | Bulk nested sub-area creation via create_subtree |
+| 23 | Subtree - Deep Nesting | Deep nesting (3+ levels) with create_subtree |
 
 ## Expected Format
 

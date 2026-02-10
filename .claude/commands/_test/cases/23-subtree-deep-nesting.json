@@ -1,0 +1,15 @@
+{
+  "name": "Subtree - Deep Nesting",
+  "description": "Tests create_subtree with 3+ levels of hierarchy",
+  "inputs": [
+    "Create area Career with sub-area Technical, under Technical add Languages, under Languages add Python and JavaScript",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 5,
+    "sub_areas_min": 4,
+    "sub_areas_max": 4,
+    "summaries": false,
+    "knowledge": false
+  }
+}

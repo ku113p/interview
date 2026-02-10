@@ -1,0 +1,15 @@
+{
+  "name": "Subtree - Bulk Create",
+  "description": "Tests create_subtree tool for bulk nested sub-area creation",
+  "inputs": [
+    "Create area Work Experience with positions Google and Amazon, each having Responsibilities and Achievements",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 5,
+    "sub_areas_min": 4,
+    "sub_areas_max": 4,
+    "summaries": false,
+    "knowledge": false
+  }
+}
