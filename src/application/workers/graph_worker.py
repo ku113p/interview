@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 async def _init_graph_state(msg: ClientMessage, user: User) -> tuple[State, list[str]]:
     """Initialize graph state and create temporary files for media processing."""
     media_tmp = tempfile.NamedTemporaryFile(delete=False)
-    audio_tmp = tempfile.NamedTemporaryFile(delete=False)
+    audio_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     temp_files = [media_tmp.name, audio_tmp.name]
     media_tmp.close()
     audio_tmp.close()
