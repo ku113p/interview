@@ -73,6 +73,53 @@ class LifeAreaMethods:
         return area
 
     @staticmethod
+    async def _validate_new_parent(
+        area_id: uuid.UUID,
+        new_parent_id: uuid.UUID,
+        user_id: uuid.UUID,
+        parent_id_str: str,
+        conn: aiosqlite.Connection | None,
+    ) -> None:
+        """Validate new parent exists, belongs to user, and won't create cycle."""
+        parent = await db.LifeAreasManager.get_by_id(new_parent_id, conn=conn)
+        if parent is None:
+            raise KeyError(f"Parent area {parent_id_str} not found")
+        if parent.user_id != user_id:
+            raise KeyError(f"Parent area {parent_id_str} does not belong to user")
+        if await db.LifeAreasManager.would_create_cycle(area_id, new_parent_id, conn):
+            raise ValueError(
+                f"Cannot set {parent_id_str} as parent: would create a cycle"
+            )
+
+    @staticmethod
+    async def update(
+        user_id: str,
+        area_id: str,
+        title: str | None = None,
+        parent_id: str | None = None,
+        conn: aiosqlite.Connection | None = None,
+    ) -> db.LifeArea:
+        """Update an area's title and/or parent."""
+        area = await LifeAreaMethods.get(user_id, area_id, conn=conn)
+        u_id = uuid.UUID(user_id)
+        new_parent_id = _str_to_uuid(parent_id)
+
+        # Validate new parent if changing
+        if new_parent_id is not None and new_parent_id != area.parent_id:
+            await LifeAreaMethods._validate_new_parent(
+                area.id, new_parent_id, u_id, str(new_parent_id), conn
+            )
+
+        updated_area = db.LifeArea(
+            id=area.id,
+            title=title if title is not None else area.title,
+            parent_id=new_parent_id if parent_id is not None else area.parent_id,
+            user_id=area.user_id,
+        )
+        await db.LifeAreasManager.update(area.id, updated_area, conn=conn)
+        return updated_area
+
+    @staticmethod
     async def delete(
         user_id: str, area_id: str, conn: aiosqlite.Connection | None = None
     ) -> None:

@@ -5,10 +5,10 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from src.application.workers.channels import ChannelRequest, Channels
-from src.application.workers.graph_worker import run_graph_pool
 from src.domain import ClientMessage
 from src.infrastructure.db import managers as db
+from src.processes.interview import ChannelRequest, run_graph_pool
+from src.runtime import Channels
 
 
 async def _create_test_user(temp_db) -> uuid.UUID:
@@ -46,7 +46,7 @@ class TestGraphWorker:
             ChannelRequest(corr_id, user_id, ClientMessage(data="Hello"))
         )
 
-        with patch("src.application.workers.graph_worker.get_graph") as mock_get:
+        with patch("src.processes.interview.worker.get_graph") as mock_get:
             mock_get.return_value = _mock_graph_response("Response text")
             pool = asyncio.create_task(run_graph_pool(channels))
             await channels.requests.join()
@@ -69,7 +69,7 @@ class TestGraphWorker:
                 ChannelRequest(corr_id, user_id, ClientMessage(data=f"Message {i}"))
             )
 
-        with patch("src.application.workers.graph_worker.get_graph") as mock_get:
+        with patch("src.processes.interview.worker.get_graph") as mock_get:
             counter = [0]
 
             async def mock_invoke(state):
@@ -101,7 +101,7 @@ class TestGraphWorker:
             ChannelRequest(corr_id, user_id, ClientMessage(data="fail"))
         )
 
-        with patch("src.application.workers.graph_worker.get_graph") as mock_get:
+        with patch("src.processes.interview.worker.get_graph") as mock_get:
             mock_get.return_value = MagicMock(
                 ainvoke=AsyncMock(side_effect=Exception("Graph failed"))
             )

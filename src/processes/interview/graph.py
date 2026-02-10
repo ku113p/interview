@@ -2,7 +2,6 @@ from functools import partial
 
 from langgraph.graph import END, START, StateGraph
 
-from src.application.state import State
 from src.infrastructure.llms import (
     get_llm_area_chat,
     get_llm_extract_target,
@@ -10,6 +9,7 @@ from src.infrastructure.llms import (
     get_llm_interview_response,
     get_llm_transcribe,
 )
+from src.processes.interview.state import State
 from src.workflows.nodes.commands.handle_command import handle_command
 from src.workflows.nodes.input.build_user_message import build_user_message
 from src.workflows.nodes.input.extract_target import extract_target

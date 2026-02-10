@@ -1,11 +1,11 @@
 """Unit tests for CLI transport and graph worker helpers."""
 
 import pytest
-from src.application.transports import get_or_create_user
-from src.application.workers.graph_worker import _init_graph_state
 from src.domain import ClientMessage, User
 from src.domain.models import InputMode
 from src.infrastructure.db import managers as db
+from src.processes.interview import _init_graph_state
+from src.processes.transport import get_or_create_user
 from src.shared.ids import new_id
 
 

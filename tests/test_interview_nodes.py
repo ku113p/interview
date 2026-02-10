@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
-from src.application.state import State, Target
 from src.domain import ClientMessage, InputMode, User
 from src.infrastructure.db import managers as db
+from src.processes.interview import State, Target
 from src.shared.ids import new_id
 from src.shared.interview_models import AreaCoverageAnalysis, SubAreaCoverage
 from src.workflows.nodes.processing.interview_analysis import interview_analysis

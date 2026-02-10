@@ -1,6 +1,6 @@
 from typing import Literal
 
-from src.application.state import State
+from src.processes.interview import State
 
 
 def route_on_success(state: State) -> Literal["save_history", "__end__"]:

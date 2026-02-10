@@ -3,8 +3,8 @@ import logging
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
-from src.application.state import State
 from src.config.settings import HISTORY_LIMIT_INTERVIEW, INPUT_TOKENS_INTERVIEW
+from src.processes.interview import State
 from src.shared.prompts import build_interview_response_prompt
 from src.shared.retry import invoke_with_retry
 from src.shared.timestamp import get_timestamp

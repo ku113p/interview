@@ -5,9 +5,8 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from src.application.workers.channels import Channels, ExtractTask
-from src.application.workers.extract_worker import run_extract_pool
-from src.application.workers.pool import run_worker_pool
+from src.processes.extract import ExtractTask, run_extract_pool
+from src.runtime import Channels, run_worker_pool
 
 
 class TestExtractWorker:
@@ -21,9 +20,9 @@ class TestExtractWorker:
         await channels.extract.put(task)
 
         with (
-            patch("src.application.workers.extract_worker.LLMClientBuilder") as mock_ai,
+            patch("src.processes.extract.worker.LLMClientBuilder") as mock_ai,
             patch(
-                "src.application.workers.extract_worker.build_knowledge_extraction_graph"
+                "src.processes.extract.worker.build_knowledge_extraction_graph"
             ) as mock_build,
         ):
             mock_ai.return_value.build.return_value = MagicMock()
@@ -52,9 +51,9 @@ class TestExtractWorker:
         await channels.extract.put(task2)
 
         with (
-            patch("src.application.workers.extract_worker.LLMClientBuilder") as mock_ai,
+            patch("src.processes.extract.worker.LLMClientBuilder") as mock_ai,
             patch(
-                "src.application.workers.extract_worker.build_knowledge_extraction_graph"
+                "src.processes.extract.worker.build_knowledge_extraction_graph"
             ) as mock_build,
         ):
             mock_ai.return_value.build.return_value = MagicMock()
@@ -82,9 +81,9 @@ class TestExtractWorker:
         await channels.extract.put(ExtractTask(area_id=area_id, user_id=user_id))
 
         with (
-            patch("src.application.workers.extract_worker.LLMClientBuilder") as mock_ai,
+            patch("src.processes.extract.worker.LLMClientBuilder") as mock_ai,
             patch(
-                "src.application.workers.extract_worker.build_knowledge_extraction_graph"
+                "src.processes.extract.worker.build_knowledge_extraction_graph"
             ) as mock_build,
         ):
             mock_ai.return_value.build.return_value = MagicMock()

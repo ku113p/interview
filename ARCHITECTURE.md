@@ -9,7 +9,12 @@ Interview assistant using LangGraph for workflow orchestration. Collects structu
 ```
 src/
 ├── adapters/           # External interfaces (API)
-├── application/        # Workflow orchestration, transports & workers
+├── processes/          # Independent async process modules
+│   ├── auth/           # Auth worker (external ID → UUID)
+│   ├── transport/      # CLI + Telegram transports
+│   ├── interview/      # Main interview graph worker
+│   └── extract/        # Knowledge extraction worker
+├── runtime/            # Shared runtime infrastructure
 ├── config/             # Settings & model assignments
 ├── domain/             # Core business models
 ├── infrastructure/     # External services (LLM, database)
@@ -20,11 +25,12 @@ src/
 ### Layer Dependencies
 
 ```
-adapters → application → workflows → infrastructure → domain → shared
-                                                            ↘ config
+adapters → processes → workflows → infrastructure → domain → shared
+              ↓                                           ↘ config
+           runtime
 ```
 
-Each layer only imports from layers below it.
+Each layer only imports from layers below it. Processes only import **interfaces** from other processes, never implementation.
 
 ## Main Workflow
 
@@ -108,47 +114,37 @@ Post-interview knowledge extraction (triggered when all sub-areas covered).
 - `extract_knowledge`: Extract skills/facts
 - `save_knowledge`: Persist knowledge items
 
-## Transports
+## Process Architecture
 
-Transports handle external communication (user I/O). Located in `src/application/transports/`.
-
-| Transport | Purpose |
-|-----------|---------|
-| CLI | Handles stdin/stdout, user creation |
-| Telegram | Bot interface via polling or webhook mode |
-
-Transports are single async coroutines (not pools) that communicate with worker pools via channels.
-
-### Telegram Transport
-
-Supports two modes via `TELEGRAM_MODE` environment variable:
-- **polling** (default): Long-polling for development/simple deployments
-- **webhook**: HTTPS webhook for production
-
-Required environment variables:
-- `TELEGRAM_BOT_TOKEN`: Bot token from @BotFather
-
-Additional webhook variables:
-- `TELEGRAM_WEBHOOK_URL`: Public HTTPS URL for webhook
-- `TELEGRAM_WEBHOOK_HOST`: Bind address (default: 0.0.0.0)
-- `TELEGRAM_WEBHOOK_PORT`: Port (default: 8443)
-- `TELEGRAM_WEBHOOK_SECRET`: Optional secret token for verification
-
-User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the same Telegram user always maps to the same internal user_id.
-
-## Worker Architecture
-
-Flat peer-based architecture where transports and worker pools communicate through shared channels:
+The application is organized into 4 independent async processes that communicate through shared channels:
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Transport  │    │    Auth     │    │    Graph    │    │   Extract   │
+│  Transport  │    │    Auth     │    │  Interview  │    │   Extract   │
 │ (CLI/Tg)    │◄──►│   Worker    │◄──►│   Workers   │◄──►│   Workers   │
 └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
        │                  │                  │                  │
        └──────────────────┴──────────────────┴──────────────────┘
                               Channels (shared)
 ```
+
+### Process Modules
+
+| Module | Directory | Purpose | Exports |
+|--------|-----------|---------|---------|
+| auth | `src/processes/auth/` | Exchange external user IDs for internal user_ids | `run_auth_pool`, `AuthRequest`, `resolve_user_id` |
+| transport | `src/processes/transport/` | CLI and Telegram transports | `run_cli`, `run_telegram`, `parse_user_id` |
+| interview | `src/processes/interview/` | Main graph worker for message processing | `run_graph_pool`, `get_graph`, `State`, `Target` |
+| extract | `src/processes/extract/` | Knowledge extraction from completed areas | `run_extract_pool`, `ExtractTask` |
+
+### Runtime Infrastructure
+
+Shared runtime utilities in `src/runtime/`:
+
+| File | Purpose |
+|------|---------|
+| `channels.py` | Channels dataclass with all queue types |
+| `pool.py` | Generic `run_worker_pool()` utility |
 
 ### Worker Pools
 
@@ -183,17 +179,70 @@ AuthRequest      # transport → auth (provider, external_id, display_name, resp
    - Any pool can trigger (CLI `/exit`, SIGINT, etc.)
    - Workers check shutdown flag on each iteration
 
+### Dependency Graph
+
+```
+main.py
+    ├── src.runtime.Channels
+    │
+    ├── src.processes.auth
+    │       └── interfaces.py (AuthRequest)
+    │
+    ├── src.processes.transport
+    │       ├── imports src.processes.interview.interfaces
+    │       └── imports src.processes.auth.interfaces
+    │
+    ├── src.processes.interview
+    │       ├── interfaces.py (ChannelRequest, ChannelResponse)
+    │       └── imports src.processes.extract.interfaces
+    │
+    └── src.processes.extract
+            └── interfaces.py (ExtractTask)
+```
+
+Key: Each process only imports **interfaces** from other processes, never implementation.
+
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `transports/cli.py` | CLI transport (stdin/stdout handling) |
-| `transports/telegram.py` | Telegram bot transport (polling/webhook) |
-| `workers/channels.py` | Channel types and Channels dataclass |
-| `workers/auth_worker.py` | Auth worker (external ID → user_id) |
-| `workers/graph_worker.py` | Graph worker pool |
-| `workers/extract_worker.py` | Extract worker pool |
-| `workers/pool.py` | Generic `run_worker_pool()` utility |
+| `processes/transport/cli.py` | CLI transport (stdin/stdout handling) |
+| `processes/transport/telegram.py` | Telegram bot transport (polling/webhook) |
+| `processes/auth/worker.py` | Auth worker (external ID → user_id) |
+| `processes/interview/worker.py` | Graph worker pool |
+| `processes/interview/graph.py` | Main LangGraph workflow |
+| `processes/interview/state.py` | Main workflow state model |
+| `processes/extract/worker.py` | Extract worker pool |
+| `runtime/channels.py` | Channel types and Channels dataclass |
+| `runtime/pool.py` | Generic `run_worker_pool()` utility |
+
+## Transports
+
+Transports handle external communication (user I/O). Located in `src/processes/transport/`.
+
+| Transport | Purpose |
+|-----------|---------|
+| CLI | Handles stdin/stdout, user creation |
+| Telegram | Bot interface via polling or webhook mode |
+
+Transports are single async coroutines (not pools) that communicate with worker pools via channels.
+
+### Telegram Transport
+
+Supports two modes via `TELEGRAM_MODE` environment variable:
+- **polling** (default): Long-polling for development/simple deployments
+- **webhook**: HTTPS webhook for production
+
+Required environment variables:
+- `TELEGRAM_BOT_TOKEN`: Bot token from @BotFather
+
+Additional webhook variables:
+- `TELEGRAM_WEBHOOK_URL`: Public HTTPS URL for webhook
+- `TELEGRAM_WEBHOOK_HOST`: Bind address (default: 0.0.0.0)
+- `TELEGRAM_WEBHOOK_PORT`: Port (default: 8443)
+- `TELEGRAM_WEBHOOK_SECRET`: Optional secret token for verification
+
+User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the same Telegram user always maps to the same internal user_id.
 
 ## Database Schema
 
@@ -309,3 +358,4 @@ Configured in `src/config/settings.py`. See `LLM_MANIFEST.md` for detailed token
 5. **Graceful Shutdown**: Shared event signals all worker pools
 6. **Correlation IDs**: Request/response matching for concurrent transports
 7. **Peer Workers**: All pools are equal peers, no ownership hierarchy
+8. **Interface Isolation**: Processes import only interfaces from each other

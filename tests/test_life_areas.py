@@ -382,3 +382,88 @@ class TestLifeAreaMethodsCreate:
             await LifeAreaMethods.create(
                 str(sample_user.id), "Child", str(other_area.id)
             )
+
+
+class TestLifeAreaMethodsUpdate:
+    """Test LifeAreaMethods.update with cycle validation."""
+
+    @pytest.mark.asyncio
+    async def test_update_title_success(self, temp_db, sample_user):
+        """Should update area title."""
+        area = await LifeAreaMethods.create(str(sample_user.id), "Original")
+
+        updated = await LifeAreaMethods.update(
+            str(sample_user.id), str(area.id), title="New Title"
+        )
+
+        assert updated.title == "New Title"
+        assert updated.id == area.id
+
+    @pytest.mark.asyncio
+    async def test_update_parent_success(self, temp_db, sample_user):
+        """Should update area parent when valid."""
+        parent = await LifeAreaMethods.create(str(sample_user.id), "Parent")
+        child = await LifeAreaMethods.create(str(sample_user.id), "Child")
+        assert child.parent_id is None
+
+        updated = await LifeAreaMethods.update(
+            str(sample_user.id), str(child.id), parent_id=str(parent.id)
+        )
+
+        assert updated.parent_id == parent.id
+
+    @pytest.mark.asyncio
+    async def test_update_parent_cycle_fails(self, temp_db, sample_user):
+        """Should raise ValueError when update would create cycle."""
+        # Arrange: Parent -> Child
+        parent = await LifeAreaMethods.create(str(sample_user.id), "Parent")
+        child = await LifeAreaMethods.create(
+            str(sample_user.id), "Child", str(parent.id)
+        )
+
+        # Act & Assert: try to make Parent's parent be Child
+        with pytest.raises(ValueError, match="would create a cycle"):
+            await LifeAreaMethods.update(
+                str(sample_user.id), str(parent.id), parent_id=str(child.id)
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_self_parent_fails(self, temp_db, sample_user):
+        """Should raise ValueError when setting self as parent."""
+        area = await LifeAreaMethods.create(str(sample_user.id), "Area")
+
+        with pytest.raises(ValueError, match="would create a cycle"):
+            await LifeAreaMethods.update(
+                str(sample_user.id), str(area.id), parent_id=str(area.id)
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_grandchild_as_parent_fails(self, temp_db, sample_user):
+        """Should detect cycle through grandchild."""
+        # Arrange: Grandparent -> Parent -> Child
+        grandparent = await LifeAreaMethods.create(str(sample_user.id), "Grandparent")
+        parent = await LifeAreaMethods.create(
+            str(sample_user.id), "Parent", str(grandparent.id)
+        )
+        child = await LifeAreaMethods.create(
+            str(sample_user.id), "Child", str(parent.id)
+        )
+
+        # Act & Assert: try to make Grandparent's parent be Child
+        with pytest.raises(ValueError, match="would create a cycle"):
+            await LifeAreaMethods.update(
+                str(sample_user.id), str(grandparent.id), parent_id=str(child.id)
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_other_users_area_fails(self, temp_db, sample_user):
+        """Should raise KeyError when updating another user's area."""
+        other_user_id = new_id()
+        other_user = db.User(id=other_user_id, name="Other", mode="auto")
+        await db.UsersManager.create(other_user_id, other_user)
+        other_area = await LifeAreaMethods.create(str(other_user_id), "Other's Area")
+
+        with pytest.raises(KeyError, match="does not belong to user"):
+            await LifeAreaMethods.update(
+                str(sample_user.id), str(other_area.id), title="Hacked"
+            )

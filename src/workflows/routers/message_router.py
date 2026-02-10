@@ -1,6 +1,6 @@
 from typing import Literal
 
-from src.application.state import State, Target
+from src.processes.interview import State, Target
 
 
 def route_by_target(state: State) -> Literal["area_loop", "interview_analysis"]:

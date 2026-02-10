@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from src.application.state import State
+from src.processes.interview import State
 
 
 def route_on_command(state: State) -> Literal["load_history", "__end__"]:

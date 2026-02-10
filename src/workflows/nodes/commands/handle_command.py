@@ -2,7 +2,7 @@
 
 from langchain_core.messages import AIMessage
 
-from src.application.state import State
+from src.processes.interview import State
 
 from .handlers import process_command
 

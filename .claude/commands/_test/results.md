@@ -5,19 +5,19 @@
 | Metric | Value |
 |--------|-------|
 | Total Cases | 5 |
-| Passed | 5 |
-| Failed | 0 |
-| Pass Rate | 100% |
+| Passed | 4 |
+| Failed | 1 |
+| Pass Rate | 80% |
 
 ## Results by Case
 
 | # | Case Name | Status | Areas | Sub-Areas | Summaries | Knowledge | Last Run |
 |---|-----------|--------|-------|-----------|-----------|-----------|----------|
-| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-10 21:58 |
-| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-10 21:58 |
-| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-10 21:58 |
-| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-10 21:58 |
-| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 22/true | 2026-02-10 21:58 |
+| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 6/true | 2026-02-10 22:34 |
+| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-10 22:34 |
+| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-10 22:34 |
+| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-10 22:34 |
+| 21 | Tree Sub-Areas Full Flow | FAIL | 1/4 | 0/3-3 | 0/true | 0/true | 2026-02-10 22:34 |
 
 ## Test Case Descriptions
 

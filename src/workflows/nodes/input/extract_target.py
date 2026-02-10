@@ -6,9 +6,9 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
-from src.application.state import Target
 from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET
 from src.domain.models import InputMode, User
+from src.processes.interview import Target
 from src.shared.prompts import build_extract_target_prompt
 from src.shared.retry import invoke_with_retry
 from src.workflows.subgraphs.area_loop.tools import AREA_TOOLS

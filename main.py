@@ -3,12 +3,12 @@ import asyncio
 import logging
 import uuid
 
-from src.application.transports import parse_user_id, run_cli, run_telegram
-from src.application.workers.auth_worker import run_auth_pool
-from src.application.workers.channels import Channels
-from src.application.workers.extract_worker import run_extract_pool
-from src.application.workers.graph_worker import run_graph_pool
 from src.config.logging import configure_logging
+from src.processes.auth import run_auth_pool
+from src.processes.extract import run_extract_pool
+from src.processes.interview import run_graph_pool
+from src.processes.transport import parse_user_id, run_cli, run_telegram
+from src.runtime import Channels
 from src.workflows.subgraphs.transcribe.nodes.extract_audio import (
     check_ffmpeg_availability,
 )

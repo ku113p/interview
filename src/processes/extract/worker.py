@@ -4,14 +4,14 @@ import asyncio
 import logging
 from functools import partial
 
-from src.application.workers.channels import Channels, ExtractTask
-from src.application.workers.pool import run_worker_pool
 from src.config.settings import (
     MAX_TOKENS_KNOWLEDGE,
     MODEL_KNOWLEDGE_EXTRACTION,
     WORKER_POOL_EXTRACT,
 )
 from src.infrastructure.ai import LLMClientBuilder
+from src.processes.extract.interfaces import ExtractTask
+from src.runtime import Channels, run_worker_pool
 from src.workflows.subgraphs.knowledge_extraction.graph import (
     build_knowledge_extraction_graph,
 )

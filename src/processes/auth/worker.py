@@ -5,9 +5,9 @@ import logging
 import uuid
 from functools import partial
 
-from src.application.workers.channels import AuthRequest, Channels
-from src.application.workers.pool import run_worker_pool
 from src.infrastructure.db import managers as db
+from src.processes.auth.interfaces import AuthRequest
+from src.runtime import Channels, run_worker_pool
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,12 @@
+import asyncio
 import json
 import logging
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
 
-from src.application.state import State
 from src.infrastructure.db import managers as db
+from src.processes.interview import State
 from src.shared.ids import new_id
 from src.shared.interview_models import AreaCoverageAnalysis
 from src.shared.prompts import PROMPT_INTERVIEW_ANALYSIS
@@ -40,14 +41,12 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
     # Prepare message for saving (but don't save yet - wait for successful analysis)
     current_message_text = _format_qa_data(state.messages)
 
-    # Get existing area data
-    area_messages: list[str] = [
-        message.message_text
-        for message in await db.LifeAreaMessagesManager.list_by_area(area_id)
-    ]
-
-    # Get descendants with full LifeArea objects
-    sub_area_objects = await db.LifeAreasManager.get_descendants(area_id)
+    # Get existing area data and descendants in parallel
+    messages_result, sub_area_objects = await asyncio.gather(
+        db.LifeAreaMessagesManager.list_by_area(area_id),
+        db.LifeAreasManager.get_descendants(area_id),
+    )
+    area_messages: list[str] = [msg.message_text for msg in messages_result]
 
     # Build tree text for LLM context
     tree_text = build_tree_text(sub_area_objects, area_id)

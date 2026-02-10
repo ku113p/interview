@@ -14,12 +14,6 @@ from aiogram.types import Message
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 
-from src.application.workers.channels import (
-    AuthRequest,
-    ChannelRequest,
-    ChannelResponse,
-    Channels,
-)
 from src.config.telegram_settings import (
     TELEGRAM_BOT_TOKEN,
     TELEGRAM_MAX_MESSAGE_LENGTH,
@@ -32,6 +26,9 @@ from src.config.telegram_settings import (
     validate_telegram_config,
 )
 from src.domain import ClientMessage, MediaMessage, MessageType
+from src.processes.auth.interfaces import AuthRequest
+from src.processes.interview.interfaces import ChannelRequest, ChannelResponse
+from src.runtime import Channels
 from src.shared.ids import new_id
 
 logger = logging.getLogger(__name__)

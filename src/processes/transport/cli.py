@@ -5,9 +5,10 @@ import logging
 import unicodedata
 import uuid
 
-from src.application.workers.channels import ChannelRequest, Channels
 from src.domain import ClientMessage, InputMode, User
 from src.infrastructure.db import managers as db
+from src.processes.interview.interfaces import ChannelRequest
+from src.runtime import Channels
 from src.shared.ids import new_id
 
 logger = logging.getLogger(__name__)

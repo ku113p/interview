@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram.exceptions import TelegramNetworkError
-from src.application.transports.telegram import (
+from src.processes.transport.telegram import (
     SEND_RETRY_ATTEMPTS,
     _retry_send,
     _safe_reply,
@@ -34,7 +34,7 @@ class TestRetrySend:
         """Should retry when TelegramNetworkError occurs."""
         coro_factory = AsyncMock(side_effect=[_make_network_error(), None])
 
-        with patch("src.application.transports.telegram.asyncio.sleep"):
+        with patch("src.processes.transport.telegram.asyncio.sleep"):
             await _retry_send(coro_factory, "test operation")
 
         assert coro_factory.call_count == 2
@@ -44,7 +44,7 @@ class TestRetrySend:
         """Should raise TelegramNetworkError after max attempts."""
         coro_factory = AsyncMock(side_effect=_make_network_error())
 
-        with patch("src.application.transports.telegram.asyncio.sleep"):
+        with patch("src.processes.transport.telegram.asyncio.sleep"):
             with pytest.raises(TelegramNetworkError):
                 await _retry_send(coro_factory, "test operation")
 
@@ -62,7 +62,7 @@ class TestRetrySend:
         )
         sleep_mock = AsyncMock()
 
-        with patch("src.application.transports.telegram.asyncio.sleep", sleep_mock):
+        with patch("src.processes.transport.telegram.asyncio.sleep", sleep_mock):
             await _retry_send(coro_factory, "test operation")
 
         # Check delays: 1.0 * 2^0 = 1.0, 1.0 * 2^1 = 2.0
@@ -89,7 +89,7 @@ class TestSafeReply:
         message = AsyncMock()
         message.reply.side_effect = _make_network_error()
 
-        with patch("src.application.transports.telegram.logger") as mock_logger:
+        with patch("src.processes.transport.telegram.logger") as mock_logger:
             await _safe_reply(message, "test message")
 
         mock_logger.warning.assert_called_once()
