@@ -42,13 +42,13 @@ load_history                  # Load conversation from DB
 build_user_message           # Create HumanMessage
   ↓
 extract_target               # Classify: conduct_interview vs manage_areas
-  ├─→ interview_analysis     # Check criteria coverage
+  ├─→ interview_analysis     # Check sub-area coverage
   │     ↓
   │   interview_response     # Generate response
   │     ↓
   │   save_history → END
   │
-  └─→ area_loop (subgraph)   # CRUD for areas/criteria
+  └─→ area_loop (subgraph)   # CRUD for areas
         ↓
       save_history → END
 ```
@@ -175,7 +175,7 @@ AuthRequest      # transport → auth (provider, external_id, display_name, resp
    - Transport matches responses to pending requests by ID
 
 2. **Background Extraction**:
-   - Graph worker queues `ExtractTask` when criteria covered
+   - Graph worker queues `ExtractTask` when sub-areas covered
    - Extract workers process independently (fire-and-forget)
 
 3. **Graceful Shutdown**:

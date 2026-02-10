@@ -66,7 +66,7 @@ def _cleanup_tempfiles(temp_files: list[str]) -> None:
 async def _enqueue_extract_if_covered(
     result: dict, user: User, channels: Channels
 ) -> None:
-    """Queue extract task if all criteria were covered."""
+    """Queue extract task if all sub-areas were covered."""
     if result.get("is_fully_covered") and result.get("area_id"):
         task = ExtractTask(area_id=result["area_id"], user_id=user.id)
         await channels.extract.put(task)

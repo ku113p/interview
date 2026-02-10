@@ -22,9 +22,9 @@ def build_knowledge_extraction_graph(
     """Build the knowledge_extraction workflow graph.
 
     This graph:
-    1. Loads area data (title, criteria, messages)
+    1. Loads area data (title, sub-areas, messages)
     2. Routes based on whether there's data to process
-    3. Uses LLM to extract summaries for each criterion
+    3. Uses LLM to extract summaries for each sub-area
     4. Routes based on extraction success
     5. Generates embedding and saves summary to area_summaries
     6. Extracts knowledge (skills/facts) from the summary
