@@ -11,6 +11,7 @@ from src.shared.interview_models import AreaCoverageAnalysis
 from src.shared.prompts import PROMPT_INTERVIEW_ANALYSIS
 from src.shared.retry import invoke_with_retry
 from src.shared.timestamp import get_timestamp
+from src.shared.tree_utils import build_sub_area_info, build_tree_text
 from src.shared.utils.content import normalize_content
 
 logger = logging.getLogger(__name__)
@@ -44,15 +45,24 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
         message.message_text
         for message in await db.LifeAreaMessagesManager.list_by_area(area_id)
     ]
-    sub_areas: list[str] = [
-        area.title for area in await db.LifeAreasManager.get_descendants(area_id)
-    ]
+
+    # Get descendants with full LifeArea objects
+    sub_area_objects = await db.LifeAreasManager.get_descendants(area_id)
+
+    # Build tree text for LLM context
+    tree_text = build_tree_text(sub_area_objects, area_id)
+
+    # Build paths for unambiguous structured output
+    sub_area_info = build_sub_area_info(sub_area_objects, area_id)
+    sub_area_paths = [info.path for info in sub_area_info]
 
     # Include current message in analysis (even though not yet saved)
     messages_for_analysis = area_messages + [current_message_text]
 
-    # Analyze coverage (structured output)
-    analysis = await _analyze_sub_area_coverage(messages_for_analysis, sub_areas, llm)
+    # Analyze coverage with tree context
+    analysis = await _analyze_sub_area_coverage(
+        messages_for_analysis, sub_area_paths, tree_text, llm
+    )
 
     # Save message only after successful analysis
     last_area_msg = db.LifeAreaMessage(
@@ -68,7 +78,7 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
         extra={
             "area_id": str(area_id),
             "message_count": len(area_messages),
-            "sub_area_count": len(sub_areas),
+            "sub_area_count": len(sub_area_paths),
             "all_covered": analysis.all_covered,
             "next_uncovered": analysis.next_uncovered,
         },
@@ -82,13 +92,15 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
 
 async def _analyze_sub_area_coverage(
     interview_messages: list[str],
-    sub_areas: list[str],
+    sub_area_paths: list[str],
+    tree_text: str,
     llm: ChatOpenAI,
 ) -> AreaCoverageAnalysis:
     """Analyze which sub-areas are covered by the collected messages."""
     user_prompt = {
         "interview_messages": interview_messages,
-        "sub_areas": sub_areas,
+        "sub_areas_tree": tree_text,
+        "sub_area_paths": sub_area_paths,
     }
 
     structured_llm = llm.with_structured_output(AreaCoverageAnalysis)
