@@ -17,7 +17,7 @@ sqlite3 -header -column interview.db "$ARGUMENTS"
 ```sql
 SELECT
   (SELECT COUNT(*) FROM life_areas WHERE user_id = 'UUID') as areas,
-  (SELECT COUNT(*) FROM criteria WHERE area_id IN (SELECT id FROM life_areas WHERE user_id = 'UUID')) as criteria,
+  (SELECT COUNT(*) FROM life_areas WHERE user_id = 'UUID' AND parent_id IS NOT NULL) as sub_areas,
   (SELECT COUNT(*) FROM area_summaries WHERE area_id IN (SELECT id FROM life_areas WHERE user_id = 'UUID')) as summaries,
   (SELECT COUNT(*) FROM user_knowledge_areas WHERE user_id = 'UUID') as knowledge,
   (SELECT COUNT(*) FROM histories WHERE user_id = 'UUID') as history
@@ -28,9 +28,20 @@ SELECT
 SELECT id, title FROM life_areas WHERE user_id = 'UUID'
 ```
 
-**List criteria for area:**
+**List sub-areas for area (direct children):**
 ```sql
-SELECT id, title FROM criteria WHERE area_id = 'AREA_UUID'
+SELECT id, title FROM life_areas WHERE parent_id = 'AREA_UUID'
+```
+
+**List all descendants of an area:**
+```sql
+WITH RECURSIVE descendants AS (
+  SELECT id, title, parent_id, 0 as depth FROM life_areas WHERE id = 'AREA_UUID'
+  UNION ALL
+  SELECT la.id, la.title, la.parent_id, d.depth + 1
+  FROM life_areas la JOIN descendants d ON la.parent_id = d.id
+)
+SELECT id, title, depth FROM descendants WHERE depth > 0 ORDER BY depth, title
 ```
 
 **List history entries:**

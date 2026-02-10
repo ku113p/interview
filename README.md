@@ -1,6 +1,6 @@
 # Interview
 
-An interactive interview assistant that helps you collect structured information through a natural conversation. It accepts text, audio, or video input, remembers context, and asks the next most useful question so nothing important is missed. The system can run a guided interview against a set of criteria and can also manage "life areas" (topics) to keep the conversation organized.
+An interactive interview assistant that helps you collect structured information through a natural conversation. It accepts text, audio, or video input, remembers context, and asks the next most useful question so nothing important is missed. The system can run a guided interview through hierarchical sub-areas and can also manage "life areas" (topics) to keep the conversation organized.
 
 Future use cases
 - Requirements gathering for product or research interviews

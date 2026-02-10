@@ -17,17 +17,17 @@ Run a test case and produce a report.
 
 Cases are in `.claude/commands/_test/cases/`:
 - `1-crud.json` - Basic CRUD operations
-- `2-knowledge.json` - Knowledge extraction
-- `3-multi-criteria.json` - Multiple criteria
-- `4-extended.json` - Extended conversation
 - `5-quick.json` - Quick interaction
+- `13-knowledge-skills.json` - Knowledge extraction
+- `18-multi-area-create.json` - Multiple area creation
+- `21-tree-subareas.json` - Tree sub-areas
 
 ## Script Output
 
 The script outputs everything you need:
 1. **Execution logs** - key events from the test run
 2. **Test result** - PASS/FAIL with entity counts vs expected
-3. **SQL entities** - all created life_areas, criteria, summaries, knowledge
+3. **SQL entities** - all created life_areas, sub-areas, summaries, knowledge
 
 ## Your Task
 

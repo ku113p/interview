@@ -22,7 +22,7 @@ from .state import KnowledgeExtractionState
 
 logger = logging.getLogger(__name__)
 
-# Sentinel value used in LLM prompts for criteria without user responses
+# Sentinel value used in LLM prompts for sub-areas without user responses
 NO_RESPONSE_SENTINEL = "No response provided"
 
 # Export all public names
@@ -55,7 +55,7 @@ class ExtractionResult(BaseModel):
 
 
 async def load_area_data(state: KnowledgeExtractionState) -> dict:
-    """Load area data including title, criteria, and messages."""
+    """Load area data including title, sub-areas, and messages."""
     area_id = state.area_id
 
     area = await db.LifeAreasManager.get_by_id(area_id)
