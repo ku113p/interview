@@ -14,7 +14,8 @@ class KnowledgeExtractionState(BaseModel):
 
     # Area data loaded from database
     area_title: str = ""
-    sub_area_titles: list[str] = []
+    sub_areas_tree: str = ""  # Indented tree text
+    sub_area_paths: list[str] = []  # Paths like "Work > Projects"
     messages: list[str] = []
 
     # Extraction results

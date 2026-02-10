@@ -55,16 +55,17 @@ def build_extract_target_prompt(areas_tools_desc: str) -> str:
 
 PROMPT_INTERVIEW_ANALYSIS = """\
 You are an interview analysis agent.
-Your task is to analyze the interview messages and determine:
-1. For EACH sub-area, whether it is clearly covered by the interview
-2. Which sub-area should be asked about next (if any remain uncovered)
+Your task is to analyze the interview messages and determine sub-area coverage.
+
+The sub-areas are provided as a tree hierarchy and as paths (like "Work > Projects").
+Analyze each sub-area path for coverage.
 
 Rules:
 - Be strict: unclear or partial answers = NOT covered
 - If NO sub-areas exist, set all_covered=false and next_uncovered=null
-- Pick the most logical next sub-area to ask about
-- Output ONLY the required JSON fields, no explanations or reasoning
-- Keep sub-area titles exactly as provided, do not expand or translate them"""
+- Pick the most logical next sub-area path to ask about
+- Use exact paths from the list (e.g., "Work > Projects" not just "Projects")
+- Output ONLY the required JSON fields, no explanations or reasoning"""
 
 
 # =============================================================================

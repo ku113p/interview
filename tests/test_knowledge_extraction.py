@@ -100,7 +100,8 @@ class TestLoadAreaData:
 
         # Assert
         assert result["area_title"] == "Career"
-        assert result["sub_area_titles"] == ["Skills", "Goals"]
+        assert result["sub_areas_tree"] == "Goals\nSkills"  # Alphabetical order
+        assert set(result["sub_area_paths"]) == {"Skills", "Goals"}
         assert result["messages"] == [
             "I want to learn Python",
             "My goal is to become a senior developer",
@@ -140,7 +141,8 @@ class TestLoadAreaData:
 
         # Assert
         assert result["area_title"] == "Empty Area"
-        assert result["sub_area_titles"] == []
+        assert result["sub_areas_tree"] == ""
+        assert result["sub_area_paths"] == []
         assert result["messages"] == []
 
 
@@ -155,7 +157,8 @@ class TestExtractSummaries:
         state = KnowledgeExtractionState(
             area_id=area_id,
             area_title="Career",
-            sub_area_titles=["Skills", "Goals"],
+            sub_areas_tree="Goals\nSkills",
+            sub_area_paths=["Skills", "Goals"],
             messages=["I want to learn Python", "My goal is to become senior"],
         )
 
@@ -193,7 +196,8 @@ class TestExtractSummaries:
         state = KnowledgeExtractionState(
             area_id=area_id,
             area_title="Career",
-            sub_area_titles=["Skills"],
+            sub_areas_tree="Skills",
+            sub_area_paths=["Skills"],
             messages=["Some message"],
         )
 
@@ -215,10 +219,10 @@ class TestRouters:
     """Test the router functions."""
 
     def test_route_has_data_returns_end_when_no_sub_areas(self):
-        """Should return __end__ when sub_area_titles is empty."""
+        """Should return __end__ when sub_area_paths is empty."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            sub_area_titles=[],
+            sub_area_paths=[],
             messages=["Some message"],
         )
         assert route_has_data(state) == "__end__"
@@ -227,7 +231,7 @@ class TestRouters:
         """Should return __end__ when messages is empty."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            sub_area_titles=["Skills"],
+            sub_area_paths=["Skills"],
             messages=[],
         )
         assert route_has_data(state) == "__end__"
@@ -236,7 +240,7 @@ class TestRouters:
         """Should return extract_summaries when both sub-areas and messages exist."""
         state = KnowledgeExtractionState(
             area_id=uuid.uuid4(),
-            sub_area_titles=["Skills"],
+            sub_area_paths=["Skills"],
             messages=["Some message"],
         )
         assert route_has_data(state) == "extract_summaries"
@@ -546,12 +550,12 @@ class TestSaveKnowledge:
         assert all(link.area_id == area_id for link in links)
 
 
-async def _create_area_with_data(area_id, user_id, sub_area_titles, message_texts):
+async def _create_area_with_data(area_id, user_id, sub_area_paths, message_texts):
     """Helper to create area with sub-areas and messages in database."""
     area = db.LifeArea(id=area_id, title="Career", parent_id=None, user_id=user_id)
     await db.LifeAreasManager.create(area_id, area)
 
-    for title in sub_area_titles:
+    for title in sub_area_paths:
         sub_area = db.LifeArea(
             id=uuid.uuid4(), title=title, parent_id=area_id, user_id=user_id
         )

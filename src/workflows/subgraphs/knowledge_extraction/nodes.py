@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.timestamp import get_timestamp
+from src.shared.tree_utils import build_sub_area_info, build_tree_text
 
 # Re-export knowledge nodes for backward compatibility
 from .knowledge_nodes import (
@@ -65,18 +66,24 @@ async def load_area_data(state: KnowledgeExtractionState) -> dict:
     sub_areas = await db.LifeAreasManager.get_descendants(area_id)
     messages = await db.LifeAreaMessagesManager.list_by_area(area_id)
 
+    # Build tree representation
+    tree_text = build_tree_text(sub_areas, area_id)
+    sub_area_info = build_sub_area_info(sub_areas, area_id)
+    sub_area_paths = [info.path for info in sub_area_info]
+
     logger.info(
         "Loaded area data for extraction",
         extra={
             "area_id": str(area_id),
-            "sub_area_count": len(sub_areas),
+            "sub_area_count": len(sub_area_paths),
             "message_count": len(messages),
         },
     )
 
     return {
         "area_title": area.title,
-        "sub_area_titles": [sub_area.title for sub_area in sub_areas],
+        "sub_areas_tree": tree_text,
+        "sub_area_paths": sub_area_paths,
         "messages": [message.message_text for message in messages],
     }
 
@@ -90,8 +97,10 @@ async def extract_summaries(state: KnowledgeExtractionState, llm: ChatOpenAI) ->
     system_prompt = (
         "You are an interview data extraction agent.\n"
         "Your task is to summarize what the user said about each sub-area.\n\n"
+        "The sub-areas are shown as a tree and as paths (like 'Work > Projects').\n"
+        "Use the exact paths when outputting summaries.\n\n"
         "Rules:\n"
-        "- For each sub-area, extract a concise summary of the user's responses\n"
+        "- For each sub-area path, extract a concise summary of the user's responses\n"
         "- Focus on facts and specific details the user shared\n"
         f"- If a sub-area has no relevant responses, set summary to '{NO_RESPONSE_SENTINEL}'\n"
         "- Keep summaries brief but informative (1-3 sentences)\n"
@@ -99,7 +108,8 @@ async def extract_summaries(state: KnowledgeExtractionState, llm: ChatOpenAI) ->
 
     user_prompt = {
         "area": state.area_title,
-        "sub_areas": state.sub_area_titles,
+        "sub_areas_tree": state.sub_areas_tree,
+        "sub_area_paths": state.sub_area_paths,
         "interview_messages": state.messages,
     }
 

@@ -7,9 +7,9 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | Node | Model | Purpose |
 |------|-------|---------|
 | `extract_target` | `gpt-5.1-codex-mini` | Fast intent classification (interview vs areas) |
-| `interview_analysis` | `gpt-5.1-codex-mini` | Criteria coverage analysis |
+| `interview_analysis` | `gpt-5.1-codex-mini` | Sub-area coverage analysis |
 | `interview_response` | `gpt-5.2` | User-facing conversational responses |
-| `area_chat` | `gpt-5.1-codex-mini` | Area/criteria management with tools |
+| `area_chat` | `gpt-5.1-codex-mini` | Hierarchical area management with tools |
 | `transcribe` | `gemini-2.5-flash-lite` | Audio transcription |
 | `knowledge_extraction` | `gpt-5.1-codex-mini` | Extract skills/facts from summaries |
 
@@ -34,7 +34,7 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | Category | Limit | Used By |
 |----------|-------|---------|
 | Structured output | 1024 | `extract_target` |
-| Analysis | 4096 | `interview_analysis` (variable-size criteria output) |
+| Analysis | 4096 | `interview_analysis` (variable-size sub-area output) |
 | Conversational | 4096 | `interview_response`, `area_chat` |
 | Transcription | 8192 | `transcribe` |
 
@@ -75,12 +75,35 @@ All prompts are centralized in `src/shared/prompts.py`:
 | Purpose | Constant/Function |
 |---------|-------------------|
 | Intent classification | `PROMPT_EXTRACT_TARGET_TEMPLATE`, `build_extract_target_prompt()` |
-| Criteria analysis | `PROMPT_INTERVIEW_ANALYSIS` |
+| Sub-area coverage analysis | `PROMPT_INTERVIEW_ANALYSIS` |
 | Interview response | `PROMPT_INTERVIEW_RESPONSE_TEMPLATE`, `build_interview_response_prompt()` |
-| Area management | `PROMPT_AREA_CHAT_TEMPLATE`, `build_area_chat_prompt()` |
+| Hierarchical area management | `PROMPT_AREA_CHAT_TEMPLATE`, `build_area_chat_prompt()` |
 | Audio transcription | `PROMPT_TRANSCRIBE` |
 
-Template functions are used when prompts require dynamic values (e.g., user ID, criteria status).
+Template functions are used when prompts require dynamic values (e.g., user ID, sub-area status).
+
+### Interview Analysis Prompt Structure
+
+The `interview_analysis` node receives sub-areas in two formats for LLM context:
+
+1. **Tree text** (`sub_areas_tree`): Indented hierarchy for visual context
+   ```
+   Work
+     Projects
+     Skills
+   Education
+   ```
+
+2. **Paths** (`sub_area_paths`): Unambiguous identifiers for structured output
+   ```
+   ["Work", "Work > Projects", "Work > Skills", "Education"]
+   ```
+
+This dual representation helps the LLM understand hierarchy while producing unambiguous coverage analysis. Paths disambiguate duplicate titles (e.g., "Skills" under "Work" vs "Skills" under "Hobbies").
+
+### Knowledge Extraction Prompt Structure
+
+The `extract_summaries` node in `knowledge_extraction` subgraph also uses the tree/paths format to summarize user responses per sub-area.
 
 ## Error Handling
 

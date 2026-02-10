@@ -1,5 +1,7 @@
 """Unit tests for interview analysis and response nodes."""
 
+import json
+import uuid
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -11,6 +13,24 @@ from src.shared.ids import new_id
 from src.shared.interview_models import AreaCoverageAnalysis, SubAreaCoverage
 from src.workflows.nodes.processing.interview_analysis import interview_analysis
 from src.workflows.nodes.processing.interview_response import interview_response
+
+
+async def _create_deep_hierarchy(user_id: uuid.UUID, area_id: uuid.UUID) -> None:
+    """Create a 3-level hierarchy for testing: Career > Work > Projects/Skills, Education."""
+    area = db.LifeArea(id=area_id, title="Career", parent_id=None, user_id=user_id)
+    await db.LifeAreasManager.create(area_id, area)
+
+    work_id, edu_id = new_id(), new_id()
+    for aid, title in [(work_id, "Work"), (edu_id, "Education")]:
+        a = db.LifeArea(id=aid, title=title, parent_id=area_id, user_id=user_id)
+        await db.LifeAreasManager.create(aid, a)
+
+    for title in ["Projects", "Skills"]:
+        child_id = new_id()
+        child = db.LifeArea(
+            id=child_id, title=title, parent_id=work_id, user_id=user_id
+        )
+        await db.LifeAreasManager.create(child_id, child)
 
 
 def _create_state(user: User, area_id, messages, **kwargs) -> State:
@@ -169,6 +189,48 @@ class TestInterviewAnalysis:
         assert len(result["coverage_analysis"].sub_areas) == 2
         assert result["coverage_analysis"].next_uncovered == "Sub-area B"
         assert result["is_fully_covered"] is False
+
+    @pytest.mark.asyncio
+    async def test_interview_analysis_deep_hierarchy_prompt(self, temp_db):
+        """Verify LLM receives tree text and paths for deep hierarchy."""
+        area_id, user_id = new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _create_deep_hierarchy(user_id, area_id)
+
+        state = _create_state(
+            user=user,
+            area_id=area_id,
+            messages=[HumanMessage(content="I work on web projects")],
+        )
+
+        mock_analysis = AreaCoverageAnalysis(
+            sub_areas=[SubAreaCoverage(title="Work > Projects", covered=True)],
+            all_covered=False,
+            next_uncovered="Work > Skills",
+        )
+
+        captured_messages = []
+
+        async def capture_invoke(messages):
+            captured_messages.extend(messages)
+            return mock_analysis
+
+        mock_structured_llm = MagicMock()
+        mock_structured_llm.ainvoke = capture_invoke
+        mock_llm = MagicMock()
+        mock_llm.with_structured_output.return_value = mock_structured_llm
+
+        await interview_analysis(state, mock_llm)
+
+        # Verify LLM received correct tree and paths
+        user_content = json.loads(captured_messages[1]["content"])
+        assert user_content["sub_areas_tree"] == "Education\nWork\n  Projects\n  Skills"
+        assert set(user_content["sub_area_paths"]) == {
+            "Work",
+            "Work > Projects",
+            "Work > Skills",
+            "Education",
+        }
 
 
 class TestInterviewResponse:
