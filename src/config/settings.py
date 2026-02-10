@@ -10,16 +10,15 @@ DB_PATH_ENV = "INTERVIEW_DB_PATH"
 DEFAULT_DB_PATH = "interview.db"
 
 # Model Configuration (OpenRouter model identifiers - verified 2026-02)
-MODEL_NAME_FLASH_LITE = "google/gemini-2.5-flash-lite"
-MODEL_NAME_FLASH = "google/gemini-2.5-flash"
-MODEL_NAME_INTERVIEW = "openai/gpt-5.1"
+MODEL_NAME_CODEX_MINI = "openai/gpt-5.1-codex-mini"
+MODEL_NAME_FRONTIER = "openai/gpt-5.2"
 MODEL_NAME_AUDIO = "google/gemini-2.5-flash-lite"
 
 # Model Assignments (which model to use for each node)
-MODEL_EXTRACT_TARGET = MODEL_NAME_FLASH_LITE  # Fast classification
-MODEL_INTERVIEW = MODEL_NAME_INTERVIEW  # Reasoning-focused conversations
+MODEL_EXTRACT_TARGET = MODEL_NAME_CODEX_MINI  # Fast classification
+MODEL_INTERVIEW = MODEL_NAME_FRONTIER  # Reasoning-focused conversations
 MODEL_AUDIO_TRANSCRIPTION = MODEL_NAME_AUDIO  # Audio processing
-MODEL_AREA_CHAT = MODEL_NAME_FLASH  # Area management conversations
+MODEL_AREA_CHAT = MODEL_NAME_CODEX_MINI  # Area management conversations
 
 # History Limits
 HISTORY_LIMIT_GLOBAL = 15  # Default history limit for most nodes
@@ -41,9 +40,11 @@ TEMPERATURE_CONVERSATIONAL = 0.5  # User-facing responses
 INPUT_TOKENS_INTERVIEW = 8000  # Interview response context limit
 
 # Model Assignments - Interview Nodes
-MODEL_INTERVIEW_ANALYSIS = MODEL_NAME_FLASH  # Fast analysis for criteria coverage
-MODEL_INTERVIEW_RESPONSE = MODEL_NAME_INTERVIEW  # Reasoning response generation
-MODEL_KNOWLEDGE_EXTRACTION = MODEL_NAME_FLASH  # Knowledge extraction from summaries
+MODEL_INTERVIEW_ANALYSIS = MODEL_NAME_CODEX_MINI  # Fast analysis
+MODEL_INTERVIEW_RESPONSE = MODEL_NAME_FRONTIER  # Reasoning response generation
+MODEL_KNOWLEDGE_EXTRACTION = (
+    MODEL_NAME_CODEX_MINI  # Knowledge extraction from summaries
+)
 
 # Embedding Configuration
 EMBEDDING_MODEL = "openai/text-embedding-3-small"  # Via OpenRouter

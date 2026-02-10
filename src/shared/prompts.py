@@ -62,7 +62,9 @@ Your task is to analyze the interview messages and determine:
 Rules:
 - Be strict: unclear or partial answers = NOT covered
 - If NO criteria exist, set all_covered=false and next_uncovered=null
-- Pick the most logical next criterion to ask about"""
+- Pick the most logical next criterion to ask about
+- Output ONLY the required JSON fields, no explanations or reasoning
+- Keep criterion titles exactly as provided, do not expand or translate them"""
 
 
 # =============================================================================

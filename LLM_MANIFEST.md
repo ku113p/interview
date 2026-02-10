@@ -6,12 +6,12 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 
 | Node | Model | Purpose |
 |------|-------|---------|
-| `extract_target` | `gemini-2.5-flash-lite` | Fast intent classification (interview vs areas) |
-| `interview_analysis` | `gemini-2.5-flash` | Criteria coverage analysis |
-| `interview_response` | `gpt-5.1` | User-facing conversational responses |
-| `area_chat` | `gemini-2.5-flash` | Area/criteria management with tools |
+| `extract_target` | `gpt-5.1-codex-mini` | Fast intent classification (interview vs areas) |
+| `interview_analysis` | `gpt-5.1-codex-mini` | Criteria coverage analysis |
+| `interview_response` | `gpt-5.2` | User-facing conversational responses |
+| `area_chat` | `gpt-5.1-codex-mini` | Area/criteria management with tools |
 | `transcribe` | `gemini-2.5-flash-lite` | Audio transcription |
-| `knowledge_extraction` | `gemini-2.5-flash` | Extract skills/facts from summaries |
+| `knowledge_extraction` | `gpt-5.1-codex-mini` | Extract skills/facts from summaries |
 
 **Configuration location:** `src/config/settings.py` (MODEL_* constants)
 
@@ -58,13 +58,13 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 
 LLM instances are created via lazy-initialized getters in `src/infrastructure/llms.py`:
 
-| Getter | Model | Temperature | Max Tokens |
-|--------|-------|-------------|------------|
-| `get_llm_extract_target()` | flash-lite | 0.0 | 1024 |
-| `get_llm_transcribe()` | flash-lite | 0.0 | 8192 |
-| `get_llm_interview_analysis()` | flash | 0.2 | 4096 |
-| `get_llm_area_chat()` | flash | 0.2 | 4096 |
-| `get_llm_interview_response()` | gpt-5.1 | 0.5 | 4096 |
+| Getter | Model | Temperature | Max Tokens | Notes |
+|--------|-------|-------------|------------|-------|
+| `get_llm_extract_target()` | gpt-5.1-codex-mini | 0.0 | 1024 | |
+| `get_llm_transcribe()` | gemini-2.5-flash-lite | 0.0 | 8192 | |
+| `get_llm_interview_analysis()` | gpt-5.1-codex-mini | 0.2 | 4096 | |
+| `get_llm_area_chat()` | gpt-5.1-codex-mini | 0.2 | 4096 | |
+| `get_llm_interview_response()` | gpt-5.2 | 0.5 | 4096 | |
 
 These getters use `@lru_cache` to ensure each LLM is only instantiated once. Called by `src/application/graph.py` at graph build time.
 

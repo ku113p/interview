@@ -36,16 +36,10 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
     """Analyze criteria coverage without generating response."""
     area_id = state.area_id
 
-    # Save answer with question context for criteria coverage analysis
-    last_area_msg = db.LifeAreaMessage(
-        id=new_id(),
-        message_text=_format_qa_data(state.messages),
-        area_id=area_id,
-        created_ts=get_timestamp(),
-    )
-    await db.LifeAreaMessagesManager.create(last_area_msg.id, last_area_msg)
+    # Prepare message for saving (but don't save yet - wait for successful analysis)
+    current_message_text = _format_qa_data(state.messages)
 
-    # Get area data
+    # Get existing area data
     area_messages: list[str] = [
         message.message_text
         for message in await db.LifeAreaMessagesManager.list_by_area(area_id)
@@ -54,8 +48,22 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
         criterion.title for criterion in await db.CriteriaManager.list_by_area(area_id)
     ]
 
+    # Include current message in analysis (even though not yet saved)
+    messages_for_analysis = area_messages + [current_message_text]
+
     # Analyze coverage (structured output)
-    analysis = await _analyze_criteria_coverage(area_messages, area_criteria, llm)
+    analysis = await _analyze_criteria_coverage(
+        messages_for_analysis, area_criteria, llm
+    )
+
+    # Save message only after successful analysis
+    last_area_msg = db.LifeAreaMessage(
+        id=new_id(),
+        message_text=current_message_text,
+        area_id=area_id,
+        created_ts=get_timestamp(),
+    )
+    await db.LifeAreaMessagesManager.create(last_area_msg.id, last_area_msg)
 
     logger.info(
         "Interview criteria analyzed",
