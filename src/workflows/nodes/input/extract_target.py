@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.messages import BaseMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
@@ -47,6 +47,29 @@ def _generate_areas_tools_description(tools: list[BaseTool]) -> str:
     return "\n".join(tool_descriptions)
 
 
+def _strip_orphan_tool_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Remove ToolMessages that lack their corresponding AIMessage with tool_call.
+
+    When slicing message history, we may cut off an AIMessage containing
+    a tool_call while keeping its ToolMessage response. This causes LLM
+    errors since the tool response references a non-existent tool call.
+    """
+    # Collect all tool_call IDs present in the message slice
+    tool_call_ids = set()
+    for msg in messages:
+        if hasattr(msg, "tool_calls") and msg.tool_calls:
+            for tc in msg.tool_calls:
+                if isinstance(tc, dict) and "id" in tc:
+                    tool_call_ids.add(tc["id"])
+
+    # Filter out ToolMessages whose tool_call_id is not in the slice
+    return [
+        msg
+        for msg in messages
+        if not isinstance(msg, ToolMessage) or msg.tool_call_id in tool_call_ids
+    ]
+
+
 async def extract_target_from_messages(
     messages: list[BaseMessage], llm: ChatOpenAI
 ) -> Target:
@@ -59,6 +82,8 @@ async def extract_target_from_messages(
 
     # Use only last N messages for classification (limit context for extract_target)
     recent_messages = messages[-HISTORY_LIMIT_EXTRACT_TARGET:]
+    # Remove orphan ToolMessages that reference tool_calls outside the slice
+    recent_messages = _strip_orphan_tool_messages(recent_messages)
     messages_with_system = [system_prompt] + recent_messages
 
     result = await invoke_with_retry(
