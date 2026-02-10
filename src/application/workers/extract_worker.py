@@ -7,7 +7,7 @@ from functools import partial
 from src.application.workers.channels import Channels, ExtractTask
 from src.application.workers.pool import run_worker_pool
 from src.config.settings import (
-    MAX_TOKENS_STRUCTURED,
+    MAX_TOKENS_KNOWLEDGE,
     MODEL_KNOWLEDGE_EXTRACTION,
     WORKER_POOL_EXTRACT,
 )
@@ -63,7 +63,7 @@ async def run_extract_pool(channels: Channels) -> None:
     """Run the extract worker pool."""
     graph = build_knowledge_extraction_graph(
         LLMClientBuilder(
-            MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_STRUCTURED
+            MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_KNOWLEDGE
         ).build()
     )
     worker_fn = partial(_extract_worker_loop, graph=graph, channels=channels)

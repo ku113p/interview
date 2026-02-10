@@ -59,6 +59,14 @@ class LifeAreaMethods:
         if u_id is None:
             raise KeyError("user_id is required")
 
+        # Validate parent exists and belongs to same user
+        if p_id is not None:
+            parent = await db.LifeAreasManager.get_by_id(p_id, conn=conn)
+            if parent is None:
+                raise KeyError(f"Parent area {parent_id} not found")
+            if parent.user_id != u_id:
+                raise KeyError(f"Parent area {parent_id} does not belong to user")
+
         area_id = new_id()
         area = db.LifeArea(id=area_id, title=title, parent_id=p_id, user_id=u_id)
         await db.LifeAreasManager.create(area_id, area, conn=conn)

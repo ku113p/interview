@@ -2,26 +2,16 @@
   "name": "Quick Interaction",
   "description": "Brief conversation with minimal input",
   "inputs": [
-    "Create area for Saving Money",
+    "Create area Savings",
+    "I save 10% of income monthly for a house down payment",
     "yes",
-    "Add criteria for savings rate and financial goals",
-    "yes",
-    "Currently I save about 10% of my income each month",
-    "I want to save for a house down payment",
     "/exit"
   ],
   "expected": {
     "life_areas": 1,
-    "criteria_min": 1,
-    "criteria_max": 5,
-    "summaries_min": 0,
-    "summaries_max": 1,
-    "knowledge_min": 0,
-    "knowledge_max": 3
-  },
-  "typical": {
-    "criteria": [1, 2],
-    "summaries": [0, 0],
-    "knowledge": [0, 1]
+    "sub_areas_min": 0,
+    "sub_areas_max": 0,
+    "summaries": false,
+    "knowledge": false
   }
 }

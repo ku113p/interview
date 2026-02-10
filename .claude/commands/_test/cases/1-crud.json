@@ -1,28 +1,17 @@
 {
   "name": "CRUD Operations",
-  "description": "Basic life area creation with criteria",
+  "description": "Basic life area creation with sub-areas",
   "inputs": [
-    "Create area for Fitness",
-    "yes",
-    "Add criteria for workout frequency, exercise variety, and fitness goals",
-    "yes",
-    "I exercise 3 times a week, mostly running and some weights",
-    "My main goal is to run a half marathon in 6 months",
-    "I also want to build more muscle and improve my endurance",
+    "Create area Fitness with sub-areas: Workouts, Goals",
+    "I exercise 3 times a week, mostly running and weights. My goal is to run a half marathon.",
+    "yes that covers my fitness",
     "/exit"
   ],
   "expected": {
-    "life_areas": 1,
-    "criteria_min": 1,
-    "criteria_max": 8,
-    "summaries_min": 0,
-    "summaries_max": 1,
-    "knowledge_min": 0,
-    "knowledge_max": 5
-  },
-  "typical": {
-    "criteria": [2, 4],
-    "summaries": [0, 0],
-    "knowledge": [0, 2]
+    "life_areas": 3,
+    "sub_areas_min": 2,
+    "sub_areas_max": 2,
+    "summaries": true,
+    "knowledge": true
   }
 }

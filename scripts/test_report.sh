@@ -73,10 +73,10 @@ for RUN in $(seq 1 $REPEAT); do
     LOGFILE="/tmp/test_log_$USER_ID.json"
     echo "$INPUTS" | timeout 180 uv run python main.py --user-id "$USER_ID" 2>"$LOGFILE" || true
 
-    # Show key log events
+    # Show all logs
     echo ""
-    echo "Key events from logs:"
-    cat "$LOGFILE" | jq -r 'select(.message) | "  [\(.timestamp // "?")] \(.message)"' 2>/dev/null | head -20 || echo "  (no logs)"
+    echo "Full logs:"
+    cat "$LOGFILE" 2>/dev/null || echo "  (no logs)"
 
     # === SECTION 2: TEST RESULT ===
     echo ""
@@ -101,9 +101,13 @@ for RUN in $(seq 1 $REPEAT); do
     [ "$EXPECT_KNOWLEDGE" = "true" ] && [ "$KNOWLEDGE" -eq 0 ] && STATUS="FAIL" && ERRORS="${ERRORS}knowledge=0(exp>0) "
 
     # Check for errors in log
-    if grep -qi "error\|exception\|traceback" "$LOGFILE" 2>/dev/null; then
+    ERROR_LINES=$(grep -i "error\|exception\|traceback" "$LOGFILE" 2>/dev/null || true)
+    if [ -n "$ERROR_LINES" ]; then
         STATUS="FAIL"
         ERRORS="${ERRORS}log_errors "
+        echo ""
+        echo ">>> LOG ERRORS DETECTED"
+        echo "$ERROR_LINES"
     fi
 
     [ "$STATUS" = "PASS" ] && TOTAL_PASSED=$((TOTAL_PASSED + 1)) || TOTAL_FAILED=$((TOTAL_FAILED + 1))
@@ -137,7 +141,9 @@ for RUN in $(seq 1 $REPEAT); do
     echo "Knowledge:"
     sqlite3 -header -column interview.db "SELECT uk.id, uk.description, uk.kind FROM user_knowledge uk JOIN user_knowledge_areas uka ON uk.id = uka.knowledge_id WHERE uka.user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
 
-    rm -f "$LOGFILE"
+    # Keep log for inspection
+    echo ""
+    echo "Log file: $LOGFILE"
 done
 
 # === FINAL SUMMARY ===

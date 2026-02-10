@@ -291,13 +291,14 @@ Merge function uses SHA-256 hash of (type, content, tool_calls) to prevent dupli
 
 | Node | Model | Purpose |
 |------|-------|---------|
-| extract_target | gemini-2.5-flash-lite | Fast intent classification |
-| interview_analysis | gemini-2.5-flash | Criteria coverage check |
-| interview_response | gpt-5.1 | Response generation |
-| area_chat | gemini-2.5-flash | Tool-based area management |
-| knowledge_extraction | gemini-2.5-flash | Knowledge extraction |
+| extract_target | gpt-5.1-codex-mini | Fast intent classification |
+| interview_analysis | gpt-5.1-codex-mini | Sub-area coverage check |
+| interview_response | gpt-5.2 | Response generation |
+| area_chat | gpt-5.1-codex-mini | Tool-based area management |
+| knowledge_extraction | gpt-5.1-codex-mini | Knowledge extraction |
+| transcribe | gemini-2.5-flash-lite | Audio transcription |
 
-Configured in `src/config/settings.py`.
+Configured in `src/config/settings.py`. See `LLM_MANIFEST.md` for detailed token limits and temperatures.
 
 ## Key Patterns
 
