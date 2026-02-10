@@ -91,6 +91,61 @@ All prompts are centralized in `src/shared/prompts.py`:
 
 Template functions are used when prompts require dynamic values (e.g., user ID, sub-area status).
 
+### Area Chat Decomposition Behavior
+
+The `area_chat` prompt includes guidance to recognize overly broad sub-areas and suggest decomposition. This ensures interview topics are specific enough for focused coverage.
+
+**Broad topic signals:**
+- Plural/general terms: "experiences", "skills", "projects", "jobs"
+- Container concepts: "background", "history", "overview"
+- Multi-entity topics: covers multiple companies, schools, or projects
+
+**Decomposition patterns:**
+
+| Broad Topic | Recommended Structure |
+|-------------|----------------------|
+| Work/Job Experience | Per position: Company - Role → Responsibilities, Achievements, Projects, Skills |
+| Education | Per institution: University → Degree, Key Courses, Projects/Thesis, Activities |
+| Projects | Per project: Project Name → Role, Technologies, Challenges, Outcomes |
+| Skills | Per category: Technical/Languages → specific skills as sub-areas |
+
+**Behavior:** After creating a broad topic, the LLM confirms creation and proactively suggests breaking it down with concrete examples, offering to create the sub-structure.
+
+### Bulk Sub-Area Creation (`create_subtree` tool)
+
+The `create_subtree` tool allows creating an entire hierarchy of sub-areas in one call. The LLM uses this when:
+- User lists multiple items to create at once
+- User accepts a decomposition suggestion
+- Creating known patterns (e.g., positions with Responsibilities/Achievements/Projects)
+
+**Input schema:**
+```python
+class SubAreaNode(BaseModel):
+    title: str
+    children: list[SubAreaNode] = []
+
+class CreateSubtreeArgs(BaseModel):
+    user_id: str
+    parent_id: str  # Attach subtree under this area
+    subtree: list[SubAreaNode]
+```
+
+**Example:** Creating two job positions with sub-topics:
+```json
+{
+  "parent_id": "<work-experience-uuid>",
+  "subtree": [
+    {"title": "Google - Engineer", "children": [
+      {"title": "Responsibilities"},
+      {"title": "Achievements"}
+    ]},
+    {"title": "Amazon - SDE", "children": [
+      {"title": "Projects"}
+    ]}
+  ]
+}
+```
+
 ### Interview Analysis Prompt Structure
 
 The `interview_analysis` node receives sub-areas in two formats for LLM context:

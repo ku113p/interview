@@ -1,11 +1,19 @@
 """Area loop business logic methods."""
 
+from __future__ import annotations
+
 import uuid
+from typing import TYPE_CHECKING, Any
 
 import aiosqlite
 
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
+
+if TYPE_CHECKING:
+    from src.workflows.subgraphs.area_loop.tools import SubAreaNode
+
+MAX_SUBTREE_DEPTH = 5
 
 
 def _str_to_uuid(value: str | None) -> uuid.UUID | None:
@@ -71,6 +79,60 @@ class LifeAreaMethods:
         area = db.LifeArea(id=area_id, title=title, parent_id=p_id, user_id=u_id)
         await db.LifeAreasManager.create(area_id, area, conn=conn)
         return area
+
+    @staticmethod
+    async def create_subtree(
+        user_id: str,
+        parent_id: str,
+        subtree: list[SubAreaNode | dict[str, Any]],
+        conn: aiosqlite.Connection | None = None,
+        _depth: int = 0,
+    ) -> list[db.LifeArea]:
+        """Recursively create a subtree of areas under a parent.
+
+        Args:
+            user_id: UUID of the user
+            parent_id: UUID of the parent area to attach subtree to
+            subtree: List of SubAreaNode dicts with 'title' and optional 'children'
+            conn: Optional database connection
+            _depth: Internal recursion depth counter (do not set manually)
+
+        Returns:
+            List of all created LifeArea objects (flattened)
+
+        Raises:
+            ValueError: If maximum nesting depth is exceeded
+            TypeError: If node is not a SubAreaNode or dict
+        """
+        if _depth >= MAX_SUBTREE_DEPTH:
+            raise ValueError(f"Maximum nesting depth ({MAX_SUBTREE_DEPTH}) exceeded")
+
+        created: list[db.LifeArea] = []
+
+        for node in subtree:
+            # Import here to avoid circular import at module level
+            from src.workflows.subgraphs.area_loop.tools import SubAreaNode
+
+            if not isinstance(node, (SubAreaNode, dict)):
+                raise TypeError(
+                    f"Expected SubAreaNode or dict, got {type(node).__name__}"
+                )
+
+            title = node.title if hasattr(node, "title") else node["title"]
+            children = (
+                node.children if hasattr(node, "children") else node.get("children", [])
+            )
+
+            area = await LifeAreaMethods.create(user_id, title, parent_id, conn=conn)
+            created.append(area)
+
+            if children:
+                child_areas = await LifeAreaMethods.create_subtree(
+                    user_id, str(area.id), children, conn=conn, _depth=_depth + 1
+                )
+                created.extend(child_areas)
+
+        return created
 
     @staticmethod
     async def _validate_new_parent(

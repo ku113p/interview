@@ -90,6 +90,30 @@ class SetCurrentAreaArgs(BaseModel):
     )
 
 
+class SubAreaNode(BaseModel):
+    """A node in the subtree with optional children."""
+
+    title: str = Field(..., description="Title/name for this sub-area")
+    children: list["SubAreaNode"] = Field(
+        default_factory=list,
+        description="Nested children sub-areas",
+    )
+
+
+class CreateSubtreeArgs(BaseModel):
+    """Arguments for creating a subtree of life areas."""
+
+    user_id: UUIDStr = Field(
+        ..., description="UUID of the user (provided in system message)"
+    )
+    parent_id: UUIDStr = Field(
+        ..., description="UUID of parent life area to attach subtree to"
+    )
+    subtree: list[SubAreaNode] = Field(
+        ..., description="List of top-level nodes with nested children"
+    )
+
+
 # -----------------------------------------------------------------------------
 # Tool Calling
 # -----------------------------------------------------------------------------
@@ -164,8 +188,41 @@ async def set_current_area(
     return await CurrentAreaMethods.set_current(user_id, area_id, conn=conn)
 
 
+@tool(args_schema=CreateSubtreeArgs)
+async def create_subtree(
+    user_id: str,
+    parent_id: str,
+    subtree: list[SubAreaNode],
+    conn: aiosqlite.Connection | None = None,
+) -> str:
+    """Create multiple nested sub-areas at once under a parent area.
+
+    Use this tool when creating a hierarchy of sub-areas (e.g., job positions
+    with their responsibilities, achievements, projects). More efficient than
+    multiple create_life_area calls.
+
+    Example subtree structure:
+    [
+        {"title": "Google - Engineer", "children": [
+            {"title": "Responsibilities"},
+            {"title": "Achievements"}
+        ]},
+        {"title": "Amazon - SDE", "children": [
+            {"title": "Projects"}
+        ]}
+    ]
+    """
+    created = await LifeAreaMethods.create_subtree(
+        user_id, parent_id, subtree, conn=conn
+    )
+    # Return summary for LLM context
+    titles = [area.title for area in created]
+    return f"Created {len(created)} sub-areas: {', '.join(titles)}"
+
+
 AREA_TOOLS = [
     create_life_area,
+    create_subtree,
     delete_life_area,
     get_life_area,
     list_life_areas,
