@@ -16,6 +16,7 @@ class Target(enum.Enum):
 
     conduct_interview = "conduct_interview"
     manage_areas = "manage_areas"
+    small_talk = "small_talk"
 
     @classmethod
     def from_user_mode(cls, mode: InputMode):

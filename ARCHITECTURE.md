@@ -47,14 +47,18 @@ load_history                  # Load conversation from DB
   ↓
 build_user_message           # Create HumanMessage
   ↓
-extract_target               # Classify: conduct_interview vs manage_areas
+extract_target               # Classify: conduct_interview | manage_areas | small_talk
   ├─→ interview_analysis     # Check sub-area coverage
   │     ↓
   │   interview_response     # Generate response
   │     ↓
   │   save_history → END
   │
-  └─→ area_loop (subgraph)   # CRUD for areas
+  ├─→ area_loop (subgraph)   # CRUD for areas
+  │     ↓
+  │   save_history → END
+  │
+  └─→ small_talk_response    # Greetings, app questions, casual chat
         ↓
       save_history → END
 ```
@@ -321,7 +325,7 @@ State:
   user: User
   message: ClientMessage
   text: str                    # Extracted text
-  target: Target               # conduct_interview | manage_areas
+  target: Target               # conduct_interview | manage_areas | small_talk
   messages: list[BaseMessage]  # Aggregated via add_messages
   messages_to_save: MessageBuckets
   is_successful: bool          # Operation success flag

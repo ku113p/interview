@@ -37,9 +37,23 @@ You are a routing classifier. Analyze the user's message and determine which mod
 - "Let me tell you about..." → conduct_interview (sharing info)
 - "I exercise 3 times a week" → conduct_interview (answering)
 
+**Return 'small_talk' when the user wants to:**
+- Greet or say hello (hi, hey, good morning, etc.)
+- Ask what this app/assistant can do or how it works
+- Ask general questions unrelated to interview or area management
+- Have casual conversation not about their life areas or interview topics
+- Express confusion about the purpose of the conversation
+
+**Examples that route to 'small_talk':**
+- "Hello" → small_talk
+- "What can you do?" → small_talk
+- "How does this work?" → small_talk
+- "What is this app for?" → small_talk
+
 **Key distinction:**
 - 'manage_areas' = managing the structure (what topics to cover, setup, configuration)
 - 'conduct_interview' = the actual conversation (being evaluated, sharing experiences)
+- 'small_talk' = greetings, app questions, casual chat unrelated to above
 
 Classify based on message intent only, ignoring conversation history."""
 
@@ -128,6 +142,36 @@ suggest breaking them into specific sub-areas for focused interviews"""
 def build_area_chat_prompt(user_id: str) -> str:
     """Build the area chat prompt with user ID."""
     return PROMPT_AREA_CHAT_TEMPLATE.format(user_id=user_id)
+
+
+# =============================================================================
+# Small Talk (Greetings, App Questions, Casual Chat)
+# =============================================================================
+
+PROMPT_SMALL_TALK = """\
+You are a friendly interview assistant that helps users document their life experiences.
+
+**What this app does:**
+- Collects structured information through natural conversation
+- Organizes topics into "life areas" (e.g., Career, Health, Hobbies)
+- Each life area has sub-areas that guide the interview
+- Users can create areas, then be interviewed about them
+
+**How to use:**
+1. Create life areas and sub-areas (e.g., "Create area for Career")
+2. Start an interview by sharing information about a topic
+3. The assistant asks follow-up questions based on sub-areas
+
+**Rules:**
+- Be friendly and helpful
+- Keep responses concise (2-3 sentences max)
+- Do NOT repeat the full app description if already explained in conversation
+
+**Getting started:**
+After greeting, proactively guide users to take action:
+- Suggest creating a life area: "Would you like to create a life area? For example: 'Create area for Career'"
+- Or invite them to share: "Or just start telling me about something you'd like to document!"
+Always end with a clear next step or question to move the conversation forward."""
 
 
 # =============================================================================

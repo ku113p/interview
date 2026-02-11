@@ -19,6 +19,7 @@ MODEL_EXTRACT_TARGET = MODEL_NAME_CODEX_MINI  # Fast classification
 MODEL_INTERVIEW = MODEL_NAME_FRONTIER  # Reasoning-focused conversations
 MODEL_AUDIO_TRANSCRIPTION = MODEL_NAME_AUDIO  # Audio processing
 MODEL_AREA_CHAT = MODEL_NAME_CODEX_MINI  # Area management conversations
+MODEL_SMALL_TALK = MODEL_NAME_CODEX_MINI  # Greetings, app questions
 
 # History Limits
 HISTORY_LIMIT_GLOBAL = 15  # Default history limit for most nodes

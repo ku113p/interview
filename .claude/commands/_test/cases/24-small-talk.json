@@ -1,0 +1,19 @@
+{
+  "name": "Small Talk Flow",
+  "description": "Test greeting and app questions before transitioning to area creation",
+  "inputs": [
+    "Hello!",
+    "What can you do?",
+    "Create area Hobbies",
+    "I enjoy reading sci-fi novels and hiking on weekends",
+    "yes",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 3,
+    "sub_areas_min": 2,
+    "sub_areas_max": 2,
+    "summaries": false,
+    "knowledge": false
+  }
+}

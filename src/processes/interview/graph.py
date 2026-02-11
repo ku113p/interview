@@ -7,6 +7,7 @@ from src.infrastructure.llms import (
     get_llm_extract_target,
     get_llm_interview_analysis,
     get_llm_interview_response,
+    get_llm_small_talk,
     get_llm_transcribe,
 )
 from src.processes.interview.state import State
@@ -17,6 +18,7 @@ from src.workflows.nodes.persistence.save_history import save_history
 from src.workflows.nodes.processing.interview_analysis import interview_analysis
 from src.workflows.nodes.processing.interview_response import interview_response
 from src.workflows.nodes.processing.load_history import load_history
+from src.workflows.nodes.processing.small_talk_response import small_talk_response
 from src.workflows.routers.command_router import route_on_command
 from src.workflows.routers.history_router import route_on_success
 from src.workflows.routers.message_router import route_by_target
@@ -45,6 +47,10 @@ def _add_workflow_nodes(builder: StateGraph, transcribe_graph, area_graph) -> No
         "interview_response",
         partial(interview_response, llm=get_llm_interview_response()),
     )
+    builder.add_node(
+        "small_talk_response",
+        partial(small_talk_response, llm=get_llm_small_talk()),
+    )
     builder.add_node("save_history", save_history)
     builder.add_node("area_loop", area_graph)
 
@@ -62,6 +68,9 @@ def _add_workflow_edges(builder: StateGraph) -> None:
     builder.add_edge("interview_analysis", "interview_response")
     builder.add_conditional_edges(
         "interview_response", route_on_success, ["save_history", END]
+    )
+    builder.add_conditional_edges(
+        "small_talk_response", route_on_success, ["save_history", END]
     )
     builder.add_conditional_edges("area_loop", route_on_success, ["save_history", END])
     builder.add_edge("save_history", END)

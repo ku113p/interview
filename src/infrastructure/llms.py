@@ -17,6 +17,7 @@ from src.config.settings import (
     MODEL_EXTRACT_TARGET,
     MODEL_INTERVIEW_ANALYSIS,
     MODEL_INTERVIEW_RESPONSE,
+    MODEL_SMALL_TALK,
     TEMPERATURE_CONVERSATIONAL,
     TEMPERATURE_DETERMINISTIC,
     TEMPERATURE_STRUCTURED,
@@ -70,3 +71,9 @@ def get_llm_interview_response() -> ChatOpenAI:
     return _build_llm(
         MODEL_INTERVIEW_RESPONSE, TEMPERATURE_CONVERSATIONAL, MAX_TOKENS_CHAT
     )
+
+
+@lru_cache(maxsize=1)
+def get_llm_small_talk() -> ChatOpenAI:
+    """Get LLM for small talk (greetings, app questions)."""
+    return _build_llm(MODEL_SMALL_TALK, TEMPERATURE_CONVERSATIONAL, MAX_TOKENS_CHAT)

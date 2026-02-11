@@ -6,9 +6,10 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 
 | Node | Model | Purpose |
 |------|-------|---------|
-| `extract_target` | `gpt-5.1-codex-mini` | Fast intent classification (interview vs areas) |
+| `extract_target` | `gpt-5.1-codex-mini` | Fast intent classification (interview vs areas vs small_talk) |
 | `interview_analysis` | `gpt-5.1-codex-mini` | Sub-area coverage analysis |
 | `interview_response` | `gpt-5.2` | User-facing conversational responses |
+| `small_talk_response` | `gpt-5.1-codex-mini` | Greetings, app questions, casual chat |
 | `area_chat` | `gpt-5.1-codex-mini` | Hierarchical area management with tools |
 | `transcribe` | `gemini-2.5-flash-lite` | Audio transcription |
 | `knowledge_extraction` | `gpt-5.1-codex-mini` | Extract skills/facts from summaries |
@@ -24,6 +25,7 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | `interview_analysis` | 0.2 | Low variance for structured analysis |
 | `area_chat` | 0.2 | Consistent tool-calling behavior |
 | `interview_response` | 0.5 | Natural conversational variation |
+| `small_talk_response` | 0.5 | Natural conversational variation |
 
 **Configuration location:** `src/config/settings.py` (TEMPERATURE_* constants)
 
@@ -36,7 +38,7 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | Structured output | 1024 | `extract_target` |
 | Analysis | 4096 | `interview_analysis` (variable-size sub-area output) |
 | Knowledge extraction | 4096 | `knowledge_extraction` (needs reasoning tokens) |
-| Conversational | 4096 | `interview_response`, `area_chat` |
+| Conversational | 4096 | `interview_response`, `small_talk_response`, `area_chat` |
 | Transcription | 8192 | `transcribe` |
 
 ### Input Token Budgets
@@ -50,7 +52,7 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | Setting | Limit | Purpose |
 |---------|-------|---------|
 | `HISTORY_LIMIT_GLOBAL` | 15 | Default for most nodes |
-| `HISTORY_LIMIT_EXTRACT_TARGET` | 5 | Limited context for classification |
+| `HISTORY_LIMIT_EXTRACT_TARGET` | 5 | Limited context for classification, small talk |
 | `HISTORY_LIMIT_INTERVIEW` | 8 | Interview response history |
 
 **Configuration location:** `src/config/settings.py`
@@ -66,6 +68,7 @@ LLM instances are created via lazy-initialized getters in `src/infrastructure/ll
 | `get_llm_interview_analysis()` | gpt-5.1-codex-mini | 0.2 | 4096 | |
 | `get_llm_area_chat()` | gpt-5.1-codex-mini | 0.2 | 4096 | |
 | `get_llm_interview_response()` | gpt-5.2 | 0.5 | 4096 | |
+| `get_llm_small_talk()` | gpt-5.1-codex-mini | 0.5 | 4096 | |
 
 These getters use `@lru_cache` to ensure each LLM is only instantiated once. Called by `src/application/graph.py` at graph build time.
 
@@ -86,6 +89,7 @@ All prompts are centralized in `src/shared/prompts.py`:
 | Intent classification | `PROMPT_EXTRACT_TARGET_TEMPLATE`, `build_extract_target_prompt()` |
 | Sub-area coverage analysis | `PROMPT_INTERVIEW_ANALYSIS` |
 | Interview response | `PROMPT_INTERVIEW_RESPONSE_TEMPLATE`, `build_interview_response_prompt()` |
+| Small talk response | `PROMPT_SMALL_TALK` |
 | Hierarchical area management | `PROMPT_AREA_CHAT_TEMPLATE`, `build_area_chat_prompt()` |
 | Audio transcription | `PROMPT_TRANSCRIBE` |
 
@@ -192,6 +196,7 @@ Non-retryable HTTP errors (400, 401, 403, 404, etc.) fail immediately.
 - `extract_target.py` - Intent classification
 - `interview_analysis.py` - Structured output call
 - `interview_response.py` - Chat response
+- `small_talk_response.py` - Small talk response
 - `area_loop/nodes.py` - Area chat with tools
 - `transcribe/extract_text.py` - Audio transcription
 
