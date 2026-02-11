@@ -22,13 +22,19 @@ logger = logging.getLogger(__name__)
 
 
 def _validate_uuid(value: str) -> str:
-    """Validate that a string is a valid UUID format."""
+    """Validate and normalize a string to canonical UUID format."""
     try:
-        uuid.UUID(value)
+        parsed = uuid.UUID(value)
     except ValueError as exc:
         logger.warning("Invalid UUID input", extra={"value": value})
         raise ValueError(f"Invalid UUID: {value}") from exc
-    return value
+    normalized = str(parsed)
+    if normalized != value:
+        logger.debug(
+            "UUID normalized",
+            extra={"input": value, "output": normalized},
+        )
+    return normalized
 
 
 UUIDStr = Annotated[str, AfterValidator(_validate_uuid)]

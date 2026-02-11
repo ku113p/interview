@@ -7,6 +7,7 @@ from langchain_openai import ChatOpenAI
 
 from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET
 from src.processes.interview import State
+from src.shared.messages import filter_tool_messages
 from src.shared.retry import invoke_with_retry
 from src.shared.timestamp import get_timestamp
 
@@ -30,7 +31,8 @@ Reset command: /reset-area_{area_id}
 async def completed_area_response(state: State, llm: ChatOpenAI):
     """Generate response for already-extracted areas."""
     prompt = PROMPT_COMPLETED_AREA.format(area_id=str(state.area_id))
-    history = state.messages[-HISTORY_LIMIT_EXTRACT_TARGET:]
+    chat_messages = filter_tool_messages(state.messages)
+    history = chat_messages[-HISTORY_LIMIT_EXTRACT_TARGET:]
     messages = [SystemMessage(content=prompt), *history]
 
     response = await invoke_with_retry(lambda: llm.ainvoke(messages))

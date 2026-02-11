@@ -1,0 +1,19 @@
+{
+  "name": "Completed Area Message",
+  "description": "Test that messaging a completed/extracted area shows completion notice with reset command",
+  "inputs": [
+    "Create area Work with sub-areas: Projects, Skills",
+    "I work as a software engineer. I built a payment system using Python. I know Python, SQL, and Docker.",
+    "yes that covers my work",
+    "I want to add more about my projects",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 3,
+    "sub_areas_min": 2,
+    "sub_areas_max": 2,
+    "summaries": true,
+    "knowledge": true
+  },
+  "notes": "After extraction completes, user messages the same area. Should get completed_area_response (not re-extraction). Verify summaries=1 in SQL output."
+}

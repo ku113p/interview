@@ -6,9 +6,9 @@
     "/exit"
   ],
   "expected": {
-    "life_areas": 5,
-    "sub_areas_min": 4,
-    "sub_areas_max": 4,
+    "life_areas": 7,
+    "sub_areas_min": 6,
+    "sub_areas_max": 6,
     "summaries": false,
     "knowledge": false
   }

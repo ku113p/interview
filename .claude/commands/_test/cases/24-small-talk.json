@@ -4,9 +4,7 @@
   "inputs": [
     "Hello!",
     "What can you do?",
-    "Create area Hobbies",
-    "I enjoy reading sci-fi novels and hiking on weekends",
-    "yes",
+    "Create area Hobbies with sub-areas Reading, Hiking",
     "/exit"
   ],
   "expected": {

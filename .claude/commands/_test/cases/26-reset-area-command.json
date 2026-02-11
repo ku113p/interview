@@ -1,0 +1,19 @@
+{
+  "name": "Reset Area Command",
+  "description": "Test completed area notification with reset command suggestion",
+  "inputs": [
+    "Create area Hobbies with sub-areas: Sports, Games",
+    "I play basketball weekly and enjoy chess online. I also like hiking.",
+    "yes that covers everything",
+    "I want to update my hobbies",
+    "/exit"
+  ],
+  "expected": {
+    "life_areas": 3,
+    "sub_areas_min": 2,
+    "sub_areas_max": 2,
+    "summaries": true,
+    "knowledge": true
+  },
+  "notes": "After extraction, user asks to update. Should get completed_area_response with /reset-area command. Verify summaries=1 in SQL output (no re-extraction)."
+}

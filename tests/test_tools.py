@@ -4,7 +4,46 @@ import pytest
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.workflows.subgraphs.area_loop.methods import MAX_SUBTREE_DEPTH, LifeAreaMethods
-from src.workflows.subgraphs.area_loop.tools import CurrentAreaMethods, SubAreaNode
+from src.workflows.subgraphs.area_loop.tools import (
+    CurrentAreaMethods,
+    SubAreaNode,
+    _validate_uuid,
+)
+
+
+class TestValidateUuid:
+    """Test the _validate_uuid function."""
+
+    def test_valid_uuid_returns_normalized(self):
+        """Valid UUID should be returned in normalized lowercase format."""
+        result = _validate_uuid("0698C4A9-6BA3-7079-8000-A098A56ECCCA")
+        assert result == "0698c4a9-6ba3-7079-8000-a098a56eccca"
+
+    def test_already_normalized_uuid_unchanged(self):
+        """Already normalized UUID should be returned unchanged."""
+        uuid_str = "0698c4a9-6ba3-7079-8000-a098a56eccca"
+        result = _validate_uuid(uuid_str)
+        assert result == uuid_str
+
+    def test_uuid_without_hyphens_normalized(self):
+        """UUID without hyphens should be normalized with hyphens."""
+        result = _validate_uuid("0698c4a96ba370798000a098a56eccca")
+        assert result == "0698c4a9-6ba3-7079-8000-a098a56eccca"
+
+    def test_invalid_uuid_raises_value_error(self):
+        """Invalid UUID should raise ValueError."""
+        with pytest.raises(ValueError, match="Invalid UUID"):
+            _validate_uuid("not-a-valid-uuid")
+
+    def test_empty_string_raises_value_error(self):
+        """Empty string should raise ValueError."""
+        with pytest.raises(ValueError, match="Invalid UUID"):
+            _validate_uuid("")
+
+    def test_mixed_case_uuid_normalized(self):
+        """Mixed case UUID should be normalized to lowercase."""
+        result = _validate_uuid("0698C4a9-6Ba3-7079-8000-A098a56eCCca")
+        assert result == "0698c4a9-6ba3-7079-8000-a098a56eccca"
 
 
 class TestSetCurrentArea:
