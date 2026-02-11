@@ -1,10 +1,11 @@
 import logging
 
-from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from src.config.settings import HISTORY_LIMIT_INTERVIEW, INPUT_TOKENS_INTERVIEW
 from src.processes.interview import State
+from src.shared.messages import filter_tool_messages
 from src.shared.prompts import build_interview_response_prompt
 from src.shared.retry import invoke_with_retry
 from src.shared.timestamp import get_timestamp
@@ -32,17 +33,7 @@ async def interview_response(state: State, llm: ChatOpenAI):
         next_uncovered=analysis.next_uncovered,
     )
 
-    # Filter out tool-related messages (area management artifacts)
-    # These can cause "No tool call found" errors when ToolMessage appears
-    # without its corresponding AIMessage with tool_calls
-    chat_messages = [
-        message
-        for message in state.messages
-        if not isinstance(message, ToolMessage)
-        and not (
-            isinstance(message, AIMessage) and getattr(message, "tool_calls", None)
-        )
-    ]
+    chat_messages = filter_tool_messages(state.messages)
     history = chat_messages[-HISTORY_LIMIT_INTERVIEW:]
     history = trim_messages_to_budget(history, INPUT_TOKENS_INTERVIEW)
 

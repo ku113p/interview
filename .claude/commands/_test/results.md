@@ -13,16 +13,16 @@
 
 | # | Case Name | Status | Areas | Sub-Areas | Summaries | Knowledge | Last Run |
 |---|-----------|--------|-------|-----------|-----------|-----------|----------|
-| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 1/true | 4/true | 2026-02-11 19:30 |
-| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-11 19:30 |
-| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-11 19:30 |
-| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-11 19:30 |
-| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 21/true | 2026-02-11 19:30 |
-| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-11 19:30 |
-| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-11 19:30 |
-| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-11 19:30 |
-| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 1/true | 4/true | 2026-02-11 19:30 |
-| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 1/true | 4/true | 2026-02-11 19:30 |
+| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-11 23:49 |
+| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-11 23:49 |
+| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 1/true | 4/true | 2026-02-11 23:49 |
+| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-11 23:49 |
+| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 20/true | 2026-02-11 23:49 |
+| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-11 23:49 |
+| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-11 23:49 |
+| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-11 23:49 |
+| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 1/true | 5/true | 2026-02-11 23:56 |
+| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-11 23:49 |
 
 ## Test Case Descriptions
 

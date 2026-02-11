@@ -17,8 +17,8 @@ MAX_SUBTREE_DEPTH = 5
 
 
 def _str_to_uuid(value: str | None) -> uuid.UUID | None:
-    """Convert string to UUID, returning None if input is None."""
-    if value is None:
+    """Convert string to UUID, returning None if input is None or 'root'."""
+    if value is None or value == "root":
         return None
     return uuid.UUID(value)
 
