@@ -122,6 +122,12 @@ async def init_schema_async(conn: aiosqlite.Connection, db_path: str) -> None:
             "current_area_id",
             "current_area_id TEXT",
         )
+        await ensure_column_async(
+            conn,
+            "life_areas",
+            "extracted_at",
+            "extracted_at REAL",
+        )
         # Migration: drop deprecated criteria table if it exists
         await conn.execute("DROP TABLE IF EXISTS criteria")
 

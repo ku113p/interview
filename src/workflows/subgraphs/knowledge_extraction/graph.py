@@ -9,11 +9,23 @@ from .nodes import (
     extract_knowledge,
     extract_summaries,
     load_area_data,
+    mark_area_extracted,
     save_knowledge,
     save_summary,
 )
 from .routers import route_extraction_success, route_has_data
 from .state import KnowledgeExtractionState
+
+
+def _add_extraction_edges(builder: StateGraph) -> None:
+    """Add edges for the knowledge extraction workflow."""
+    builder.add_edge(START, "load_area_data")
+    builder.add_conditional_edges("load_area_data", route_has_data)
+    builder.add_conditional_edges("extract_summaries", route_extraction_success)
+    builder.add_edge("save_summary", "extract_knowledge")
+    builder.add_edge("extract_knowledge", "save_knowledge")
+    builder.add_edge("save_knowledge", "mark_extracted")
+    builder.add_edge("mark_extracted", END)
 
 
 def build_knowledge_extraction_graph(
@@ -46,13 +58,7 @@ def build_knowledge_extraction_graph(
     builder.add_node("save_summary", save_summary)
     builder.add_node("extract_knowledge", partial(extract_knowledge, llm=knowledge_llm))
     builder.add_node("save_knowledge", save_knowledge)
+    builder.add_node("mark_extracted", mark_area_extracted)
 
-    # Define flow with conditional routing
-    builder.add_edge(START, "load_area_data")
-    builder.add_conditional_edges("load_area_data", route_has_data)
-    builder.add_conditional_edges("extract_summaries", route_extraction_success)
-    builder.add_edge("save_summary", "extract_knowledge")
-    builder.add_edge("extract_knowledge", "save_knowledge")
-    builder.add_edge("save_knowledge", END)
-
+    _add_extraction_edges(builder)
     return builder.compile()

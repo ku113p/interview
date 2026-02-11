@@ -9,12 +9,19 @@ from src.domain import ClientMessage, InputMode, User
 from src.processes.interview import State, Target
 from src.shared.ids import new_id
 from src.shared.prompts import PROMPT_SMALL_TALK
+from src.workflows.nodes.processing.completed_area_response import (
+    completed_area_response,
+)
 from src.workflows.nodes.processing.small_talk_response import small_talk_response
-from src.workflows.routers.message_router import route_by_target
+from src.workflows.routers.message_router import route_after_analysis, route_by_target
 
 
 def _create_state(
-    user: User, messages: list, target: Target = Target.small_talk
+    user: User,
+    messages: list,
+    target: Target = Target.small_talk,
+    area_already_extracted: bool = False,
+    area_id=None,
 ) -> State:
     """Helper to create test State objects."""
     return State(
@@ -22,10 +29,11 @@ def _create_state(
         message=ClientMessage(data="test"),
         text="test",
         target=target,
-        area_id=new_id(),
+        area_id=area_id or new_id(),
         messages=messages,
         messages_to_save={},
         is_fully_covered=False,
+        area_already_extracted=area_already_extracted,
     )
 
 
@@ -157,3 +165,125 @@ class TestRouteByTarget:
         result = route_by_target(state)
 
         assert result == "small_talk_response"
+
+
+class TestRouteAfterAnalysis:
+    """Tests for the post-analysis router."""
+
+    def test_routes_to_interview_response_when_not_extracted(self, sample_user):
+        """Should route to interview_response when area is not extracted."""
+        state = _create_state(
+            sample_user, [], Target.conduct_interview, area_already_extracted=False
+        )
+
+        result = route_after_analysis(state)
+
+        assert result == "interview_response"
+
+    def test_routes_to_completed_area_response_when_extracted(self, sample_user):
+        """Should route to completed_area_response when area is already extracted."""
+        state = _create_state(
+            sample_user, [], Target.conduct_interview, area_already_extracted=True
+        )
+
+        result = route_after_analysis(state)
+
+        assert result == "completed_area_response"
+
+
+class TestCompletedAreaResponse:
+    """Tests for the completed_area_response node."""
+
+    @pytest.mark.asyncio
+    async def test_returns_ai_message(self, sample_user):
+        """Verify node returns an AI message."""
+        area_id = new_id()
+        state = _create_state(
+            sample_user,
+            [HumanMessage(content="Tell me about my work")],
+            Target.conduct_interview,
+            area_already_extracted=True,
+            area_id=area_id,
+        )
+
+        mock_response = MagicMock()
+        mock_response.content = "This area has already been documented."
+
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+
+        result = await completed_area_response(state, mock_llm)
+
+        assert "messages" in result
+        assert len(result["messages"]) == 1
+        assert isinstance(result["messages"][0], AIMessage)
+        assert result["messages"][0].content == "This area has already been documented."
+
+    @pytest.mark.asyncio
+    async def test_sets_success_flag(self, sample_user):
+        """Verify is_successful is set to True."""
+        state = _create_state(
+            sample_user,
+            [HumanMessage(content="More about work")],
+            Target.conduct_interview,
+            area_already_extracted=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.content = "Area is complete."
+
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+
+        result = await completed_area_response(state, mock_llm)
+
+        assert result["is_successful"] is True
+
+    @pytest.mark.asyncio
+    async def test_populates_messages_to_save(self, sample_user):
+        """Verify messages_to_save contains the AI response."""
+        state = _create_state(
+            sample_user,
+            [HumanMessage(content="Hi")],
+            Target.conduct_interview,
+            area_already_extracted=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.content = "Already documented!"
+
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+
+        result = await completed_area_response(state, mock_llm)
+
+        assert "messages_to_save" in result
+        assert len(result["messages_to_save"]) == 1
+        bucket = list(result["messages_to_save"].values())[0]
+        assert len(bucket) == 1
+        assert bucket[0].content == "Already documented!"
+
+    @pytest.mark.asyncio
+    async def test_prompt_includes_area_id(self, sample_user):
+        """Verify prompt includes the area ID for reset command."""
+        area_id = new_id()
+        state = _create_state(
+            sample_user,
+            [HumanMessage(content="Work stuff")],
+            Target.conduct_interview,
+            area_already_extracted=True,
+            area_id=area_id,
+        )
+
+        mock_response = MagicMock()
+        mock_response.content = "Response"
+
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+
+        await completed_area_response(state, mock_llm)
+
+        mock_llm.ainvoke.assert_called_once()
+        call_args = mock_llm.ainvoke.call_args[0][0]
+        # First message should contain the area_id in the reset command
+        assert str(area_id) in call_args[0].content

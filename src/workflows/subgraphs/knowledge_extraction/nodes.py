@@ -36,6 +36,7 @@ __all__ = [
     "extract_knowledge",
     "extract_summaries",
     "load_area_data",
+    "mark_area_extracted",
     "save_knowledge",
     "save_summary",
 ]
@@ -205,3 +206,10 @@ async def save_summary(state: KnowledgeExtractionState) -> dict:
     )
 
     return {"summary_content": summary_content}
+
+
+async def mark_area_extracted(state: KnowledgeExtractionState) -> dict:
+    """Mark area as extracted after successful knowledge save."""
+    await db.LifeAreasManager.mark_extracted(state.area_id)
+    logger.info("Marked area as extracted", extra={"area_id": str(state.area_id)})
+    return {}

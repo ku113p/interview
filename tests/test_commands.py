@@ -13,12 +13,16 @@ from src.workflows.nodes.commands.handle_command import handle_command
 from src.workflows.nodes.commands.handlers import (
     HELP_TEXT,
     _delete_tokens,
+    _reset_area_token_lookup,
+    _reset_area_tokens,
     handle_clear,
     handle_delete_confirm,
     handle_delete_init,
     handle_help,
     handle_mode_set,
     handle_mode_show,
+    handle_reset_area_confirm,
+    handle_reset_area_init,
     process_command,
 )
 from src.workflows.routers.command_router import route_on_command
@@ -571,3 +575,233 @@ class TestDeleteTokenIsolation:
         assert token_a != token_b
         assert user_a.id in _delete_tokens
         assert user_b.id in _delete_tokens
+
+
+class TestHandleResetAreaInit:
+    """Tests for /reset-area_<id> command initialization."""
+
+    @pytest.mark.asyncio
+    async def test_invalid_area_id(self, sample_user):
+        """Invalid UUID should return error."""
+        result = await handle_reset_area_init(sample_user.id, "not-a-uuid")
+        assert "Invalid area ID" in result
+
+    @pytest.mark.asyncio
+    async def test_area_not_found(self, temp_db, sample_user):
+        """Non-existent area should return error."""
+        result = await handle_reset_area_init(sample_user.id, str(new_id()))
+        assert "Area not found" in result
+
+    @pytest.mark.asyncio
+    async def test_wrong_user(self, temp_db, sample_user):
+        """User cannot reset another user's area."""
+        # Create area for different user
+        other_user_id = new_id()
+        area_id = new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(
+                id=area_id,
+                title="Other's Area",
+                parent_id=None,
+                user_id=other_user_id,
+                extracted_at=time.time(),
+            ),
+        )
+
+        result = await handle_reset_area_init(sample_user.id, str(area_id))
+        assert "permission" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_area_not_extracted(self, temp_db, sample_user):
+        """Cannot reset area that hasn't been extracted."""
+        area_id = new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(
+                id=area_id,
+                title="My Area",
+                parent_id=None,
+                user_id=sample_user.id,
+                extracted_at=None,
+            ),
+        )
+
+        result = await handle_reset_area_init(sample_user.id, str(area_id))
+        assert "not been extracted" in result
+
+    @pytest.mark.asyncio
+    async def test_generates_token(self, temp_db, sample_user):
+        """Reset init should generate and store a token."""
+        _reset_area_tokens.clear()
+        _reset_area_token_lookup.clear()
+
+        area_id = new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(
+                id=area_id,
+                title="My Area",
+                parent_id=None,
+                user_id=sample_user.id,
+                extracted_at=time.time(),
+            ),
+        )
+
+        result = await handle_reset_area_init(sample_user.id, str(area_id))
+
+        assert "delete extracted knowledge" in result.lower()
+        assert "/reset-area_" in result
+        assert "60 seconds" in result
+        assert (sample_user.id, area_id) in _reset_area_tokens
+
+
+class TestHandleResetAreaConfirm:
+    """Tests for /reset-area_<token> confirmation."""
+
+    @pytest.mark.asyncio
+    async def test_invalid_token(self, sample_user):
+        """Invalid token should fail."""
+        _reset_area_tokens.clear()
+        _reset_area_token_lookup.clear()
+
+        result = await handle_reset_area_confirm(sample_user.id, "badtoken")
+
+        assert "Invalid or expired" in result
+
+    @pytest.mark.asyncio
+    async def test_expired_token(self, temp_db, sample_user):
+        """Expired token should be rejected."""
+        _reset_area_tokens.clear()
+        _reset_area_token_lookup.clear()
+
+        area_id = new_id()
+        old_time = time.time() - handlers.RESET_TOKEN_TTL - 1
+        _reset_area_tokens[(sample_user.id, area_id)] = ("old_token", old_time)
+
+        result = await handle_reset_area_confirm(sample_user.id, "old_token")
+
+        assert "Invalid or expired" in result
+
+    @pytest.mark.asyncio
+    async def test_successful_reset(self, temp_db, sample_user):
+        """Successful reset should clear extraction data."""
+        _reset_area_tokens.clear()
+        _reset_area_token_lookup.clear()
+        now = time.time()
+
+        # Create area with extraction, summary, and message
+        area_id, summary_id, msg_id = new_id(), new_id(), new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(
+                id=area_id,
+                title="My Area",
+                parent_id=None,
+                user_id=sample_user.id,
+                extracted_at=now,
+            ),
+        )
+        await db.AreaSummariesManager.create(
+            summary_id,
+            db.AreaSummary(
+                id=summary_id,
+                area_id=area_id,
+                summary_text="test",
+                vector=[0.1] * 10,
+                created_ts=now,
+            ),
+        )
+        await db.LifeAreaMessagesManager.create(
+            msg_id,
+            db.LifeAreaMessage(
+                id=msg_id,
+                message_text="test",
+                area_id=area_id,
+                created_ts=now,
+            ),
+        )
+
+        # Set up valid token (both forward and reverse lookups)
+        token = "valid_token"
+        _reset_area_tokens[(sample_user.id, area_id)] = (token, now)
+        _reset_area_token_lookup[(sample_user.id, token)] = area_id
+
+        result = await handle_reset_area_confirm(sample_user.id, token)
+
+        assert "Reset complete" in result and "My Area" in result
+        assert await db.AreaSummariesManager.list_by_area(area_id) == []
+        assert await db.LifeAreaMessagesManager.list_by_area(area_id) == []
+
+        area = await db.LifeAreasManager.get_by_id(area_id)
+        assert area is not None and area.extracted_at is None
+
+
+class TestProcessCommandResetArea:
+    """Tests for reset-area dispatch in process_command."""
+
+    @pytest.mark.asyncio
+    async def test_reset_area_with_uuid(self, temp_db, sample_user):
+        """Should dispatch /reset-area_<uuid> to init."""
+        area_id = new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(
+                id=area_id,
+                title="Area",
+                parent_id=None,
+                user_id=sample_user.id,
+                extracted_at=time.time(),
+            ),
+        )
+
+        result = await process_command(f"/reset-area_{area_id}", sample_user)
+
+        assert "delete extracted knowledge" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_reset_area_with_token(self, sample_user):
+        """Should dispatch /reset-area_<token> to confirm."""
+        _reset_area_tokens.clear()
+        _reset_area_token_lookup.clear()
+
+        result = await process_command("/reset-area_abc123", sample_user)
+
+        assert "Invalid or expired" in result
+
+
+class TestResetAreaTokenIsolation:
+    """Tests for multi-user reset-area token isolation."""
+
+    @pytest.mark.asyncio
+    async def test_user_cannot_use_another_users_token(self, temp_db):
+        """User A should not be able to use User B's reset token."""
+        _reset_area_tokens.clear()
+        _reset_area_token_lookup.clear()
+
+        user_a = User(id=uuid.uuid4(), mode=InputMode.auto)
+        user_b = User(id=uuid.uuid4(), mode=InputMode.auto)
+
+        # Create area for user A
+        area_id = new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(
+                id=area_id,
+                title="A's Area",
+                parent_id=None,
+                user_id=user_a.id,
+                extracted_at=time.time(),
+            ),
+        )
+
+        # User A initiates reset
+        await handle_reset_area_init(user_a.id, str(area_id))
+        token_a, _ = _reset_area_tokens[(user_a.id, area_id)]
+
+        # User B tries to use User A's token
+        result = await handle_reset_area_confirm(user_b.id, token_a)
+
+        assert "Invalid or expired" in result
+        # Token should still be valid for user A
+        assert (user_a.id, area_id) in _reset_area_tokens

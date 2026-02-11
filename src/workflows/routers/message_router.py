@@ -15,3 +15,12 @@ def route_by_target(
         return "small_talk_response"
 
     raise ValueError(f"Unknown target: {target}")
+
+
+def route_after_analysis(
+    state: State,
+) -> Literal["interview_response", "completed_area_response"]:
+    """Route based on whether area was already extracted."""
+    if state.area_already_extracted:
+        return "completed_area_response"
+    return "interview_response"

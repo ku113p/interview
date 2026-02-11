@@ -38,6 +38,11 @@ async def interview_analysis(state: State, llm: ChatOpenAI):
     """Analyze sub-area coverage without generating response."""
     area_id = state.area_id
 
+    # Check if area was already extracted
+    area = await db.LifeAreasManager.get_by_id(area_id)
+    if area is not None and area.extracted_at is not None:
+        return {"area_already_extracted": True}
+
     # Prepare message for saving (but don't save yet - wait for successful analysis)
     current_message_text = _format_qa_data(state.messages)
 

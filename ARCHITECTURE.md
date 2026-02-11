@@ -48,11 +48,14 @@ load_history                  # Load conversation from DB
 build_user_message           # Create HumanMessage
   ↓
 extract_target               # Classify: conduct_interview | manage_areas | small_talk
-  ├─→ interview_analysis     # Check sub-area coverage
-  │     ↓
-  │   interview_response     # Generate response
-  │     ↓
-  │   save_history → END
+  ├─→ interview_analysis     # Check sub-area coverage (or if already extracted)
+  │     ├─→ interview_response        # Generate response (if not extracted)
+  │     │     ↓
+  │     │   save_history → END
+  │     │
+  │     └─→ completed_area_response   # Inform user area is complete (if extracted)
+  │           ↓
+  │         save_history → END
   │
   ├─→ area_loop (subgraph)   # CRUD for areas
   │     ↓
@@ -75,6 +78,8 @@ Commands are handled in the graph via `handle_command` node, making them transpo
 | `/delete_<token>` | Confirm deletion with token (deletes all user data) |
 | `/mode` | Show current input mode |
 | `/mode <name>` | Change mode (auto, interview, areas) |
+| `/reset-area_<id>` | Start area reset (returns confirmation token) |
+| `/reset-area_<token>` | Confirm reset (deletes summaries/knowledge, clears extracted_at) |
 | `/exit`, `/exit_N` | CLI-only: Exit process (handled in transport) |
 
 ### Deletion Order (FK-safe)
@@ -87,12 +92,13 @@ When deleting a user, data is removed in this order:
 5. `histories`
 6. `users`
 
-### Delete Token Storage
+### Token Storage
 
-Delete confirmation uses time-limited tokens stored in module-level dict:
+Delete and reset-area confirmation use time-limited tokens stored in module-level dicts:
 - Token: 8-character hex string
 - TTL: 60 seconds
-- Storage: `dict[user_id, (token, timestamp)]`
+- Delete storage: `dict[user_id, (token, timestamp)]`
+- Reset-area storage: `dict[(user_id, area_id), (token, timestamp)]`
 
 ## Subgraphs
 
@@ -117,6 +123,7 @@ Post-interview knowledge extraction (triggered when all sub-areas covered).
 - `save_summary`: Persist with embedding
 - `extract_knowledge`: Extract skills/facts
 - `save_knowledge`: Persist knowledge items
+- `mark_extracted`: Set `extracted_at` timestamp on area
 
 ## Process Architecture
 
@@ -254,7 +261,7 @@ User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the sam
 |-------|---------|
 | `users` | User profiles (id, mode, current_area_id) |
 | `histories` | Conversation messages (JSON) |
-| `life_areas` | Topics with hierarchy (parent_id for tree structure; descendants serve as interview topics) |
+| `life_areas` | Topics with hierarchy (parent_id, extracted_at timestamp when knowledge was extracted) |
 | `life_area_messages` | Interview responses per area |
 | `area_summaries` | Extracted summaries + embeddings |
 | `user_knowledge` | Skills/facts extracted |
@@ -333,6 +340,7 @@ State:
   coverage_analysis: AreaCoverageAnalysis
   is_fully_covered: bool       # All sub-areas covered, triggers extract worker
   command_response: str | None # Set when command handled (ends workflow early)
+  area_already_extracted: bool # True if area has extracted_at set (routes to completed_area_response)
 ```
 
 ### Message Deduplication

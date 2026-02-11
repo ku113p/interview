@@ -64,3 +64,4 @@ class State(BaseModel):
     is_fully_covered: bool
     coverage_analysis: AreaCoverageAnalysis | None = None
     command_response: str | None = None
+    area_already_extracted: bool = False
