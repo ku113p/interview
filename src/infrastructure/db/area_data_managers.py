@@ -1,5 +1,6 @@
 """Area data repository managers: LifeAreaMessages and AreaSummaries."""
 
+import json
 import uuid
 from typing import Any
 
@@ -26,7 +27,7 @@ def _deserialize_vector(data: bytes) -> list[float]:
 
 class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
     _table = "life_area_messages"
-    _columns = ("id", "message_text", "area_id", "created_ts")
+    _columns = ("id", "message_text", "area_id", "created_ts", "leaf_ids")
     _area_column = "area_id"
 
     @classmethod
@@ -42,11 +43,13 @@ class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
 
     @classmethod
     def _row_to_obj(cls, row: aiosqlite.Row) -> LifeAreaMessage:
+        leaf_ids = json.loads(row["leaf_ids"]) if row["leaf_ids"] else None
         return LifeAreaMessage(
             id=uuid.UUID(row["id"]),
             message_text=row["message_text"],
             area_id=uuid.UUID(row["area_id"]),
             created_ts=row["created_ts"],
+            leaf_ids=leaf_ids,
         )
 
     @classmethod
@@ -56,6 +59,7 @@ class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
             "message_text": data.message_text,
             "area_id": str(data.area_id),
             "created_ts": data.created_ts,
+            "leaf_ids": json.dumps(data.leaf_ids) if data.leaf_ids else None,
         }
 
 

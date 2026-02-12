@@ -1,7 +1,11 @@
 """Unit tests for message utilities."""
 
+import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from src.shared.messages import filter_tool_messages
+from src.infrastructure.db import managers as db
+from src.shared.ids import new_id
+from src.shared.messages import filter_tool_messages, load_message_texts
+from src.shared.timestamp import get_timestamp
 
 
 class TestFilterToolMessages:
@@ -138,3 +142,67 @@ class TestFilterToolMessages:
         )
         assert result[2].content == "I exercise 3 times a week"
         assert result[3].content == "That's great! What types of exercise do you do?"
+
+
+class TestLoadMessageTexts:
+    """Tests for the load_message_texts async function."""
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_list_for_none(self):
+        """Should return empty list when message_ids is None."""
+        result = await load_message_texts(None)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_list_for_empty(self):
+        """Should return empty list when message_ids is empty."""
+        result = await load_message_texts([])
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_loads_messages_from_db(self, temp_db):
+        """Should load message texts from database."""
+        area_id = new_id()
+        msg1_id, msg2_id = new_id(), new_id()
+
+        # Create test messages
+        msg1 = db.LifeAreaMessage(
+            id=msg1_id,
+            message_text="First message",
+            area_id=area_id,
+            created_ts=get_timestamp(),
+        )
+        msg2 = db.LifeAreaMessage(
+            id=msg2_id,
+            message_text="Second message",
+            area_id=area_id,
+            created_ts=get_timestamp(),
+        )
+        await db.LifeAreaMessagesManager.create(msg1_id, msg1)
+        await db.LifeAreaMessagesManager.create(msg2_id, msg2)
+
+        result = await load_message_texts([str(msg1_id), str(msg2_id)])
+
+        assert len(result) == 2
+        assert result[0] == "First message"
+        assert result[1] == "Second message"
+
+    @pytest.mark.asyncio
+    async def test_skips_missing_messages(self, temp_db):
+        """Should skip messages that don't exist."""
+        area_id = new_id()
+        existing_id = new_id()
+        missing_id = new_id()
+
+        msg = db.LifeAreaMessage(
+            id=existing_id,
+            message_text="Existing message",
+            area_id=area_id,
+            created_ts=get_timestamp(),
+        )
+        await db.LifeAreaMessagesManager.create(existing_id, msg)
+
+        result = await load_message_texts([str(existing_id), str(missing_id)])
+
+        assert len(result) == 1
+        assert result[0] == "Existing message"

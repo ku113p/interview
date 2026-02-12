@@ -61,9 +61,12 @@ async def _extract_worker_loop(worker_id: int, graph, channels: Channels) -> Non
 
 async def run_extract_pool(channels: Channels) -> None:
     """Run the extract worker pool."""
+    # Minimize reasoning for structured output to avoid LengthFinishReasonError
     graph = build_knowledge_extraction_graph(
         LLMClientBuilder(
-            MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_KNOWLEDGE
+            MODEL_KNOWLEDGE_EXTRACTION,
+            max_tokens=MAX_TOKENS_KNOWLEDGE,
+            model_kwargs={"reasoning": {"effort": "low"}},
         ).build()
     )
     worker_fn = partial(_extract_worker_loop, graph=graph, channels=channels)

@@ -13,7 +13,10 @@ from src.workflows.nodes.processing.completed_area_response import (
     completed_area_response,
 )
 from src.workflows.nodes.processing.small_talk_response import small_talk_response
-from src.workflows.routers.message_router import route_after_analysis, route_by_target
+from src.workflows.routers.message_router import (
+    route_after_context_load,
+    route_by_target,
+)
 
 
 def _create_state(
@@ -142,13 +145,13 @@ class TestSmallTalkResponse:
 class TestRouteByTarget:
     """Tests for the message router."""
 
-    def test_routes_to_interview_analysis(self, sample_user):
-        """Should route to interview_analysis for conduct_interview target."""
+    def test_routes_to_load_interview_context(self, sample_user):
+        """Should route to load_interview_context for conduct_interview target."""
         state = _create_state(sample_user, [], Target.conduct_interview)
 
         result = route_by_target(state)
 
-        assert result == "interview_analysis"
+        assert result == "load_interview_context"
 
     def test_routes_to_area_loop(self, sample_user):
         """Should route to area_loop for manage_areas target."""
@@ -167,18 +170,42 @@ class TestRouteByTarget:
         assert result == "small_talk_response"
 
 
-class TestRouteAfterAnalysis:
-    """Tests for the post-analysis router."""
+class TestRouteAfterContextLoad:
+    """Tests for the post-context-load router."""
 
-    def test_routes_to_interview_response_when_not_extracted(self, sample_user):
-        """Should route to interview_response when area is not extracted."""
+    def test_routes_to_quick_evaluate_when_leaves_pending(self, sample_user):
+        """Should route to quick_evaluate when leaves are not all done."""
         state = _create_state(
             sample_user, [], Target.conduct_interview, area_already_extracted=False
         )
+        # all_leaves_done defaults to False
 
-        result = route_after_analysis(state)
+        result = route_after_context_load(state)
 
-        assert result == "interview_response"
+        assert result == "quick_evaluate"
+
+    def test_routes_to_completed_area_response_when_all_leaves_done(self, sample_user):
+        """Should route to completed_area_response when all leaves are done."""
+        state = _create_state(
+            sample_user, [], Target.conduct_interview, area_already_extracted=False
+        )
+        # Manually set all_leaves_done
+        state = State(
+            user=state.user,
+            message=state.message,
+            text=state.text,
+            target=state.target,
+            area_id=state.area_id,
+            messages=state.messages,
+            messages_to_save=state.messages_to_save,
+            is_fully_covered=state.is_fully_covered,
+            area_already_extracted=state.area_already_extracted,
+            all_leaves_done=True,
+        )
+
+        result = route_after_context_load(state)
+
+        assert result == "completed_area_response"
 
     def test_routes_to_completed_area_response_when_extracted(self, sample_user):
         """Should route to completed_area_response when area is already extracted."""
@@ -186,7 +213,7 @@ class TestRouteAfterAnalysis:
             sample_user, [], Target.conduct_interview, area_already_extracted=True
         )
 
-        result = route_after_analysis(state)
+        result = route_after_context_load(state)
 
         assert result == "completed_area_response"
 

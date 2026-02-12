@@ -68,6 +68,46 @@ _SCHEMA_SQL = """
         ON user_knowledge_areas(user_id);
     CREATE INDEX IF NOT EXISTS user_knowledge_areas_area_id_idx
         ON user_knowledge_areas(area_id);
+
+    -- Leaf coverage tracking: status of each leaf area in an interview
+    CREATE TABLE IF NOT EXISTS leaf_coverage (
+        leaf_id TEXT PRIMARY KEY,
+        root_area_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        summary_text TEXT,
+        vector BLOB,
+        updated_at REAL NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS leaf_coverage_root_area_idx
+        ON leaf_coverage(root_area_id);
+    CREATE INDEX IF NOT EXISTS leaf_coverage_status_idx
+        ON leaf_coverage(status);
+
+    -- Active interview context: current state per user
+    CREATE TABLE IF NOT EXISTS active_interview_context (
+        user_id TEXT PRIMARY KEY,
+        root_area_id TEXT NOT NULL,
+        active_leaf_id TEXT NOT NULL,
+        question_text TEXT,
+        message_ids TEXT,
+        created_at REAL NOT NULL
+    );
+
+    -- Leaf extraction queue: async extraction tasks
+    CREATE TABLE IF NOT EXISTS leaf_extraction_queue (
+        id TEXT PRIMARY KEY,
+        leaf_id TEXT NOT NULL,
+        root_area_id TEXT NOT NULL,
+        message_ids TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        retry_count INTEGER DEFAULT 0,
+        created_at REAL NOT NULL,
+        processed_at REAL
+    );
+    CREATE INDEX IF NOT EXISTS leaf_extraction_queue_status_idx
+        ON leaf_extraction_queue(status);
+    CREATE INDEX IF NOT EXISTS leaf_extraction_queue_status_created_idx
+        ON leaf_extraction_queue(status, created_at);
 """
 
 
@@ -127,6 +167,12 @@ async def init_schema_async(conn: aiosqlite.Connection, db_path: str) -> None:
             "life_areas",
             "extracted_at",
             "extracted_at REAL",
+        )
+        await ensure_column_async(
+            conn,
+            "life_area_messages",
+            "leaf_ids",
+            "leaf_ids TEXT",
         )
         # Migration: drop deprecated criteria table if it exists
         await conn.execute("DROP TABLE IF EXISTS criteria")

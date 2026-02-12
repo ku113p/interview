@@ -28,7 +28,6 @@ HISTORY_LIMIT_INTERVIEW = 8  # History limit for interview response
 
 # Token Limits (max output tokens per node type)
 MAX_TOKENS_STRUCTURED = 1024  # For structured output (classification, analysis)
-MAX_TOKENS_ANALYSIS = 4096  # For interview analysis (variable-size sub-area output)
 MAX_TOKENS_CHAT = 4096  # For conversational responses
 MAX_TOKENS_TRANSCRIPTION = 8192  # For audio transcription
 MAX_TOKENS_KNOWLEDGE = 4096  # For knowledge extraction (needs reasoning tokens)
@@ -41,12 +40,19 @@ TEMPERATURE_CONVERSATIONAL = 0.5  # User-facing responses
 # Input Token Budgets (for context management)
 INPUT_TOKENS_INTERVIEW = 8000  # Interview response context limit
 
-# Model Assignments - Interview Nodes
-MODEL_INTERVIEW_ANALYSIS = MODEL_NAME_CODEX_MINI  # Fast analysis
-MODEL_INTERVIEW_RESPONSE = MODEL_NAME_FRONTIER  # Reasoning response generation
 MODEL_KNOWLEDGE_EXTRACTION = (
     MODEL_NAME_CODEX_MINI  # Knowledge extraction from summaries
 )
+
+# Model Assignments - Leaf Interview Nodes (new focused flow)
+MODEL_QUICK_EVALUATE = MODEL_NAME_CODEX_MINI  # Fast evaluation of user answers
+MODEL_LEAF_RESPONSE = MODEL_NAME_CODEX_MINI  # Generate focused questions
+MODEL_LEAF_SUMMARY = MODEL_NAME_CODEX_MINI  # Extract summaries from messages
+
+# Token Limits - Leaf Interview
+MAX_TOKENS_QUICK_EVALUATE = 256  # Evaluation only needs status + reason
+MAX_TOKENS_LEAF_RESPONSE = 1024  # Short focused questions/responses
+MAX_TOKENS_LEAF_SUMMARY = 512  # Brief summary extraction
 
 # Embedding Configuration
 EMBEDDING_MODEL = "openai/text-embedding-3-small"  # Via OpenRouter
@@ -55,6 +61,14 @@ EMBEDDING_DIMENSIONS = 1536
 # Worker Pool Configuration
 WORKER_POOL_GRAPH = 2  # Concurrent graph workers
 WORKER_POOL_EXTRACT = 2  # Concurrent extract workers
+WORKER_POOL_LEAF_EXTRACT = 2  # Concurrent leaf extraction workers
+
+# Leaf Extraction Configuration
+LEAF_EXTRACT_POLL_INTERVAL = 1.0  # Seconds between queue polls
+LEAF_EXTRACT_MAX_RETRIES = 3  # Max retries for failed extractions
+# Batch size balances throughput (fewer DB queries) vs. memory (loading tasks into memory).
+# 5 is conservative; can increase for high-throughput scenarios.
+LEAF_EXTRACT_BATCH_SIZE = 5
 
 
 def load_api_key() -> str:

@@ -46,7 +46,7 @@ class TestLoadAreaData:
 
     @pytest.mark.asyncio
     async def test_load_area_data_success(self):
-        """Should load area data correctly when area exists."""
+        """Should load area data correctly when area exists (legacy path)."""
         # Arrange
         area_id = uuid.uuid4()
         user_id = uuid.uuid4()
@@ -91,10 +91,14 @@ class TestLoadAreaData:
             patch.object(
                 db.LifeAreaMessagesManager, "list_by_area", new_callable=AsyncMock
             ) as mock_list_messages,
+            patch.object(
+                db.LeafCoverageManager, "list_by_root_area", new_callable=AsyncMock
+            ) as mock_list_coverage,
         ):
             mock_get.return_value = mock_area
             mock_get_descendants.return_value = mock_sub_areas
             mock_list_messages.return_value = mock_messages
+            mock_list_coverage.return_value = []  # No leaf summaries, use legacy path
             # Act
             result = await load_area_data(state)
 
@@ -106,6 +110,7 @@ class TestLoadAreaData:
             "I want to learn Python",
             "My goal is to become a senior developer",
         ]
+        assert result["use_leaf_summaries"] is False
 
     @pytest.mark.asyncio
     async def test_load_area_data_empty_sub_areas_and_messages(self):
@@ -132,10 +137,14 @@ class TestLoadAreaData:
             patch.object(
                 db.LifeAreaMessagesManager, "list_by_area", new_callable=AsyncMock
             ) as mock_list_messages,
+            patch.object(
+                db.LeafCoverageManager, "list_by_root_area", new_callable=AsyncMock
+            ) as mock_list_coverage,
         ):
             mock_get.return_value = mock_area
             mock_get_descendants.return_value = []
             mock_list_messages.return_value = []
+            mock_list_coverage.return_value = []
             # Act
             result = await load_area_data(state)
 
@@ -144,6 +153,58 @@ class TestLoadAreaData:
         assert result["sub_areas_tree"] == ""
         assert result["sub_area_paths"] == []
         assert result["messages"] == []
+
+    @pytest.mark.asyncio
+    async def test_load_area_data_uses_leaf_summaries(self):
+        """Should use pre-extracted leaf summaries when available."""
+        # Arrange
+        area_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+        leaf_id = uuid.uuid4()
+        state = KnowledgeExtractionState(area_id=area_id)
+
+        mock_area = db.LifeArea(
+            id=area_id,
+            title="Career",
+            parent_id=None,
+            user_id=user_id,
+        )
+        mock_sub_area = db.LifeArea(
+            id=leaf_id,
+            title="Skills",
+            parent_id=area_id,
+            user_id=user_id,
+        )
+        mock_coverage = db.LeafCoverage(
+            leaf_id=leaf_id,
+            root_area_id=area_id,
+            status="covered",
+            summary_text="Has Python experience",
+            updated_at=1000.0,
+        )
+
+        with (
+            patch.object(
+                db.LifeAreasManager, "get_by_id", new_callable=AsyncMock
+            ) as mock_get,
+            patch.object(
+                db.LifeAreasManager, "get_descendants", new_callable=AsyncMock
+            ) as mock_get_descendants,
+            patch.object(
+                db.LeafCoverageManager, "list_by_root_area", new_callable=AsyncMock
+            ) as mock_list_coverage,
+        ):
+            mock_get.return_value = mock_area
+            mock_get_descendants.return_value = [mock_sub_area]
+            mock_list_coverage.return_value = [mock_coverage]
+            # Act
+            result = await load_area_data(state)
+
+        # Assert
+        assert result["area_title"] == "Career"
+        assert result["use_leaf_summaries"] is True
+        assert result["extracted_summary"] == {"Skills": "Has Python experience"}
+        assert result["messages"] == []  # No raw messages needed
 
 
 class TestExtractSummaries:
@@ -214,6 +275,27 @@ class TestExtractSummaries:
         # Assert
         assert result == {"is_successful": False}
 
+    @pytest.mark.asyncio
+    async def test_extract_summaries_skips_when_using_leaf_summaries(self):
+        """Should skip LLM call when using pre-extracted leaf summaries."""
+        # Arrange
+        area_id = uuid.uuid4()
+        state = KnowledgeExtractionState(
+            area_id=area_id,
+            area_title="Career",
+            use_leaf_summaries=True,
+            extracted_summary={"Skills": "Has Python experience"},
+        )
+
+        mock_llm = MagicMock()
+
+        # Act
+        result = await extract_summaries(state, mock_llm)
+
+        # Assert
+        assert result["is_successful"] is True
+        mock_llm.with_structured_output.assert_not_called()
+
 
 class TestRouters:
     """Test the router functions."""
@@ -242,6 +324,17 @@ class TestRouters:
             area_id=uuid.uuid4(),
             sub_area_paths=["Skills"],
             messages=["Some message"],
+        )
+        assert route_has_data(state) == "extract_summaries"
+
+    def test_route_has_data_returns_extract_summaries_when_leaf_summaries(self):
+        """Should return extract_summaries when using pre-extracted leaf summaries."""
+        state = KnowledgeExtractionState(
+            area_id=uuid.uuid4(),
+            sub_area_paths=["Skills"],
+            messages=[],  # Empty messages
+            use_leaf_summaries=True,
+            extracted_summary={"Skills": "Has Python experience"},
         )
         assert route_has_data(state) == "extract_summaries"
 

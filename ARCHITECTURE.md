@@ -13,7 +13,8 @@ src/
 │   ├── auth/           # Auth worker (external ID → UUID)
 │   ├── transport/      # CLI + Telegram transports
 │   ├── interview/      # Main interview graph worker
-│   └── extract/        # Knowledge extraction worker
+│   ├── extract/        # Knowledge extraction worker
+│   └── leaf_extract/   # Leaf-level extraction worker
 ├── runtime/            # Shared runtime infrastructure
 ├── config/             # Settings & model assignments
 ├── domain/             # Core business models
@@ -48,12 +49,16 @@ load_history                  # Load conversation from DB
 build_user_message           # Create HumanMessage
   ↓
 extract_target               # Classify: conduct_interview | manage_areas | small_talk
-  ├─→ interview_analysis     # Check sub-area coverage (or if already extracted)
-  │     ├─→ interview_response        # Generate response (if not extracted)
-  │     │     ↓
-  │     │   save_history → END
-  │     │
-  │     └─→ completed_area_response   # Inform user area is complete (if extracted)
+  │
+  ├─→ load_interview_context # Load/create active leaf context
+  │     ├─→ (all_leaves_done) → completed_area_response → save_history → END
+  │     └─→ quick_evaluate   # Evaluate: complete/partial/skipped
+  │           ↓
+  │         update_coverage_status  # Save message, mark leaf if done
+  │           ↓
+  │         select_next_leaf       # Pick next uncovered leaf
+  │           ↓
+  │         generate_leaf_response # Generate focused question
   │           ↓
   │         save_history → END
   │
@@ -65,6 +70,43 @@ extract_target               # Classify: conduct_interview | manage_areas | smal
         ↓
       save_history → END
 ```
+
+### Leaf Interview Flow (New)
+
+The leaf interview flow asks about ONE leaf at a time and accumulates user messages until complete:
+
+```
+User selects area → load_interview_context
+                    ├── Has active context? → load it
+                    └── No context? → pick first uncovered leaf, create context
+                    ↓
+quick_evaluate (with ALL accumulated messages + new message)
+    - complete: user fully answered this topic
+    - partial: need more detail
+    - skipped: user said "don't know"
+                    ↓
+update_coverage_status
+    - Save raw message to life_area_messages (always)
+    - Add message_id to context.message_ids
+    - If complete/skipped: mark leaf in leaf_coverage, queue extraction
+                    ↓
+select_next_leaf
+    - partial? → stay on same leaf
+    - complete/skipped? → pick next uncovered leaf
+    - all done? → set all_leaves_done=True
+                    ↓
+generate_leaf_response
+    - Initial: focused question about leaf
+    - Followup: acknowledge + ask for more detail
+    - Transition: brief ack + question for next leaf
+    - Completion: thank user, area complete
+```
+
+**Benefits over previous approach:**
+- O(1) token growth per turn (only current leaf + accumulated messages)
+- Clearer, more focused questions
+- Retry-safe extraction via database queue
+- Per-leaf coverage persistence
 
 ## Command Handling
 
@@ -117,13 +159,24 @@ Tool-calling loop for hierarchical area management.
 - Sub-areas are created using `parent_id` to form a tree structure
 
 ### knowledge_extraction
-Post-interview knowledge extraction (triggered when all sub-areas covered).
-- `load_area_data`: Fetch area messages and descendant sub-areas
-- `extract_summaries`: LLM summarizes per sub-area
+Post-interview knowledge extraction (triggered when all leaves covered).
+- `load_area_data`: First tries leaf_coverage summaries, falls back to raw messages
+- `extract_summaries`: LLM summarizes per sub-area (skipped if using leaf summaries)
 - `save_summary`: Persist with embedding
 - `extract_knowledge`: Extract skills/facts
 - `save_knowledge`: Persist knowledge items
 - `mark_extracted`: Set `extracted_at` timestamp on area
+
+### leaf_extract (New)
+Async extraction worker for individual leaves.
+- Polls `leaf_extraction_queue` database table
+- For each completed leaf:
+  1. Load accumulated messages from `life_area_messages`
+  2. Extract summary via LLM
+  3. Generate embedding
+  4. Save to `leaf_coverage.summary_text` and `vector`
+- Triggers `knowledge_extraction` when all leaves for area are done
+- Retry mechanism with exponential backoff (max 3 retries)
 
 ## Process Architecture
 
@@ -147,6 +200,7 @@ The application is organized into 4 independent async processes that communicate
 | transport | `src/processes/transport/` | CLI and Telegram transports | `run_cli`, `run_telegram`, `parse_user_id` |
 | interview | `src/processes/interview/` | Main graph worker for message processing | `run_graph_pool`, `get_graph`, `State`, `Target` |
 | extract | `src/processes/extract/` | Knowledge extraction from completed areas | `run_extract_pool`, `ExtractTask` |
+| leaf_extract | `src/processes/leaf_extract/` | Per-leaf summary extraction | `run_leaf_extract_pool` |
 
 ### Runtime Infrastructure
 
@@ -164,6 +218,7 @@ Shared runtime utilities in `src/runtime/`:
 | Auth | 1 | Exchange external user IDs for internal user_ids |
 | Graph | 2 | Processes messages through main graph |
 | Extract | 2 | Knowledge extraction from covered areas |
+| Leaf Extract | 2 | Per-leaf summary extraction (polls database queue) |
 
 ### Channel Message Types
 
@@ -262,10 +317,13 @@ User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the sam
 | `users` | User profiles (id, mode, current_area_id) |
 | `histories` | Conversation messages (JSON) |
 | `life_areas` | Topics with hierarchy (parent_id, extracted_at timestamp when knowledge was extracted) |
-| `life_area_messages` | Interview responses per area |
+| `life_area_messages` | Interview responses per area (includes leaf_ids JSON array) |
 | `area_summaries` | Extracted summaries + embeddings |
 | `user_knowledge` | Skills/facts extracted |
 | `user_knowledge_areas` | Knowledge-area links |
+| `leaf_coverage` | Per-leaf interview coverage status (pending/active/covered/skipped) with summary + vector |
+| `active_interview_context` | Current interview state per user (active leaf, accumulated message_ids) |
+| `leaf_extraction_queue` | Async extraction tasks with retry mechanism |
 
 ORM pattern: `ORMBase[T]` with managers per table. Database managers are exported from `src/infrastructure/db/managers.py`.
 
@@ -338,9 +396,17 @@ State:
   is_successful: bool          # Operation success flag
   area_id: UUID
   coverage_analysis: AreaCoverageAnalysis
-  is_fully_covered: bool       # All sub-areas covered, triggers extract worker
+  is_fully_covered: bool       # All leaves covered, triggers extract worker
   command_response: str | None # Set when command handled (ends workflow early)
-  area_already_extracted: bool # True if area has extracted_at set (routes to completed_area_response)
+  area_already_extracted: bool # True if area has extracted_at set
+
+  # Leaf interview state (new)
+  active_leaf_id: UUID | None     # Current leaf being asked about
+  active_leaf_path: str | None    # Full path like "Work > Google > Responsibilities"
+  accumulated_message_ids: list[str]  # Message IDs collected for current leaf
+  leaf_evaluation: LeafEvaluation | None  # complete/partial/skipped
+  question_text: str | None       # The question we asked
+  all_leaves_done: bool           # True when all leaves covered/skipped
 ```
 
 ### Message Deduplication
@@ -353,8 +419,9 @@ Merge function uses SHA-256 hash of (type, content, tool_calls) to prevent dupli
 | Node | Model | Purpose |
 |------|-------|---------|
 | extract_target | gpt-5.1-codex-mini | Fast intent classification |
-| interview_analysis | gpt-5.1-codex-mini | Sub-area coverage check |
-| interview_response | gpt-5.2 | Response generation |
+| quick_evaluate | gpt-5.1-codex-mini | Evaluate user answer (complete/partial/skipped) |
+| generate_leaf_response | gpt-5.1-codex-mini | Generate focused questions |
+| leaf_summary | gpt-5.1-codex-mini | Extract summary from messages |
 | area_chat | gpt-5.1-codex-mini | Tool-based area management |
 | knowledge_extraction | gpt-5.1-codex-mini | Knowledge extraction |
 | transcribe | gemini-2.5-flash-lite | Audio transcription |

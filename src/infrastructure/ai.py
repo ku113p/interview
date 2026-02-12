@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from langchain_openai import ChatOpenAI
 
@@ -17,6 +17,7 @@ class LLMClientBuilder:
     max_tokens: int | None = None
     base_url: str = "https://openrouter.ai/api/v1"
     api_key: str | None = None
+    model_kwargs: dict = field(default_factory=dict)
 
     def build(self) -> ChatOpenAI:
         """Build and return a configured ChatOpenAI client.
@@ -36,4 +37,5 @@ class LLMClientBuilder:
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             api_key=api_key,
+            model_kwargs=self.model_kwargs,
         )

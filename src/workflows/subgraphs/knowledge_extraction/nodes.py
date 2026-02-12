@@ -55,25 +55,58 @@ class ExtractionResult(BaseModel):
     summaries: list[SubAreaSummary]
 
 
-async def load_area_data(state: KnowledgeExtractionState) -> dict:
-    """Load area data including title, sub-areas, and messages."""
-    area_id = state.area_id
+def _collect_leaf_summaries(
+    leaf_coverage_list: list, sub_area_info: list
+) -> dict[str, str]:
+    """Collect summaries from covered leaves, mapping to their paths."""
+    if not leaf_coverage_list:
+        return {}
 
+    leaf_id_to_path = {str(info.area.id): info.path for info in sub_area_info}
+    summaries: dict[str, str] = {}
+
+    for lc in leaf_coverage_list:
+        if lc.status == "covered" and lc.summary_text:
+            path = leaf_id_to_path.get(str(lc.leaf_id))
+            if path:
+                summaries[path] = lc.summary_text
+    return summaries
+
+
+async def load_area_data(state: KnowledgeExtractionState) -> dict:
+    """Load area data including title, sub-areas, and summaries."""
+    area_id = state.area_id
     area = await db.LifeAreasManager.get_by_id(area_id)
+
     if area is None:
-        logger.warning("Area not found for extraction", extra={"area_id": str(area_id)})
+        logger.warning("Area not found", extra={"area_id": str(area_id)})
         return {"is_successful": False}
 
     sub_areas = await db.LifeAreasManager.get_descendants(area_id)
-    messages = await db.LifeAreaMessagesManager.list_by_area(area_id)
-
-    # Build tree representation
     tree_text = build_tree_text(sub_areas, area_id)
     sub_area_info = build_sub_area_info(sub_areas, area_id)
     sub_area_paths = [info.path for info in sub_area_info]
 
+    # Try to use pre-extracted leaf summaries
+    leaf_coverage_list = await db.LeafCoverageManager.list_by_root_area(area_id)
+    leaf_summaries = _collect_leaf_summaries(leaf_coverage_list, sub_area_info)
+
+    if leaf_summaries:
+        logger.info("Using leaf summaries", extra={"count": len(leaf_summaries)})
+        return {
+            "area_title": area.title,
+            "sub_areas_tree": tree_text,
+            "sub_area_paths": sub_area_paths,
+            "messages": [],
+            "extracted_summary": leaf_summaries,
+            "use_leaf_summaries": True,
+        }
+
+    # Fall back to raw messages
+    messages = await db.LifeAreaMessagesManager.list_by_area(area_id)
+
     logger.info(
-        "Loaded area data for extraction",
+        "Loaded area data for extraction (legacy path)",
         extra={
             "area_id": str(area_id),
             "sub_area_count": len(sub_area_paths),
@@ -86,15 +119,30 @@ async def load_area_data(state: KnowledgeExtractionState) -> dict:
         "sub_areas_tree": tree_text,
         "sub_area_paths": sub_area_paths,
         "messages": [message.message_text for message in messages],
+        "use_leaf_summaries": False,
     }
 
 
 async def extract_summaries(state: KnowledgeExtractionState, llm: ChatOpenAI) -> dict:
     """Use LLM to extract and summarize user responses for each sub-area.
 
+    If leaf summaries were already loaded (use_leaf_summaries=True), this node
+    is skipped and the pre-extracted summaries are used directly.
+
     Note: The check for empty sub-areas/messages is handled by the router,
     so this function assumes valid data is present.
     """
+    # Skip if we already have leaf summaries
+    if state.use_leaf_summaries and state.extracted_summary:
+        logger.info(
+            "Skipping LLM extraction - using pre-extracted leaf summaries",
+            extra={
+                "area_id": str(state.area_id),
+                "summary_count": len(state.extracted_summary),
+            },
+        )
+        return {"is_successful": True}
+
     system_prompt = (
         "You are an interview data extraction agent.\n"
         "Your task is to summarize what the user said about each sub-area.\n\n"
@@ -130,7 +178,7 @@ async def extract_summaries(state: KnowledgeExtractionState, llm: ChatOpenAI) ->
         extracted = {s.sub_area: s.summary for s in result.summaries}
 
         logger.info(
-            "Extracted summaries",
+            "Extracted summaries via LLM",
             extra={
                 "area_id": str(state.area_id),
                 "sub_areas_extracted": len(extracted),
