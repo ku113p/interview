@@ -137,7 +137,7 @@ class LifeAreasManager(ORMBase[LifeArea]):
                 JOIN descendants d ON la.parent_id = d.id
             )
             SELECT id, title, parent_id, user_id, extracted_at FROM descendants
-            ORDER BY title
+            ORDER BY id
         """
         if conn is None:
             async with get_connection() as local_conn:

@@ -9,11 +9,11 @@ from src.domain import ClientMessage, InputMode, User
 from src.processes.interview import State, Target
 from src.shared.ids import new_id
 from src.shared.prompts import PROMPT_SMALL_TALK
-from src.workflows.nodes.processing.completed_area_response import (
-    completed_area_response,
-)
 from src.workflows.nodes.processing.small_talk_response import small_talk_response
-from src.workflows.routers.message_router import route_after_analysis, route_by_target
+from src.workflows.routers.message_router import route_by_target
+from src.workflows.subgraphs.leaf_interview.nodes import completed_area_response
+from src.workflows.subgraphs.leaf_interview.routers import route_after_context_load
+from src.workflows.subgraphs.leaf_interview.state import LeafInterviewState
 
 
 def _create_state(
@@ -34,6 +34,25 @@ def _create_state(
         messages_to_save={},
         is_fully_covered=False,
         area_already_extracted=area_already_extracted,
+    )
+
+
+def _create_leaf_interview_state(
+    user: User,
+    messages: list,
+    area_already_extracted: bool = False,
+    all_leaves_done: bool = False,
+    area_id=None,
+) -> LeafInterviewState:
+    """Helper to create test LeafInterviewState objects."""
+    return LeafInterviewState(
+        user=user,
+        area_id=area_id or new_id(),
+        messages=messages,
+        messages_to_save={},
+        is_fully_covered=False,
+        area_already_extracted=area_already_extracted,
+        all_leaves_done=all_leaves_done,
     )
 
 
@@ -142,13 +161,13 @@ class TestSmallTalkResponse:
 class TestRouteByTarget:
     """Tests for the message router."""
 
-    def test_routes_to_interview_analysis(self, sample_user):
-        """Should route to interview_analysis for conduct_interview target."""
+    def test_routes_to_leaf_interview(self, sample_user):
+        """Should route to leaf_interview for conduct_interview target."""
         state = _create_state(sample_user, [], Target.conduct_interview)
 
         result = route_by_target(state)
 
-        assert result == "interview_analysis"
+        assert result == "leaf_interview"
 
     def test_routes_to_area_loop(self, sample_user):
         """Should route to area_loop for manage_areas target."""
@@ -167,26 +186,37 @@ class TestRouteByTarget:
         assert result == "small_talk_response"
 
 
-class TestRouteAfterAnalysis:
-    """Tests for the post-analysis router."""
+class TestRouteAfterContextLoad:
+    """Tests for the post-context-load router."""
 
-    def test_routes_to_interview_response_when_not_extracted(self, sample_user):
-        """Should route to interview_response when area is not extracted."""
-        state = _create_state(
-            sample_user, [], Target.conduct_interview, area_already_extracted=False
+    def test_routes_to_quick_evaluate_when_leaves_pending(self, sample_user):
+        """Should route to quick_evaluate when leaves are not all done."""
+        state = _create_leaf_interview_state(
+            sample_user, [], area_already_extracted=False
+        )
+        # all_leaves_done defaults to False
+
+        result = route_after_context_load(state)
+
+        assert result == "quick_evaluate"
+
+    def test_routes_to_completed_area_response_when_all_leaves_done(self, sample_user):
+        """Should route to completed_area_response when all leaves are done."""
+        state = _create_leaf_interview_state(
+            sample_user, [], area_already_extracted=False, all_leaves_done=True
         )
 
-        result = route_after_analysis(state)
+        result = route_after_context_load(state)
 
-        assert result == "interview_response"
+        assert result == "completed_area_response"
 
     def test_routes_to_completed_area_response_when_extracted(self, sample_user):
         """Should route to completed_area_response when area is already extracted."""
-        state = _create_state(
-            sample_user, [], Target.conduct_interview, area_already_extracted=True
+        state = _create_leaf_interview_state(
+            sample_user, [], area_already_extracted=True
         )
 
-        result = route_after_analysis(state)
+        result = route_after_context_load(state)
 
         assert result == "completed_area_response"
 
@@ -198,10 +228,9 @@ class TestCompletedAreaResponse:
     async def test_returns_ai_message(self, sample_user):
         """Verify node returns an AI message."""
         area_id = new_id()
-        state = _create_state(
+        state = _create_leaf_interview_state(
             sample_user,
             [HumanMessage(content="Tell me about my work")],
-            Target.conduct_interview,
             area_already_extracted=True,
             area_id=area_id,
         )
@@ -222,10 +251,9 @@ class TestCompletedAreaResponse:
     @pytest.mark.asyncio
     async def test_sets_success_flag(self, sample_user):
         """Verify is_successful is set to True."""
-        state = _create_state(
+        state = _create_leaf_interview_state(
             sample_user,
             [HumanMessage(content="More about work")],
-            Target.conduct_interview,
             area_already_extracted=True,
         )
 
@@ -242,10 +270,9 @@ class TestCompletedAreaResponse:
     @pytest.mark.asyncio
     async def test_populates_messages_to_save(self, sample_user):
         """Verify messages_to_save contains the AI response."""
-        state = _create_state(
+        state = _create_leaf_interview_state(
             sample_user,
             [HumanMessage(content="Hi")],
-            Target.conduct_interview,
             area_already_extracted=True,
         )
 
@@ -267,10 +294,9 @@ class TestCompletedAreaResponse:
     async def test_prompt_includes_area_id(self, sample_user):
         """Verify prompt includes the area ID for reset command."""
         area_id = new_id()
-        state = _create_state(
+        state = _create_leaf_interview_state(
             sample_user,
             [HumanMessage(content="Work stuff")],
-            Target.conduct_interview,
             area_already_extracted=True,
             area_id=area_id,
         )

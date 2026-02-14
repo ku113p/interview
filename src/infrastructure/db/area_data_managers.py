@@ -1,4 +1,4 @@
-"""Area data repository managers: LifeAreaMessages and AreaSummaries."""
+"""Area data repository managers: AreaSummaries."""
 
 import uuid
 from typing import Any
@@ -6,7 +6,7 @@ from typing import Any
 import aiosqlite
 
 from .base import ORMBase
-from .models import AreaSummary, LifeAreaMessage
+from .models import AreaSummary
 
 
 def _serialize_vector(vector: list[float]) -> bytes:
@@ -22,41 +22,6 @@ def _deserialize_vector(data: bytes) -> list[float]:
 
     count = len(data) // 4  # float is 4 bytes
     return list(struct.unpack(f"{count}f", data))
-
-
-class LifeAreaMessagesManager(ORMBase[LifeAreaMessage]):
-    _table = "life_area_messages"
-    _columns = ("id", "message_text", "area_id", "created_ts")
-    _area_column = "area_id"
-
-    @classmethod
-    async def list_by_area(
-        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
-    ) -> list[LifeAreaMessage]:
-        return await cls._list_by_column(
-            "area_id",
-            str(area_id),
-            conn,
-            order_by="created_ts",
-        )
-
-    @classmethod
-    def _row_to_obj(cls, row: aiosqlite.Row) -> LifeAreaMessage:
-        return LifeAreaMessage(
-            id=uuid.UUID(row["id"]),
-            message_text=row["message_text"],
-            area_id=uuid.UUID(row["area_id"]),
-            created_ts=row["created_ts"],
-        )
-
-    @classmethod
-    def _obj_to_row(cls, data: LifeAreaMessage) -> dict[str, Any]:
-        return {
-            "id": str(data.id),
-            "message_text": data.message_text,
-            "area_id": str(data.area_id),
-            "created_ts": data.created_ts,
-        }
 
 
 class AreaSummariesManager(ORMBase[AreaSummary]):

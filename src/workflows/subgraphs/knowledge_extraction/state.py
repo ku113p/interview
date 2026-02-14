@@ -21,6 +21,7 @@ class KnowledgeExtractionState(BaseModel):
     # Extraction results
     extracted_summary: dict[str, str] = {}
     is_successful: bool = False
+    use_leaf_summaries: bool = False  # True if using pre-extracted leaf summaries
 
     # Summary content for embedding (combined from extracted_summary)
     summary_content: str = ""

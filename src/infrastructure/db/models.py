@@ -30,14 +30,6 @@ class LifeArea:
 
 
 @dataclass
-class LifeAreaMessage:
-    id: uuid.UUID
-    message_text: str
-    area_id: uuid.UUID
-    created_ts: float
-
-
-@dataclass
 class AreaSummary:
     id: uuid.UUID
     area_id: uuid.UUID
@@ -60,3 +52,26 @@ class UserKnowledgeArea:
     user_id: uuid.UUID
     knowledge_id: uuid.UUID
     area_id: uuid.UUID
+
+
+@dataclass
+class LeafCoverage:
+    """Coverage status for a single leaf area in an interview."""
+
+    leaf_id: uuid.UUID
+    root_area_id: uuid.UUID
+    status: str  # 'pending', 'active', 'covered', 'skipped'
+    updated_at: float
+    summary_text: str | None = None
+    vector: list[float] | None = None
+
+
+@dataclass
+class ActiveInterviewContext:
+    """Current interview state per user."""
+
+    user_id: uuid.UUID
+    root_area_id: uuid.UUID
+    active_leaf_id: uuid.UUID
+    created_at: float
+    question_text: str | None = None

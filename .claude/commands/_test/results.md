@@ -4,8 +4,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Cases | 10 |
-| Passed | 10 |
+| Total Cases | 11 |
+| Passed | 11 |
 | Failed | 0 |
 | Pass Rate | 100% |
 
@@ -13,24 +13,25 @@
 
 | # | Case Name | Status | Areas | Sub-Areas | Summaries | Knowledge | Last Run |
 |---|-----------|--------|-------|-----------|-----------|-----------|----------|
-| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-11 23:49 |
-| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-11 23:49 |
-| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 1/true | 4/true | 2026-02-11 23:49 |
-| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-11 23:49 |
-| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 20/true | 2026-02-11 23:49 |
-| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-11 23:49 |
-| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-11 23:49 |
-| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-11 23:49 |
-| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 1/true | 5/true | 2026-02-11 23:56 |
-| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-11 23:49 |
+| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 4/true | 2026-02-15 00:35 |
+| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-15 00:35 |
+| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-15 00:35 |
+| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-15 00:36 |
+| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 3/true | 7/true | 2026-02-15 00:35 |
+| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-15 00:35 |
+| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-15 00:35 |
+| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-15 00:35 |
+| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-15 00:35 |
+| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-15 00:36 |
+| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 1/true | 3/true | 2026-02-15 00:36 |
 
 ## Test Case Descriptions
 
 | # | Name | Focus |
 |---|------|-------|
-| 1 | CRUD Operations | Basic area + sub-area creation, interview flow |
+| 1 | CRUD Operations | Basic area + sub-area creation, leaf-by-leaf interview flow |
 | 5 | Quick Interaction | Minimal conversation, no extraction expected |
-| 13 | Knowledge - Skill Extraction | Technical skill extraction from interview |
+| 13 | Knowledge - Skill Extraction | Technical skill extraction from leaf-by-leaf interview |
 | 18 | Multi-Area - Creation | Creating multiple root areas in one session |
 | 21 | Tree Sub-Areas Full Flow | Hierarchical sub-areas with nested parent-child relationships |
 | 22 | Subtree - Bulk Create | Bulk nested sub-area creation via create_subtree |
@@ -38,6 +39,7 @@
 | 24 | Small Talk Flow | Greeting/app questions before transitioning to area creation |
 | 25 | Completed Area Message | Messaging a completed area shows completion notice |
 | 26 | Reset Area Command | Completed area notification with reset command suggestion |
+| 27 | Multi-Turn Leaf Interview | Leaf interview spanning multiple partial responses before completion |
 
 ## Expected Format
 
@@ -61,6 +63,40 @@ Test cases use the following expected fields:
 - `knowledge` - Boolean: expect user_knowledge_areas > 0
 
 ## Recent Changes
+
+### 2026-02-15: Fixed Test 26 + Added Test 27
+
+**Fix: Auto-set current area on root creation**
+- `LifeAreaMethods.create` now automatically sets `current_area_id` when creating a root area (no parent)
+- This ensures the leaf interview flow has a valid area to work with immediately after creation
+- Fixed Test 26 which was failing because `current_area_id` was not set after area creation
+
+**New: Test 27 - Multi-Turn Leaf Interview**
+- Tests partial → partial → complete flow across multiple messages
+- Verifies that vague responses are marked "partial" and detailed responses complete the leaf
+
+**Other changes:**
+- Added inline leaf summary extraction (summaries saved when leaf completes)
+- Used transactions for atomic DB operations in leaf interview nodes
+- Added error handling with logging in leaf interview nodes
+
+### 2026-02-13: Fixed Leaf Interview Flow Issues
+
+**Issue 1 - Small talk routing override:**
+- Short confirmations like "yes" were being routed to `small_talk` instead of `conduct_interview`
+- Fix: `extract_target` now checks for active interview context and overrides to `conduct_interview`
+
+**Issue 2 - Leaf order predictability:**
+- Changed `get_descendants` from `ORDER BY title` to `ORDER BY id` (UUID7)
+- Leaves are now asked in creation order (predictable, intuitive)
+
+**Issue 3 - Evaluation too lenient:**
+- `PROMPT_QUICK_EVALUATE` now explicitly requires content to match the specific topic being asked
+- Answers about wrong topics are marked as "partial" not "complete"
+
+**Test cases updated:**
+- All 5 extraction test cases (1, 13, 21, 25, 26) updated for leaf-by-leaf interview flow
+- Answers now provided in creation order with topic-specific content
 
 ### 2026-02-11: Fixed Three Failing Tests (1, 22, 24)
 
@@ -97,6 +133,16 @@ Test cases use the following expected fields:
 - Fixed token limit for knowledge extraction (1024 -> 4096)
 
 ## Resolved Issues
+
+### Test 26 - Auto-set Current Area (Fixed 2026-02-15)
+After creating a root area with sub-areas, the LLM did not call `set_current_area`. The leaf interview then used a random UUID instead of the created area. Fixed by auto-setting `current_area_id` in `LifeAreaMethods.create` when creating root areas.
+
+### Leaf Interview Flow Issues (Fixed 2026-02-13)
+
+Three issues were identified and fixed:
+1. `extract_target` routing confirmations to `small_talk` during active interviews
+2. Leaf order was alphabetical (unpredictable) instead of creation order
+3. Evaluation accepted answers about wrong topics as "complete"
 
 ### Test 1 - UUID Normalization (Fixed 2026-02-11)
 The `_validate_uuid` function was validating UUIDs but returning the original string unchanged. When UUIDs passed through LLM extraction, minor corruption could occur. Fixed by returning the normalized UUID via `str(uuid.UUID(value))`.

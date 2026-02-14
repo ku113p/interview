@@ -48,14 +48,10 @@ load_history                  # Load conversation from DB
 build_user_message           # Create HumanMessage
   ↓
 extract_target               # Classify: conduct_interview | manage_areas | small_talk
-  ├─→ interview_analysis     # Check sub-area coverage (or if already extracted)
-  │     ├─→ interview_response        # Generate response (if not extracted)
-  │     │     ↓
-  │     │   save_history → END
-  │     │
-  │     └─→ completed_area_response   # Inform user area is complete (if extracted)
-  │           ↓
-  │         save_history → END
+  │
+  ├─→ leaf_interview (subgraph)  # Interview flow
+  │     ↓
+  │   save_history → END
   │
   ├─→ area_loop (subgraph)   # CRUD for areas
   │     ↓
@@ -65,6 +61,44 @@ extract_target               # Classify: conduct_interview | manage_areas | smal
         ↓
       save_history → END
 ```
+
+### leaf_interview (subgraph)
+Focused interview flow asking one leaf at a time.
+
+```
+START
+  ↓
+load_interview_context
+  ├── Has active context? → load it
+  └── No context? → pick first uncovered leaf, create context
+  ↓
+route_after_context_load
+  ├─→ (all_leaves_done OR area_already_extracted) → completed_area_response → END
+  └─→ quick_evaluate
+        ↓
+      update_coverage_status  # Mark leaf as covered/skipped
+        ↓
+      select_next_leaf        # Pick next uncovered leaf
+        ↓
+      generate_leaf_response → END
+```
+
+**Node details:**
+- `load_interview_context`: Load/create active leaf context for user
+- `quick_evaluate`: Evaluate user response (complete/partial/skipped)
+- `update_coverage_status`: Mark leaf as covered/skipped; extracts and saves summary with embedding when covered
+- `select_next_leaf`: Stay on current (partial) or pick next uncovered leaf
+- `generate_leaf_response`: Generate focused question or transition message
+- `completed_area_response`: Handle already-extracted areas
+
+**Inline summary extraction:**
+When a leaf is marked as "covered", `update_coverage_status` extracts a 2-4 sentence summary of the user's responses using `PROMPT_LEAF_SUMMARY`. The summary and its embedding vector are saved to `leaf_coverage.summary_text` and `leaf_coverage.vector`. This enables the knowledge extraction worker to use pre-extracted summaries instead of re-processing raw messages.
+
+**Benefits:**
+- O(1) token growth per turn (only current leaf + accumulated messages)
+- Clearer, more focused questions
+- Per-leaf coverage persistence
+- Inline summary extraction (summaries available immediately when leaf completes)
 
 ## Command Handling
 
@@ -87,7 +121,7 @@ Commands are handled in the graph via `handle_command` node, making them transpo
 When deleting a user, data is removed in this order:
 1. `user_knowledge_areas` links
 2. `user_knowledge` items
-3. Per-area: `area_summaries`, `life_area_messages`
+3. Per-area: `area_summaries`, `leaf_coverage`, `leaf_history`
 4. `life_areas`
 5. `histories`
 6. `users`
@@ -115,19 +149,20 @@ Tool-calling loop for hierarchical area management.
 - `area_end`: Finalize with success flag
 - Max 10 iterations (recursion limit: 23)
 - Sub-areas are created using `parent_id` to form a tree structure
+- **Auto-set current area**: When creating a root area (no parent), it's automatically set as the user's `current_area_id`. This ensures the interview flow has a valid area immediately after creation.
 
 ### knowledge_extraction
-Post-interview knowledge extraction (triggered when all sub-areas covered).
-- `load_area_data`: Fetch area messages and descendant sub-areas
-- `extract_summaries`: LLM summarizes per sub-area
-- `save_summary`: Persist with embedding
+Post-interview knowledge extraction (triggered when all leaves covered).
+- `load_area_data`: Uses pre-extracted leaf_coverage summaries
+- `extract_summaries`: Skipped when leaf summaries available (inline extraction already done)
+- `save_summary`: Persist area-level summary with embedding
 - `extract_knowledge`: Extract skills/facts
 - `save_knowledge`: Persist knowledge items
 - `mark_extracted`: Set `extracted_at` timestamp on area
 
 ## Process Architecture
 
-The application is organized into 4 independent async processes that communicate through shared channels:
+The application is organized into 3 independent async processes that communicate through shared channels:
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
@@ -262,10 +297,12 @@ User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the sam
 | `users` | User profiles (id, mode, current_area_id) |
 | `histories` | Conversation messages (JSON) |
 | `life_areas` | Topics with hierarchy (parent_id, extracted_at timestamp when knowledge was extracted) |
-| `life_area_messages` | Interview responses per area |
+| `leaf_history` | Join table linking leaves to their conversation messages |
 | `area_summaries` | Extracted summaries + embeddings |
 | `user_knowledge` | Skills/facts extracted |
 | `user_knowledge_areas` | Knowledge-area links |
+| `leaf_coverage` | Per-leaf interview coverage status (pending/active/covered/skipped) with summary + vector |
+| `active_interview_context` | Current interview state per user (active leaf) |
 
 ORM pattern: `ORMBase[T]` with managers per table. Database managers are exported from `src/infrastructure/db/managers.py`.
 
@@ -338,9 +375,16 @@ State:
   is_successful: bool          # Operation success flag
   area_id: UUID
   coverage_analysis: AreaCoverageAnalysis
-  is_fully_covered: bool       # All sub-areas covered, triggers extract worker
+  is_fully_covered: bool       # All leaves covered, triggers extract worker
   command_response: str | None # Set when command handled (ends workflow early)
-  area_already_extracted: bool # True if area has extracted_at set (routes to completed_area_response)
+  area_already_extracted: bool # True if area has extracted_at set
+
+  # Leaf interview state
+  active_leaf_id: UUID | None     # Current leaf being asked about
+  active_leaf_path: str | None    # Full path like "Work > Google > Responsibilities"
+  leaf_evaluation: LeafEvaluation | None  # complete/partial/skipped
+  question_text: str | None       # The question we asked
+  all_leaves_done: bool           # True when all leaves covered/skipped
 ```
 
 ### Message Deduplication
@@ -353,8 +397,9 @@ Merge function uses SHA-256 hash of (type, content, tool_calls) to prevent dupli
 | Node | Model | Purpose |
 |------|-------|---------|
 | extract_target | gpt-5.1-codex-mini | Fast intent classification |
-| interview_analysis | gpt-5.1-codex-mini | Sub-area coverage check |
-| interview_response | gpt-5.2 | Response generation |
+| quick_evaluate | gpt-5.1-codex-mini | Evaluate user answer (complete/partial/skipped) |
+| generate_leaf_response | gpt-5.1-codex-mini | Generate focused questions |
+| leaf_summary | gpt-5.1-codex-mini | Extract summary from messages |
 | area_chat | gpt-5.1-codex-mini | Tool-based area management |
 | knowledge_extraction | gpt-5.1-codex-mini | Knowledge extraction |
 | transcribe | gemini-2.5-flash-lite | Audio transcription |

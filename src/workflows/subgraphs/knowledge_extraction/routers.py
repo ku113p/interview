@@ -13,6 +13,11 @@ def route_has_data(
     Returns:
         "extract_summaries" if there is data to extract, "__end__" otherwise.
     """
+    # If using pre-extracted leaf summaries, proceed to extract_summaries
+    # (which will skip LLM and use the summaries directly)
+    if state.use_leaf_summaries and state.extracted_summary:
+        return "extract_summaries"
+    # Legacy path: need sub_area_paths and messages
     if not state.sub_area_paths or not state.messages:
         return "__end__"
     return "extract_summaries"

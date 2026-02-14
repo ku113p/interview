@@ -6,7 +6,10 @@ from dataclasses import dataclass
 
 @dataclass
 class ExtractTask:
-    """Task to extract data from an area for a user."""
+    """Task to extract summary, vector, and knowledge from a completed leaf.
+
+    A leaf IS an area (just one with no children), so we only need area_id.
+    User ID and other data are derived from the DB lookup.
+    """
 
     area_id: uuid.UUID
-    user_id: uuid.UUID

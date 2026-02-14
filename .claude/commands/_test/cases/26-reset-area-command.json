@@ -3,8 +3,10 @@
   "description": "Test completed area notification with reset command suggestion",
   "inputs": [
     "Create area Hobbies with sub-areas: Sports, Games",
-    "I play basketball weekly and enjoy chess online. I also like hiking.",
-    "yes that covers everything",
+    "I play basketball weekly at the local gym and go hiking on weekends",
+    "yes that covers sports",
+    "I enjoy chess online and play video games like strategy games and RPGs",
+    "yes that covers games",
     "I want to update my hobbies",
     "/exit"
   ],
@@ -15,5 +17,5 @@
     "summaries": true,
     "knowledge": true
   },
-  "notes": "After extraction, user asks to update. Should get completed_area_response with /reset-area command. Verify summaries=1 in SQL output (no re-extraction)."
+  "notes": "After extraction, user asks to update. Should get completed_area_response with /reset-area command."
 }

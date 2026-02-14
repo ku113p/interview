@@ -1,10 +1,12 @@
 {
   "name": "CRUD Operations",
-  "description": "Basic life area creation with sub-areas",
+  "description": "Basic life area creation with sub-areas and leaf-by-leaf interview",
   "inputs": [
     "Create area Fitness with sub-areas: Workouts, Goals",
-    "I exercise 3 times a week, mostly running and weights. My goal is to run a half marathon.",
-    "yes that covers my fitness",
+    "For workouts I go to the gym 3 times a week doing running and weight training",
+    "yes that covers my workouts",
+    "My fitness goals are to run a half marathon next summer and lose 10 pounds",
+    "yes that covers my goals",
     "/exit"
   ],
   "expected": {

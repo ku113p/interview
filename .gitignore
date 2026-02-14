@@ -15,7 +15,3 @@ wheels/
 
 # SQLite database files
 interview.db*
-
-# Claude Code
-.claude/settings.local.json
-CLAUDE.md

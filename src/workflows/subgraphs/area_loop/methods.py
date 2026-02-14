@@ -23,6 +23,17 @@ def _str_to_uuid(value: str | None) -> uuid.UUID | None:
     return uuid.UUID(value)
 
 
+async def _validate_parent(
+    parent_id: uuid.UUID, user_id: uuid.UUID, parent_id_str: str, conn
+) -> None:
+    """Validate parent area exists and belongs to the same user."""
+    parent = await db.LifeAreasManager.get_by_id(parent_id, conn=conn)
+    if parent is None:
+        raise KeyError(f"Parent area {parent_id_str} not found")
+    if parent.user_id != user_id:
+        raise KeyError(f"Parent area {parent_id_str} does not belong to user")
+
+
 class LifeAreaMethods:
     """CRUD operations for life areas."""
 
@@ -55,29 +66,41 @@ class LifeAreaMethods:
         return area
 
     @staticmethod
+    async def _auto_set_current(
+        user_id: str, area_id: str, conn: aiosqlite.Connection | None
+    ) -> None:
+        """Auto-set area as current. Skip silently if user not in DB."""
+        try:
+            await CurrentAreaMethods.set_current(user_id, area_id, conn=conn)
+        except KeyError as e:
+            if "not found" not in str(e):
+                raise
+
+    @staticmethod
     async def create(
         user_id: str,
         title: str,
         parent_id: str | None = None,
         conn: aiosqlite.Connection | None = None,
     ) -> db.LifeArea:
-        u_id = _str_to_uuid(user_id)
-        p_id = _str_to_uuid(parent_id)
+        """Create a life area.
 
+        When creating a root area (no parent), automatically sets it as the
+        user's current area for interviews. This ensures the interview flow
+        has a valid area to work with immediately after creation.
+        """
+        u_id, p_id = _str_to_uuid(user_id), _str_to_uuid(parent_id)
         if u_id is None:
             raise KeyError("user_id is required")
-
-        # Validate parent exists and belongs to same user
         if p_id is not None:
-            parent = await db.LifeAreasManager.get_by_id(p_id, conn=conn)
-            if parent is None:
-                raise KeyError(f"Parent area {parent_id} not found")
-            if parent.user_id != u_id:
-                raise KeyError(f"Parent area {parent_id} does not belong to user")
+            await _validate_parent(p_id, u_id, str(parent_id), conn)
 
         area_id = new_id()
         area = db.LifeArea(id=area_id, title=title, parent_id=p_id, user_id=u_id)
         await db.LifeAreasManager.create(area_id, area, conn=conn)
+
+        if p_id is None:
+            await LifeAreaMethods._auto_set_current(user_id, str(area_id), conn)
         return area
 
     @staticmethod

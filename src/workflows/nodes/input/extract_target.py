@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from langchain_core.messages import BaseMessage, SystemMessage, ToolMessage
@@ -8,10 +9,13 @@ from pydantic import BaseModel, Field
 
 from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET
 from src.domain.models import InputMode, User
+from src.infrastructure.db import managers as db
 from src.processes.interview import Target
 from src.shared.prompts import build_extract_target_prompt
 from src.shared.retry import invoke_with_retry
 from src.workflows.subgraphs.area_loop.tools import AREA_TOOLS
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractTargetState(BaseModel):
@@ -27,6 +31,17 @@ async def extract_target(state: ExtractTargetState, llm: ChatOpenAI):
         target = Target.from_user_mode(user_obj.mode)
     else:
         target = await extract_target_from_messages(state.messages, llm)
+
+        # If classified as small_talk but user has active interview context,
+        # route to conduct_interview instead (handles "yes", "that's all", etc.)
+        if target == Target.small_talk:
+            context = await db.ActiveInterviewContextManager.get_by_user(user_obj.id)
+            if context is not None:
+                logger.info(
+                    "Overriding small_talk to conduct_interview due to active context",
+                    extra={"user_id": str(user_obj.id)},
+                )
+                target = Target.conduct_interview
 
     return {"target": target}
 

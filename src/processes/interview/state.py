@@ -7,7 +7,7 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, ConfigDict
 
 from src.domain import ClientMessage, InputMode, User
-from src.shared.interview_models import AreaCoverageAnalysis
+from src.shared.interview_models import AreaCoverageAnalysis, LeafEvaluation
 from src.shared.message_buckets import MessageBuckets, merge_message_buckets
 
 
@@ -65,3 +65,13 @@ class State(BaseModel):
     coverage_analysis: AreaCoverageAnalysis | None = None
     command_response: str | None = None
     area_already_extracted: bool = False
+
+    # Leaf interview state
+    active_leaf_id: uuid.UUID | None = None
+    completed_leaf_path: str | None = None  # Path of just-completed leaf for transition
+    completed_leaf_id: uuid.UUID | None = (
+        None  # Leaf just marked complete (for extraction)
+    )
+    leaf_evaluation: LeafEvaluation | None = None
+    question_text: str | None = None  # The question we asked for current leaf
+    all_leaves_done: bool = False  # True when all leaves covered/skipped

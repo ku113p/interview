@@ -62,17 +62,13 @@ def _cleanup_tempfiles(temp_files: list[str]) -> None:
             logger.debug("Failed to delete temp file %s", path)
 
 
-async def _enqueue_extract_if_covered(
-    result: dict, user: User, channels: Channels
-) -> None:
-    """Queue extract task if all sub-areas were covered."""
-    if result.get("is_fully_covered") and result.get("area_id"):
-        task = ExtractTask(area_id=result["area_id"], user_id=user.id)
+async def _enqueue_extract_if_leaf_completed(result: dict, channels: Channels) -> None:
+    """Queue extract task when a leaf is completed."""
+    completed_leaf_id = result.get("completed_leaf_id")
+    if completed_leaf_id:
+        task = ExtractTask(area_id=completed_leaf_id)
         await channels.extract.put(task)
-        logger.info(
-            "Queued extract task",
-            extra={"area_id": str(task.area_id), "user_id": str(user.id)},
-        )
+        logger.info("Queued extract task", extra={"area_id": str(completed_leaf_id)})
 
 
 async def _get_user_from_db(user_id) -> User:
@@ -94,7 +90,7 @@ async def _invoke_graph_and_get_response(
             result = result.model_dump()
         messages: list[Any] = result.get("messages", [])
         response = normalize_content(messages[-1].content) if messages else ""
-        await _enqueue_extract_if_covered(result, user, channels)
+        await _enqueue_extract_if_leaf_completed(result, channels)
         return response or "(no response)"
     finally:
         _cleanup_tempfiles(temp_files)
