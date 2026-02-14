@@ -76,11 +76,9 @@ async def _get_next_uncovered_leaf(
     return None
 
 
-async def _prompt_llm(llm: ChatOpenAI, prompt: str, user_msg: str) -> str:
-    """Send prompt to LLM and return response content."""
-    from langchain_core.messages import HumanMessage
-
-    messages = [SystemMessage(content=prompt), HumanMessage(content=user_msg)]
+async def _prompt_llm_with_history(llm: ChatOpenAI, prompt: str, history: list) -> str:
+    """Send system prompt + chat history to LLM and return response content."""
+    messages = [SystemMessage(content=prompt), *history]
     response = await invoke_with_retry(lambda: llm.ainvoke(messages))
     return response.content
 
@@ -212,6 +210,28 @@ def _accumulate_with_current(
     if current_messages:
         texts.append(f"User: {normalize_content(current_messages[-1].content)}")
     return texts
+
+
+def _build_leaf_history(
+    leaf_messages: list[dict], current_messages: list, context_limit: int = 8
+) -> list:
+    """Build chat history from leaf messages plus recent conversation context."""
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    history = []
+    for msg in leaf_messages:
+        role, content = msg.get("role", ""), msg.get("content", "")
+        if role in ("user", "human"):
+            history.append(HumanMessage(content=content))
+        elif role in ("assistant", "ai"):
+            history.append(AIMessage(content=content))
+    if current_messages:
+        existing_content = {msg.content for msg in history}
+        for msg in current_messages[-context_limit:]:
+            if msg.content not in existing_content:
+                history.append(msg)
+                existing_content.add(msg.content)
+    return history
 
 
 async def _evaluate_leaf_response(
@@ -403,68 +423,58 @@ async def _generate_response_content(
     state: LeafInterviewState, llm: ChatOpenAI, current_leaf_path: str
 ) -> str:
     """Generate response content based on evaluation status."""
+    current_messages = filter_tool_messages(state.messages)
+    if state.all_leaves_done:
+        return await _prompt_llm_with_history(
+            llm, PROMPT_ALL_LEAVES_DONE, current_messages[-8:]
+        )
     evaluation = state.leaf_evaluation
     if evaluation and evaluation.status == "partial":
-        # Get messages from leaf_history for follow-up context
         leaf_messages = await db.LeafHistoryManager.get_messages(state.active_leaf_id)
-        accumulated_texts = _format_history_messages(leaf_messages)
+        history = _build_leaf_history(leaf_messages, current_messages)
         prompt = PROMPT_LEAF_FOLLOWUP.format(
-            leaf_path=current_leaf_path,
-            accumulated_messages="\n\n".join(accumulated_texts)
-            or "User provided partial answer",
-            reason=evaluation.reason,
+            leaf_path=current_leaf_path, reason=evaluation.reason
         )
-        return await _prompt_llm(llm, prompt, "Ask a follow-up question.")
+        return await _prompt_llm_with_history(llm, prompt, history)
     if evaluation and evaluation.status in ("complete", "skipped"):
         completed_path = state.completed_leaf_path or current_leaf_path
         prompt = PROMPT_LEAF_COMPLETE.format(
             completed_leaf=completed_path, next_leaf=current_leaf_path
         )
-        return await _prompt_llm(llm, prompt, "Generate transition.")
-    return await _prompt_llm(
-        llm,
-        PROMPT_LEAF_QUESTION.format(leaf_path=current_leaf_path),
-        "Ask the first question.",
-    )
+        return await _prompt_llm_with_history(llm, prompt, current_messages[-8:])
+    prompt = PROMPT_LEAF_QUESTION.format(leaf_path=current_leaf_path)
+    return await _prompt_llm_with_history(llm, prompt, current_messages[-8:])
+
+
+async def _update_leaf_context(user_id: uuid.UUID, leaf_id: uuid.UUID, text: str):
+    """Update active leaf context, logging errors without raising."""
+    try:
+        await db.ActiveInterviewContextManager.update_active_leaf(
+            user_id, leaf_id, text
+        )
+    except Exception:
+        logger.exception(
+            "Failed to update leaf context", extra={"leaf_id": str(leaf_id)}
+        )
 
 
 async def generate_leaf_response(state: LeafInterviewState, llm: ChatOpenAI):
     """Generate a focused question or response for the current leaf."""
-    if state.all_leaves_done:
-        content = await _prompt_llm(
-            llm, PROMPT_ALL_LEAVES_DONE, "Generate completion message."
-        )
-        return _build_response(AIMessage(content=content))
-
-    current_leaf_path = "Unknown topic"
+    leaf_path = "Unknown topic"
     if state.active_leaf_id:
-        current_leaf_path = await get_leaf_path(state.active_leaf_id, state.area_id)
-    content = await _generate_response_content(state, llm, current_leaf_path)
-    ai_msg = AIMessage(content=content)
-    question_text = normalize_content(content)
+        leaf_path = await get_leaf_path(state.active_leaf_id, state.area_id)
 
-    if state.active_leaf_id:
-        try:
-            await db.ActiveInterviewContextManager.update_active_leaf(
-                state.user.id, state.active_leaf_id, question_text
-            )
-        except Exception:
-            logger.exception(
-                "Failed to update active leaf context",
-                extra={"leaf_id": str(state.active_leaf_id)},
-            )
-            # Continue with degraded behavior - response still generated
+    content = await _generate_response_content(state, llm, leaf_path)
+    question_text = normalize_content(content) if not state.all_leaves_done else None
 
+    if state.active_leaf_id and question_text:
+        await _update_leaf_context(state.user.id, state.active_leaf_id, question_text)
+
+    eval_status = state.leaf_evaluation.status if state.leaf_evaluation else "initial"
     logger.info(
-        "Generated response",
-        extra={
-            "leaf_path": current_leaf_path,
-            "eval_status": state.leaf_evaluation.status
-            if state.leaf_evaluation
-            else "initial",
-        },
+        "Generated response", extra={"leaf_path": leaf_path, "eval_status": eval_status}
     )
-    return _build_response(ai_msg, question_text)
+    return _build_response(AIMessage(content=content), question_text)
 
 
 async def completed_area_response(state: LeafInterviewState, llm: ChatOpenAI):

@@ -236,6 +236,34 @@ Non-retryable HTTP errors (400, 401, 403, 404, etc.) fail immediately.
 - `area_loop/nodes.py` - Area chat with tools
 - `transcribe/extract_text.py` - Audio transcription
 
+## Language Behavior
+
+All user-facing prompts use the `_with_language_rule()` helper which prepends the language matching rule.
+
+This applies to:
+- `PROMPT_SMALL_TALK` - Greetings and app questions
+- `build_area_chat_prompt()` - Area management
+- `PROMPT_LEAF_QUESTION` - Initial leaf questions
+- `PROMPT_LEAF_FOLLOWUP` - Follow-up questions
+- `PROMPT_LEAF_COMPLETE` - Transition to next topic
+- `PROMPT_LEAF_SUMMARY` - Summary extraction (preserves user's language in summaries)
+- `PROMPT_ALL_LEAVES_DONE` - Completion message
+- `PROMPT_COMPLETED_AREA` - Already-extracted area response
+
+Internal prompts (classification, evaluation, extraction) remain English-only as they don't produce user-visible output.
+
+The rule constant is defined once in `src/shared/prompts.py`:
+```python
+_RULE_MATCH_LANGUAGE = """\
+**CRITICAL - LANGUAGE RULE:**
+Detect the language of the user's LAST message and respond in that SAME language.
+- If user writes in Russian → respond in Russian
+- If user writes in English → respond in English
+- If user writes in Spanish → respond in Spanish
+- And so on for any language
+DO NOT switch languages mid-conversation. Match the user's language exactly."""
+```
+
 ## Known Limitations
 
 1. **Token counting is approximate:** Uses character-based estimation (4 chars per token) rather than model-specific tokenizers for performance.
