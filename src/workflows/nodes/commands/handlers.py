@@ -121,14 +121,20 @@ async def _delete_knowledge(user_id: uuid.UUID, conn: aiosqlite.Connection) -> N
 
 
 async def _delete_area_data(area_id: uuid.UUID, conn: aiosqlite.Connection) -> None:
-    """Delete all data for a single area (summaries, messages)."""
+    """Delete all data for a single area (summaries, leaf history, leaf coverage)."""
     summaries = await db.AreaSummariesManager.list_by_area(area_id, conn)
     for s in summaries:
         await db.AreaSummariesManager.delete(s.id, conn=conn, auto_commit=False)
 
-    messages = await db.LifeAreaMessagesManager.list_by_area(area_id, conn)
-    for m in messages:
-        await db.LifeAreaMessagesManager.delete(m.id, conn=conn, auto_commit=False)
+    # Delete leaf history and coverage for all leaves in this area
+    descendants = await db.LifeAreasManager.get_descendants(area_id, conn)
+    leaf_ids = [d.id for d in descendants]
+    leaf_ids.append(area_id)  # Include root area itself if it's a leaf
+    for leaf_id in leaf_ids:
+        await db.LeafHistoryManager.delete_by_leaf(leaf_id, conn)
+
+    # Delete leaf coverage records for this root area
+    await db.LeafCoverageManager.delete_by_root_area(area_id, conn)
 
 
 async def _delete_user_data(user_id: uuid.UUID) -> None:

@@ -7,8 +7,9 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | Node | Model | Purpose |
 |------|-------|---------|
 | `extract_target` | `gpt-5.1-codex-mini` | Fast intent classification (interview vs areas vs small_talk) |
-| `interview_analysis` | `gpt-5.1-codex-mini` | Sub-area coverage analysis |
-| `interview_response` | `gpt-5.2` | User-facing conversational responses |
+| `quick_evaluate` | `gpt-5.1-codex-mini` | Evaluate user answer for leaf (complete/partial/skipped) |
+| `generate_leaf_response` | `gpt-5.1-codex-mini` | Generate focused questions about single leaf |
+| `leaf_summary` | `gpt-5.1-codex-mini` | Extract summary when leaf completes |
 | `small_talk_response` | `gpt-5.1-codex-mini` | Greetings, app questions, casual chat |
 | `completed_area_response` | `gpt-5.1-codex-mini` | Response when area already extracted |
 | `area_chat` | `gpt-5.1-codex-mini` | Hierarchical area management with tools |
@@ -23,9 +24,10 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 |------|-------------|-----------|
 | `extract_target` | 0.0 | Deterministic classification |
 | `transcribe` | 0.0 | Deterministic transcription |
-| `interview_analysis` | 0.2 | Low variance for structured analysis |
+| `quick_evaluate` | 0.0 | Deterministic evaluation |
 | `area_chat` | 0.2 | Consistent tool-calling behavior |
-| `interview_response` | 0.5 | Natural conversational variation |
+| `generate_leaf_response` | 0.5 | Natural conversational variation |
+| `leaf_summary` | 0.5 | Natural variation in summary phrasing |
 | `small_talk_response` | 0.5 | Natural conversational variation |
 | `completed_area_response` | 0.5 | Natural conversational variation |
 
@@ -38,9 +40,10 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | Category | Limit | Used By |
 |----------|-------|---------|
 | Structured output | 1024 | `extract_target` |
-| Analysis | 4096 | `interview_analysis` (variable-size sub-area output) |
+| Quick evaluate | 256 | `quick_evaluate` (status + reason only) |
+| Leaf response | 1024 | `generate_leaf_response` (short focused questions) |
 | Knowledge extraction | 4096 | `knowledge_extraction` (needs reasoning tokens) |
-| Conversational | 4096 | `interview_response`, `small_talk_response`, `completed_area_response`, `area_chat` |
+| Conversational | 4096 | `small_talk_response`, `completed_area_response`, `area_chat` |
 | Transcription | 8192 | `transcribe` |
 
 ### Input Token Budgets
@@ -63,24 +66,26 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 
 LLM instances are created via lazy-initialized getters in `src/infrastructure/llms.py`:
 
-| Getter | Model | Temperature | Max Tokens | Notes |
-|--------|-------|-------------|------------|-------|
-| `get_llm_extract_target()` | gpt-5.1-codex-mini | 0.0 | 1024 | |
-| `get_llm_transcribe()` | gemini-2.5-flash-lite | 0.0 | 8192 | |
-| `get_llm_interview_analysis()` | gpt-5.1-codex-mini | 0.2 | 4096 | |
-| `get_llm_area_chat()` | gpt-5.1-codex-mini | 0.2 | 4096 | |
-| `get_llm_interview_response()` | gpt-5.2 | 0.5 | 4096 | |
-| `get_llm_small_talk()` | gpt-5.1-codex-mini | 0.5 | 4096 | |
+| Getter | Model | Temperature | Max Tokens | Reasoning | Notes |
+|--------|-------|-------------|------------|-----------|-------|
+| `get_llm_extract_target()` | gpt-5.1-codex-mini | 0.0 | 1024 | low | Structured output |
+| `get_llm_transcribe()` | gemini-2.5-flash-lite | 0.0 | 8192 | n/a | |
+| `get_llm_quick_evaluate()` | gpt-5.1-codex-mini | 0.0 | 256 | low | Structured output |
+| `get_llm_leaf_response()` | gpt-5.1-codex-mini | 0.5 | 1024 | default | |
+| `get_llm_area_chat()` | gpt-5.1-codex-mini | 0.2 | 4096 | default | Tool-calling |
+| `get_llm_small_talk()` | gpt-5.1-codex-mini | 0.5 | 4096 | default | |
 
-These getters use `@lru_cache` to ensure each LLM is only instantiated once. Called by `src/application/graph.py` at graph build time.
+These getters use `@lru_cache` to ensure each LLM is only instantiated once. Called by `src/processes/interview/graph.py` at graph build time.
 
 ### Worker Pool LLMs
 
-The extract worker pool creates its own LLM instance in `src/application/workers/extract_worker.py`:
+The extract worker pool creates its own LLM instance in `src/processes/extract/worker.py`:
 
-| Worker | Model | Max Tokens | Notes |
-|--------|-------|------------|-------|
-| `knowledge_extraction` | gpt-5.1-codex-mini | 4096 | Needs extra tokens for reasoning |
+| Worker | Model | Max Tokens | Reasoning | Notes |
+|--------|-------|------------|-----------|-------|
+| `knowledge_extraction` | gpt-5.1-codex-mini | 4096 | low | Structured output |
+
+Knowledge extraction is queued asynchronously when a leaf interview completes. The extract worker retrieves messages from `leaf_history` and extracts summaries and knowledge items.
 
 ## Prompt Locations
 
@@ -89,8 +94,12 @@ All prompts are centralized in `src/shared/prompts.py`:
 | Purpose | Constant/Function |
 |---------|-------------------|
 | Intent classification | `PROMPT_EXTRACT_TARGET_TEMPLATE`, `build_extract_target_prompt()` |
-| Sub-area coverage analysis | `PROMPT_INTERVIEW_ANALYSIS` |
-| Interview response | `PROMPT_INTERVIEW_RESPONSE_TEMPLATE`, `build_interview_response_prompt()` |
+| Quick evaluate (leaf answer) | `PROMPT_QUICK_EVALUATE` |
+| Leaf question (initial) | `PROMPT_LEAF_QUESTION` |
+| Leaf followup (partial) | `PROMPT_LEAF_FOLLOWUP` |
+| Leaf transition (complete) | `PROMPT_LEAF_COMPLETE` |
+| Leaf summary extraction | `PROMPT_LEAF_SUMMARY` |
+| All leaves done | `PROMPT_ALL_LEAVES_DONE` |
 | Small talk response | `PROMPT_SMALL_TALK` |
 | Completed area response | `PROMPT_COMPLETED_AREA` (in completed_area_response.py) |
 | Hierarchical area management | `PROMPT_AREA_CHAT_TEMPLATE`, `build_area_chat_prompt()` |
@@ -153,28 +162,52 @@ class CreateSubtreeArgs(BaseModel):
 }
 ```
 
-### Interview Analysis Prompt Structure
+### Leaf Interview Prompts
 
-The `interview_analysis` node receives sub-areas in two formats for LLM context:
+The leaf interview flow uses focused prompts for each stage:
 
-1. **Tree text** (`sub_areas_tree`): Indented hierarchy for visual context
-   ```
-   Work
-     Projects
-     Skills
-   Education
-   ```
+1. **Quick Evaluate** (`PROMPT_QUICK_EVALUATE`): Evaluates if user answered a single leaf topic
+   - Input: leaf path, question asked, ALL accumulated messages
+   - Output: status (complete/partial/skipped) + reason
+   - ~300-500 tokens depending on accumulated messages
 
-2. **Paths** (`sub_area_paths`): Unambiguous identifiers for structured output
-   ```
-   ["Work", "Work > Projects", "Work > Skills", "Education"]
-   ```
+2. **Leaf Question** (`PROMPT_LEAF_QUESTION`): Generates initial question about one leaf
+   - Input: leaf path (e.g., "Work > Google > Responsibilities")
+   - Output: Single focused question
+   - ~300 tokens
 
-This dual representation helps the LLM understand hierarchy while producing unambiguous coverage analysis. Paths disambiguate duplicate titles (e.g., "Skills" under "Work" vs "Skills" under "Hobbies").
+3. **Leaf Followup** (`PROMPT_LEAF_FOLLOWUP`): Asks for more detail after partial answer
+   - Input: leaf path, accumulated messages, evaluation reason
+   - Output: Acknowledgment + followup question
+   - ~400 tokens
+
+4. **Leaf Complete** (`PROMPT_LEAF_COMPLETE`): Transitions to next leaf
+   - Input: completed leaf path, next leaf path
+   - Output: Brief ack + question for next topic
+   - ~300 tokens
+
+5. **Leaf Summary** (`PROMPT_LEAF_SUMMARY`): Extracts summary when leaf is complete
+   - Input: leaf path, accumulated conversation messages
+   - Output: 2-4 sentence summary of user's responses for this topic
+   - ~400 tokens
+   - Summary is saved to `leaf_coverage.summary_text` with embedding vector
+
+6. **All Leaves Done** (`PROMPT_ALL_LEAVES_DONE`): Completion message
+   - Output: Thank you + suggestion for next steps
+   - ~200 tokens
+
+### Token Comparison (Old vs New)
+
+| Scenario | Old (interview_analysis) | New (leaf flow) |
+|----------|--------------------------|-----------------|
+| Per turn | 8,000-26,000 | 700-1,200 |
+| 20-turn interview | 500k+ cumulative | ~20k cumulative |
+
+The new flow sends only the current leaf context, not ALL messages and tree structure.
 
 ### Knowledge Extraction Prompt Structure
 
-The `extract_summaries` node in `knowledge_extraction` subgraph also uses the tree/paths format to summarize user responses per sub-area.
+The `extract_summaries` node in `knowledge_extraction` subgraph uses the tree/paths format to summarize user responses per sub-area. When leaf summaries are available (from `leaf_coverage` table), this LLM call is skipped entirely.
 
 ## Error Handling
 
@@ -197,8 +230,7 @@ Non-retryable HTTP errors (400, 401, 403, 404, etc.) fail immediately.
 
 ### Applied to:
 - `extract_target.py` - Intent classification
-- `interview_analysis.py` - Structured output call
-- `interview_response.py` - Chat response
+- `leaf_interview.py` - Quick evaluate, response generation
 - `small_talk_response.py` - Small talk response
 - `completed_area_response.py` - Completed area response
 - `area_loop/nodes.py` - Area chat with tools
@@ -214,6 +246,8 @@ Non-retryable HTTP errors (400, 401, 403, 404, etc.) fail immediately.
 
 4. **Provider-dependent behavior:** OpenRouter may have different rate limits or behaviors than direct API access.
 
+5. **Reasoning models and structured output:** GPT-5.x "codex" models use reasoning tokens (internal thinking) before generating output. Without limits, they can consume all tokens on reasoning, causing `LengthFinishReasonError`. For structured output nodes, reasoning is minimized via `{"reasoning": {"effort": "low"}}`. Note: gpt-5.1-codex-mini only supports "low", "medium", "high" (not "none").
+
 ## LLMClientBuilder
 
 The `LLMClientBuilder` dataclass (`src/infrastructure/ai.py`) standardizes LLM client creation:
@@ -224,6 +258,10 @@ class LLMClientBuilder:
     model: str
     temperature: float | None = None
     max_tokens: int | None = None
+    reasoning: dict | None = None
 ```
 
 All parameters are passed through to ChatOpenAI. Use explicit temperatures for consistency.
+
+The `reasoning` parameter controls reasoning effort for GPT-5.x models:
+- `{"effort": "low"}` - Minimize reasoning for structured output

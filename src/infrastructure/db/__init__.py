@@ -4,9 +4,8 @@ from .connection import execute_with_retry, get_connection, transaction
 from .managers import (
     HistoriesManager,
     History,
+    LeafHistoryManager,
     LifeArea,
-    LifeAreaMessage,
-    LifeAreaMessagesManager,
     LifeAreasManager,
     User,
     UsersManager,
@@ -21,9 +20,8 @@ __all__ = [
     "UsersManager",
     "History",
     "HistoriesManager",
+    "LeafHistoryManager",
     "LifeArea",
     "LifeAreasManager",
-    "LifeAreaMessage",
-    "LifeAreaMessagesManager",
     "init_schema_async",
 ]

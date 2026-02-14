@@ -2,7 +2,15 @@
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
-__all__ = ["filter_tool_messages"]
+__all__ = ["filter_tool_messages", "format_role"]
+
+
+def format_role(role: str) -> str:
+    """Normalize message role for display (User, AI, Tool)."""
+    role_lower = role.lower()
+    if role_lower in ("ai", "assistant"):
+        return "AI"
+    return role.capitalize()
 
 
 def filter_tool_messages(messages: list[BaseMessage]) -> list[BaseMessage]:

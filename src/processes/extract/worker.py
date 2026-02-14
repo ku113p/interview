@@ -22,13 +22,9 @@ logger = logging.getLogger(__name__)
 
 async def _invoke_extraction_graph(task: ExtractTask, graph, worker_id: int) -> None:
     """Invoke the knowledge extraction graph for a task."""
-    extra = {
-        "area_id": str(task.area_id),
-        "user_id": str(task.user_id),
-        "worker_id": worker_id,
-    }
+    extra = {"area_id": str(task.area_id), "worker_id": worker_id}
     logger.info("Processing extract task", extra=extra)
-    state = KnowledgeExtractionState(area_id=task.area_id, user_id=task.user_id)
+    state = KnowledgeExtractionState(area_id=task.area_id)
     await graph.ainvoke(state)
     logger.info("Completed extract task", extra=extra)
 
@@ -61,9 +57,12 @@ async def _extract_worker_loop(worker_id: int, graph, channels: Channels) -> Non
 
 async def run_extract_pool(channels: Channels) -> None:
     """Run the extract worker pool."""
+    # Minimize reasoning for structured output to avoid LengthFinishReasonError
     graph = build_knowledge_extraction_graph(
         LLMClientBuilder(
-            MODEL_KNOWLEDGE_EXTRACTION, max_tokens=MAX_TOKENS_KNOWLEDGE
+            MODEL_KNOWLEDGE_EXTRACTION,
+            max_tokens=MAX_TOKENS_KNOWLEDGE,
+            reasoning={"effort": "low"},
         ).build()
     )
     worker_fn = partial(_extract_worker_loop, graph=graph, channels=channels)

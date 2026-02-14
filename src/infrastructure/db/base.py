@@ -1,12 +1,25 @@
 """Base ORM framework classes."""
 
 import uuid
+from contextlib import asynccontextmanager
 from typing import Any, Generic, TypeVar
 
 import aiosqlite
 
 # Define a TypeVar that represents our Data Objects
 T = TypeVar("T")
+
+
+@asynccontextmanager
+async def _with_conn(conn: aiosqlite.Connection | None):
+    """Context manager that uses provided conn or creates a new one."""
+    from src.infrastructure.db.connection import get_connection
+
+    if conn is not None:
+        yield conn
+    else:
+        async with get_connection() as local_conn:
+            yield local_conn
 
 
 class ORMBase(Generic[T]):
@@ -86,6 +99,44 @@ class ORMBase(Generic[T]):
         if row is None:
             return None
         return cls._row_to_obj(row)
+
+    @classmethod
+    async def get_by_ids(
+        cls, ids: list[uuid.UUID], conn: aiosqlite.Connection | None = None
+    ) -> list[T]:
+        """Retrieve multiple objects by IDs in a single batch query.
+
+        Args:
+            ids: List of UUIDs to retrieve.
+            conn: Optional existing connection.
+
+        Returns:
+            List of objects in the same order as the input IDs.
+            Missing IDs are silently skipped in the result.
+        """
+        from src.infrastructure.db.connection import get_connection
+
+        if not ids:
+            return []
+
+        id_strs = [str(id_) for id_ in ids]
+        placeholders = ", ".join(["?"] * len(id_strs))
+        query = (
+            f"SELECT {', '.join(cls._columns)} FROM {cls._table} "
+            f"WHERE id IN ({placeholders})"
+        )
+
+        if conn is None:
+            async with get_connection() as local_conn:
+                cursor = await local_conn.execute(query, id_strs)
+                rows = await cursor.fetchall()
+        else:
+            cursor = await conn.execute(query, id_strs)
+            rows = await cursor.fetchall()
+
+        # Build dict for O(1) lookup, return in input order
+        result_dict = {row["id"]: cls._row_to_obj(row) for row in rows}
+        return [result_dict[id_str] for id_str in id_strs if id_str in result_dict]
 
     @classmethod
     async def list(cls, conn: aiosqlite.Connection | None = None) -> list[T]:

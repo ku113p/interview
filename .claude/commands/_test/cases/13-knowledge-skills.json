@@ -1,10 +1,12 @@
 {
   "name": "Knowledge - Skill Extraction",
-  "description": "Test extraction of technical skills from interview answers",
+  "description": "Test extraction of technical skills from leaf-by-leaf interview",
   "inputs": [
     "Create area Technical Skills with sub-areas: Languages, Frameworks",
-    "I've been working with Python for 7 years. I use pandas for data analysis and FastAPI for APIs.",
-    "yes that covers my skills",
+    "For programming languages I've been working with Python for 7 years and TypeScript for 3 years",
+    "yes that covers languages",
+    "For frameworks I use pandas for data analysis, FastAPI for APIs, and React for frontend",
+    "yes that covers frameworks",
     "/exit"
   ],
   "expected": {

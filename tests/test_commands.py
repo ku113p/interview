@@ -421,19 +421,7 @@ class TestDeleteUserDataCascade:
             ),
         )
 
-        # Create area message
-        msg_id = new_id()
-        await db.LifeAreaMessagesManager.create(
-            msg_id,
-            db.LifeAreaMessage(
-                id=msg_id,
-                message_text="test message",
-                area_id=area_id,
-                created_ts=time.time(),
-            ),
-        )
-
-        # Create history
+        # Create history and link to leaf
         history_id = new_id()
         await db.HistoriesManager.create(
             history_id,
@@ -444,6 +432,7 @@ class TestDeleteUserDataCascade:
                 created_ts=time.time(),
             ),
         )
+        await db.LeafHistoryManager.link(area_id, history_id)
 
         # Set up valid token and confirm deletion
         _delete_tokens.clear()
@@ -456,7 +445,6 @@ class TestDeleteUserDataCascade:
         # Assert - all data should be deleted
         assert await db.UsersManager.get_by_id(sample_user.id) is None
         assert len(await db.LifeAreasManager.list_by_user(sample_user.id)) == 0
-        assert len(await db.LifeAreaMessagesManager.list_by_area(area_id)) == 0
         assert len(await db.HistoriesManager.list_by_user(sample_user.id)) == 0
 
 
@@ -690,8 +678,8 @@ class TestHandleResetAreaConfirm:
         _reset_area_token_lookup.clear()
         now = time.time()
 
-        # Create area with extraction, summary, and message
-        area_id, summary_id, msg_id = new_id(), new_id(), new_id()
+        # Create area with extraction and summary
+        area_id, summary_id, history_id = new_id(), new_id(), new_id()
         await db.LifeAreasManager.create(
             area_id,
             db.LifeArea(
@@ -712,15 +700,17 @@ class TestHandleResetAreaConfirm:
                 created_ts=now,
             ),
         )
-        await db.LifeAreaMessagesManager.create(
-            msg_id,
-            db.LifeAreaMessage(
-                id=msg_id,
-                message_text="test",
-                area_id=area_id,
+        # Create history and link to leaf
+        await db.HistoriesManager.create(
+            history_id,
+            db.History(
+                id=history_id,
+                message_data={"role": "user", "content": "test"},
+                user_id=sample_user.id,
                 created_ts=now,
             ),
         )
+        await db.LeafHistoryManager.link(area_id, history_id)
 
         # Set up valid token (both forward and reverse lookups)
         token = "valid_token"
@@ -731,7 +721,6 @@ class TestHandleResetAreaConfirm:
 
         assert "Reset complete" in result and "My Area" in result
         assert await db.AreaSummariesManager.list_by_area(area_id) == []
-        assert await db.LifeAreaMessagesManager.list_by_area(area_id) == []
 
         area = await db.LifeAreasManager.get_by_id(area_id)
         assert area is not None and area.extracted_at is None

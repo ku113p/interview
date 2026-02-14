@@ -3,12 +3,8 @@
 This module provides a single import point for all database entities.
 """
 
-# Domain Models
 # Area Data Managers
-from .area_data_managers import (
-    AreaSummariesManager,
-    LifeAreaMessagesManager,
-)
+from .area_data_managers import AreaSummariesManager
 
 # Core Managers
 from .core_managers import (
@@ -17,16 +13,24 @@ from .core_managers import (
     UsersManager,
 )
 
+# Interview Managers
+from .interview_managers import (
+    ActiveInterviewContextManager,
+    LeafCoverageManager,
+    LeafHistoryManager,
+)
+
 # Knowledge Managers
 from .knowledge_managers import (
     UserKnowledgeAreasManager,
     UserKnowledgeManager,
 )
 from .models import (
+    ActiveInterviewContext,
     AreaSummary,
     History,
+    LeafCoverage,
     LifeArea,
-    LifeAreaMessage,
     User,
     UserKnowledge,
     UserKnowledgeArea,
@@ -34,18 +38,21 @@ from .models import (
 
 __all__ = [
     # Models
+    "ActiveInterviewContext",
     "AreaSummary",
     "History",
+    "LeafCoverage",
     "LifeArea",
-    "LifeAreaMessage",
     "User",
     "UserKnowledge",
     "UserKnowledgeArea",
     # Managers
+    "ActiveInterviewContextManager",
     "AreaSummariesManager",
     "HistoriesManager",
+    "LeafCoverageManager",
+    "LeafHistoryManager",
     "LifeAreasManager",
-    "LifeAreaMessagesManager",
     "UserKnowledgeAreasManager",
     "UserKnowledgeManager",
     "UsersManager",

@@ -4,6 +4,9 @@ import uuid
 from dataclasses import dataclass
 
 from src.infrastructure.db.models import LifeArea
+from src.shared.cache import TTLCache
+
+_path_cache = TTLCache(ttl=60.0)
 
 
 @dataclass
@@ -92,3 +95,31 @@ def build_tree_text(
 
     # Start from direct children of root_parent_id
     return "\n".join(render(root_parent_id, 0))
+
+
+async def get_leaf_path(leaf_id: uuid.UUID, root_area_id: uuid.UUID) -> str:
+    """Get human-readable path for a leaf area (cached 60s).
+
+    Args:
+        leaf_id: The leaf area ID to look up
+        root_area_id: The root area ID for building the path
+
+    Returns:
+        Path string like "Work > Projects" or "Unknown" if not found
+    """
+    cache_key = str(leaf_id)
+    cached = _path_cache.get(cache_key)
+    if cached:
+        return cached
+
+    from src.infrastructure.db import managers as db
+
+    descendants = await db.LifeAreasManager.get_descendants(root_area_id)
+    info_list = build_sub_area_info(descendants, root_area_id)
+
+    for info in info_list:
+        if info.area.id == leaf_id:
+            _path_cache.set(cache_key, info.path)
+            return info.path
+
+    return "Unknown"

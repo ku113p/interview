@@ -1,10 +1,12 @@
 {
   "name": "Tree Sub-Areas Full Flow",
-  "description": "Tests hierarchical sub-area creation and interview flow through knowledge extraction",
+  "description": "Tests hierarchical sub-area creation and leaf-by-leaf interview through knowledge extraction",
   "inputs": [
     "Create area Career Development with 3 sub-areas: Work, Projects under Work, Skills under Work",
-    "I'm a senior backend engineer at a fintech startup. I built an API gateway handling 50k RPS using Python/FastAPI and Redis. I have 7 years Python, 3 years TypeScript, expert in PostgreSQL. My strengths are system design, API architecture, and performance optimization. I also mentor juniors.",
-    "yes that covers everything about my work, projects and skills",
+    "For projects I built an API gateway handling 50k RPS using Python/FastAPI and Redis",
+    "yes that covers projects",
+    "My technical skills include 7 years Python, 3 years TypeScript, and expertise in PostgreSQL",
+    "yes that covers skills",
     "/exit"
   ],
   "expected": {
@@ -14,5 +16,5 @@
     "summaries": true,
     "knowledge": true
   },
-  "notes": "Verifies: (1) hierarchical area structure, (2) tree paths in LLM prompts, (3) knowledge extraction"
+  "notes": "Verifies: (1) hierarchical area structure, (2) leaf-by-leaf interview (only Projects and Skills are leaves), (3) knowledge extraction"
 }

@@ -101,8 +101,8 @@ class TestGetDescendants:
         assert "Grandchild1" in titles
 
     @pytest.mark.asyncio
-    async def test_get_descendants_ordered_by_title(self, temp_db):
-        """Should return descendants sorted alphabetically by title."""
+    async def test_get_descendants_ordered_by_id(self, temp_db):
+        """Should return descendants sorted by UUID7 (creation order)."""
         # Arrange
         user_id = new_id()
         parent_id = new_id()
@@ -111,7 +111,7 @@ class TestGetDescendants:
         )
         await db.LifeAreasManager.create(parent_id, parent)
 
-        # Create children in non-alphabetical order
+        # Create children in specific order
         for title in ["Zebra", "Apple", "Mango"]:
             child_id = new_id()
             child = db.LifeArea(
@@ -122,9 +122,9 @@ class TestGetDescendants:
         # Act
         descendants = await db.LifeAreasManager.get_descendants(parent_id)
 
-        # Assert - should be alphabetically sorted
+        # Assert - should be sorted by UUID7 (creation order)
         titles = [d.title for d in descendants]
-        assert titles == ["Apple", "Mango", "Zebra"]
+        assert titles == ["Zebra", "Apple", "Mango"]
 
     @pytest.mark.asyncio
     async def test_get_descendants_does_not_include_parent(self, temp_db):
