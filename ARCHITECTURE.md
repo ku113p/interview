@@ -142,6 +142,15 @@ Handles media input processing.
 - Converts video/audio to WAV
 - Transcribes audio to text
 
+### leaf_interview
+Focused interview flow asking one leaf at a time. See [leaf_interview section](#leaf_interview-subgraph) above for flow diagram and node details.
+
+**Key files:**
+- `src/workflows/subgraphs/leaf_interview/graph.py` - Graph builder
+- `src/workflows/subgraphs/leaf_interview/nodes.py` - Node implementations
+- `src/workflows/subgraphs/leaf_interview/state.py` - LeafInterviewState model
+- `src/workflows/subgraphs/leaf_interview/routers.py` - Routing logic
+
 ### area_loop
 Tool-calling loop for hierarchical area management.
 - `area_chat`: LLM with bound tools
@@ -259,6 +268,8 @@ Key: Each process only imports **interfaces** from other processes, never implem
 | `processes/interview/graph.py` | Main LangGraph workflow |
 | `processes/interview/state.py` | Main workflow state model |
 | `processes/extract/worker.py` | Extract worker pool |
+| `workflows/subgraphs/leaf_interview/graph.py` | Leaf interview subgraph |
+| `workflows/subgraphs/leaf_interview/nodes.py` | Leaf interview node implementations |
 | `runtime/channels.py` | Channel types and Channels dataclass |
 | `runtime/pool.py` | Generic `run_worker_pool()` utility |
 
