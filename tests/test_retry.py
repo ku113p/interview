@@ -63,7 +63,14 @@ class TestIsRetryableException:
         assert not _is_retryable_exception(exc)
 
     def test_value_error_not_retryable(self):
-        assert not _is_retryable_exception(ValueError("not retryable"))
+        assert not _is_retryable_exception(ValueError("some generic error"))
+
+    def test_structured_output_value_error_is_retryable(self):
+        exc = ValueError(
+            "Structured Output response does not have a 'parsed' field "
+            "nor a 'refusal' field."
+        )
+        assert _is_retryable_exception(exc)
 
 
 class TestInvokeWithRetry:
@@ -145,6 +152,26 @@ class TestInvokeWithRetry:
             await invoke_with_retry(always_fails, max_attempts=3, initial_wait=0.01)
 
         assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_retries_on_structured_output_error(self):
+        call_count = 0
+
+        async def failing_then_success():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ValueError(
+                    "Structured Output response does not have a 'parsed' field "
+                    "nor a 'refusal' field."
+                )
+            return "recovered"
+
+        result = await invoke_with_retry(
+            failing_then_success, max_attempts=3, initial_wait=0.01
+        )
+        assert result == "recovered"
+        assert call_count == 2
 
     @pytest.mark.asyncio
     async def test_does_not_retry_non_retryable_exception(self):

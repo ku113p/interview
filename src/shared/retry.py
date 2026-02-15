@@ -28,11 +28,17 @@ def _is_retryable_exception(exc: BaseException) -> bool:
     - ConnectionError: Network connectivity issues
     - TimeoutError: Request timeouts
     - HTTPStatusError: Only for specific status codes (429, 5xx server errors)
+    - ValueError: Structured output parsing failures from OpenAI when reasoning
+      models exhaust max_completion_tokens before producing valid JSON. The check
+      matches "Structured Output response" substring which is specific to OpenAI's
+      error message format (e.g., "Structured Output response did not match...").
     """
     if isinstance(exc, (ConnectionError, TimeoutError)):
         return True
     if isinstance(exc, HTTPStatusError):
         return exc.response.status_code in RETRYABLE_STATUS_CODES
+    if isinstance(exc, ValueError) and "Structured Output response" in str(exc):
+        return True
     return False
 
 
