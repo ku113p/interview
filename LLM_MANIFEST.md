@@ -40,7 +40,7 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | Category | Limit | Used By |
 |----------|-------|---------|
 | Structured output | 1024 | `extract_target` |
-| Quick evaluate | 256 | `quick_evaluate` (status + reason only) |
+| Quick evaluate | 1024 | `quick_evaluate` (reasoning model needs headroom) |
 | Leaf response | 1024 | `generate_leaf_response` (short focused questions) |
 | Knowledge extraction | 4096 | `knowledge_extraction` (needs reasoning tokens) |
 | Conversational | 4096 | `small_talk_response`, `completed_area_response`, `area_chat` |
@@ -70,7 +70,7 @@ LLM instances are created via lazy-initialized getters in `src/infrastructure/ll
 |--------|-------|-------------|------------|-----------|-------|
 | `get_llm_extract_target()` | gpt-5.1-codex-mini | 0.0 | 1024 | low | Structured output |
 | `get_llm_transcribe()` | gemini-2.5-flash-lite | 0.0 | 8192 | n/a | |
-| `get_llm_quick_evaluate()` | gpt-5.1-codex-mini | 0.0 | 256 | low | Structured output |
+| `get_llm_quick_evaluate()` | gpt-5.1-codex-mini | 0.0 | 1024 | low | Structured output |
 | `get_llm_leaf_response()` | gpt-5.1-codex-mini | 0.5 | 1024 | default | |
 | `get_llm_area_chat()` | gpt-5.1-codex-mini | 0.2 | 4096 | default | Tool-calling |
 | `get_llm_small_talk()` | gpt-5.1-codex-mini | 0.5 | 4096 | default | |
@@ -177,13 +177,15 @@ The leaf interview flow uses focused prompts for each stage:
    - ~300 tokens
 
 3. **Leaf Followup** (`PROMPT_LEAF_FOLLOWUP`): Asks for more detail after partial answer
-   - Input: leaf path, accumulated messages, evaluation reason
-   - Output: Acknowledgment + followup question
+   - Input: leaf path, evaluation reason
+   - Output: Direct factual question (no motivational language)
+   - History: Only leaf-specific messages + latest user message (prevents topic contamination)
    - ~400 tokens
 
 4. **Leaf Complete** (`PROMPT_LEAF_COMPLETE`): Transitions to next leaf
    - Input: completed leaf path, next leaf path
-   - Output: Brief ack + question for next topic
+   - Output: Brief ack (3-5 words) + question for next topic
+   - History: Empty (prevents contamination from previous topic)
    - ~300 tokens
 
 5. **Leaf Summary** (`PROMPT_LEAF_SUMMARY`): Extracts summary when leaf is complete
@@ -223,8 +225,9 @@ LLM API calls use exponential backoff retry:
   - `TimeoutError` - Request timeouts
   - HTTP 429 - Rate limits
   - HTTP 500, 502, 503, 504 - Server errors
+  - `ValueError` containing "Structured Output response" - Reasoning model token exhaustion (all tokens consumed by reasoning, no parsed output)
 
-Non-retryable HTTP errors (400, 401, 403, 404, etc.) fail immediately.
+Non-retryable HTTP errors (400, 401, 403, 404, etc.) and generic `ValueError`s fail immediately.
 
 **Implementation:** `src/shared/retry.py`
 
@@ -274,7 +277,7 @@ DO NOT switch languages mid-conversation. Match the user's language exactly."""
 
 4. **Provider-dependent behavior:** OpenRouter may have different rate limits or behaviors than direct API access.
 
-5. **Reasoning models and structured output:** GPT-5.x "codex" models use reasoning tokens (internal thinking) before generating output. Without limits, they can consume all tokens on reasoning, causing `LengthFinishReasonError`. For structured output nodes, reasoning is minimized via `{"reasoning": {"effort": "low"}}`. Note: gpt-5.1-codex-mini only supports "low", "medium", "high" (not "none").
+5. **Reasoning models and structured output:** GPT-5.x "codex" models use reasoning tokens (internal thinking) before generating output. With low token budgets, the model can consume all tokens on reasoning, leaving none for output — the API returns successfully but with no `parsed` field, causing LangChain to throw `ValueError`. This is mitigated by: (a) ample token budgets (1024+ for structured output), (b) retrying the `ValueError` since reasoning consumption is non-deterministic, (c) graceful fallback in `quick_evaluate`. Reasoning is minimized via `{"reasoning": {"effort": "low"}}`. Note: gpt-5.1-codex-mini only supports "low", "medium", "high" (not "none").
 
 ## LLMClientBuilder
 

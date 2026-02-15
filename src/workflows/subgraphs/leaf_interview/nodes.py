@@ -3,13 +3,13 @@
 import logging
 import uuid
 
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET
 from src.infrastructure.db import managers as db
 from src.shared.interview_models import LeafEvaluation
-from src.shared.messages import filter_tool_messages, format_role
+from src.shared.messages import filter_tool_messages
 from src.shared.prompts import (
     PROMPT_ALL_LEAVES_DONE,
     PROMPT_COMPLETED_AREA,
@@ -23,6 +23,11 @@ from src.shared.retry import invoke_with_retry
 from src.shared.timestamp import get_timestamp
 from src.shared.tree_utils import SubAreaInfo, build_sub_area_info, get_leaf_path
 from src.shared.utils.content import normalize_content
+from src.workflows.subgraphs.leaf_interview.helpers import (
+    accumulate_with_current,
+    build_leaf_history,
+    format_history_messages,
+)
 from src.workflows.subgraphs.leaf_interview.state import LeafInterviewState
 
 logger = logging.getLogger(__name__)
@@ -192,54 +197,12 @@ async def load_interview_context(state: LeafInterviewState):
         return _build_leaf_state(None)
 
 
-def _format_history_messages(messages: list[dict]) -> list[str]:
-    """Format history message dicts as text strings."""
-    texts = []
-    for msg in messages:
-        role = format_role(msg.get("role", "unknown"))
-        content = msg.get("content", "")
-        texts.append(f"{role}: {content}")
-    return texts
-
-
-def _accumulate_with_current(
-    leaf_messages: list[dict], current_messages: list
-) -> list[str]:
-    """Build accumulated texts from history messages plus current user message."""
-    texts = _format_history_messages(leaf_messages)
-    if current_messages:
-        texts.append(f"User: {normalize_content(current_messages[-1].content)}")
-    return texts
-
-
-def _build_leaf_history(
-    leaf_messages: list[dict], current_messages: list, context_limit: int = 8
-) -> list:
-    """Build chat history from leaf messages plus recent conversation context."""
-    from langchain_core.messages import AIMessage, HumanMessage
-
-    history = []
-    for msg in leaf_messages:
-        role, content = msg.get("role", ""), msg.get("content", "")
-        if role in ("user", "human"):
-            history.append(HumanMessage(content=content))
-        elif role in ("assistant", "ai"):
-            history.append(AIMessage(content=content))
-    if current_messages:
-        existing_content = {msg.content for msg in history}
-        for msg in current_messages[-context_limit:]:
-            if msg.content not in existing_content:
-                history.append(msg)
-                existing_content.add(msg.content)
-    return history
-
-
 async def _evaluate_leaf_response(
     state: LeafInterviewState, llm: ChatOpenAI, leaf_messages: list[dict]
 ) -> LeafEvaluation:
     """Run LLM evaluation on accumulated messages."""
     current_messages = filter_tool_messages(state.messages)
-    accumulated_texts = _accumulate_with_current(leaf_messages, current_messages)
+    accumulated_texts = accumulate_with_current(leaf_messages, current_messages)
     leaf_path = await get_leaf_path(state.active_leaf_id, state.area_id)
     prompt = PROMPT_QUICK_EVALUATE.format(
         leaf_path=leaf_path,
@@ -271,7 +234,18 @@ async def quick_evaluate(state: LeafInterviewState, llm: ChatOpenAI):
         )
         return {"leaf_evaluation": None, "is_successful": True}
 
-    result = await _evaluate_leaf_response(state, llm, leaf_messages)
+    try:
+        result = await _evaluate_leaf_response(state, llm, leaf_messages)
+    except Exception:
+        logger.exception(
+            "Failed to evaluate leaf response",
+            extra={"leaf_id": str(state.active_leaf_id)},
+        )
+        return {
+            "leaf_evaluation": LeafEvaluation(
+                status="partial", reason="Evaluation failed"
+            )
+        }
     logger.info(
         "Evaluation complete",
         extra={"leaf_id": str(state.active_leaf_id), "status": result.status},
@@ -283,15 +257,13 @@ async def _extract_leaf_summary(
     state: LeafInterviewState, llm: ChatOpenAI
 ) -> str | None:
     """Extract a summary of the user's responses for this leaf."""
-    from langchain_core.messages import HumanMessage
-
     leaf_messages = await db.LeafHistoryManager.get_messages(state.active_leaf_id)
     if not leaf_messages:
         return None
 
     # Add current user message not yet in history
     current_messages = filter_tool_messages(state.messages)
-    message_texts = _format_history_messages(leaf_messages)
+    message_texts = format_history_messages(leaf_messages)
     if current_messages:
         message_texts.append(f"User: {normalize_content(current_messages[-1].content)}")
 
@@ -431,7 +403,7 @@ async def _generate_response_content(
     evaluation = state.leaf_evaluation
     if evaluation and evaluation.status == "partial":
         leaf_messages = await db.LeafHistoryManager.get_messages(state.active_leaf_id)
-        history = _build_leaf_history(leaf_messages, current_messages)
+        history = build_leaf_history(leaf_messages, current_messages)
         prompt = PROMPT_LEAF_FOLLOWUP.format(
             leaf_path=current_leaf_path, reason=evaluation.reason
         )
@@ -441,7 +413,8 @@ async def _generate_response_content(
         prompt = PROMPT_LEAF_COMPLETE.format(
             completed_leaf=completed_path, next_leaf=current_leaf_path
         )
-        return await _prompt_llm_with_history(llm, prompt, current_messages[-8:])
+        # Don't include history - prevents contamination from previous topic
+        return await _prompt_llm_with_history(llm, prompt, [])
     prompt = PROMPT_LEAF_QUESTION.format(leaf_path=current_leaf_path)
     return await _prompt_llm_with_history(llm, prompt, current_messages[-8:])
 
