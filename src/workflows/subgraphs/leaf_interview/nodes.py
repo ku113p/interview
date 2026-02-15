@@ -131,7 +131,9 @@ async def _create_leaf_context(
     )
     async with transaction() as conn:
         await db.ActiveInterviewContextManager.create(user_id, ctx, conn=conn)
-        await db.LeafCoverageManager.update_status(leaf.area.id, "active", now, conn)
+        await db.LeafCoverageManager.update_status(
+            leaf.area.id, "active", now, conn=conn
+        )
 
 
 def _find_existing_context_state(
@@ -280,43 +282,53 @@ async def _extract_leaf_summary(
     return normalize_content(response.content)
 
 
-async def _save_leaf_summary(
-    state: LeafInterviewState, llm: ChatOpenAI, now: float
-) -> None:
-    """Extract and save summary for a covered leaf. Errors are logged and suppressed."""
+async def _prepare_leaf_summary(
+    state: LeafInterviewState, llm: ChatOpenAI
+) -> tuple[str, list[float]] | None:
+    """Extract summary text and embedding vector for a covered leaf."""
     from src.infrastructure.embeddings import get_embedding_client
 
     summary = await _extract_leaf_summary(state, llm)
     if not summary:
-        return
+        return None
     embed_client = get_embedding_client()
     vector = await invoke_with_retry(lambda: embed_client.aembed_query(summary))
-    await db.LeafCoverageManager.save_summary(
-        state.active_leaf_id, summary, vector, now
-    )
-    logger.info(
-        "Saved leaf summary",
-        extra={"leaf_id": str(state.active_leaf_id), "summary_len": len(summary)},
-    )
+    return summary, vector
 
 
 async def _mark_leaf_complete(
     state: LeafInterviewState, evaluation: LeafEvaluation, llm: ChatOpenAI
 ) -> None:
-    """Mark leaf as covered/skipped and extract summary if covered."""
+    """Mark leaf as covered/skipped and save summary if covered."""
+    from src.infrastructure.db.connection import transaction
+
     now = get_timestamp()
     status = "covered" if evaluation.status == "complete" else "skipped"
 
+    # Compute phase — LLM + embedding work, no DB lock held
+    summary_data = None
     if status == "covered":
-        try:
-            await _save_leaf_summary(state, llm, now)
-        except Exception:
-            logger.exception(
-                "Failed to extract leaf summary",
-                extra={"leaf_id": str(state.active_leaf_id)},
-            )
+        summary_data = await _prepare_leaf_summary(state, llm)
 
-    await db.LeafCoverageManager.update_status(state.active_leaf_id, status, now)
+    # Persist phase — both writes atomic
+    async with transaction() as conn:
+        if summary_data is not None:
+            summary, vector = summary_data
+            await db.LeafCoverageManager.save_summary(
+                state.active_leaf_id, summary, vector, now, conn=conn
+            )
+        await db.LeafCoverageManager.update_status(
+            state.active_leaf_id, status, now, conn=conn
+        )
+
+    if summary_data is not None:
+        logger.info(
+            "Saved leaf summary",
+            extra={
+                "leaf_id": str(state.active_leaf_id),
+                "summary_len": len(summary_data[0]),
+            },
+        )
     logger.info(
         "Leaf marked as %s", status, extra={"leaf_id": str(state.active_leaf_id)}
     )

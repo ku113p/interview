@@ -26,7 +26,7 @@ async with get_connection() as conn:          # <-- no automatic rollback!
 
 ---
 
-### Issue 2 (HIGH) — `update_coverage_status` performs two independent saves without a transaction
+### ~~Issue 2 (HIGH) — `update_coverage_status` performs two independent saves without a transaction~~ FIXED
 
 **File**: `src/workflows/subgraphs/leaf_interview/nodes.py:303-322`
 
@@ -179,7 +179,7 @@ None of these apply to the current project.
 | `_create_leaf_context` (context + coverage) | `leaf_interview/nodes.py:132` | YES | YES | SAFE |
 | `_transition_to_next_leaf` (context + coverage) | `leaf_interview/nodes.py:346` | YES | YES | SAFE |
 | `_ensure_coverage_records` (coverage) | `leaf_interview/nodes.py:56-67` | NO | NO | LOW — INSERT OR IGNORE, idempotent |
-| `_mark_leaf_complete` (summary + status) | `leaf_interview/nodes.py:303` | NO | NO | **BUG** — summary error swallowed |
+| `_mark_leaf_complete` (summary + status) | `leaf_interview/nodes.py:303` | YES | YES | ~~**BUG**~~ FIXED — atomic transaction |
 | `_update_leaf_context` (question text) | `leaf_interview/nodes.py:422` | NO | NO | LOW — non-critical metadata |
 | `area_tools` (CRUD) | `area_loop/nodes.py` | YES | YES | SAFE |
 | `save_summary` (area summary) | `knowledge_extraction/nodes.py:275` | NO | NO | MEDIUM — orphan if next step fails |
