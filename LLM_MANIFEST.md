@@ -141,7 +141,6 @@ class SubAreaNode(BaseModel):
     children: list[SubAreaNode] = []
 
 class CreateSubtreeArgs(BaseModel):
-    user_id: str
     parent_id: str  # Attach subtree under this area
     subtree: list[SubAreaNode]
 ```

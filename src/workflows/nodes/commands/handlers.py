@@ -113,7 +113,7 @@ async def _delete_knowledge(user_id: uuid.UUID, conn: aiosqlite.Connection) -> N
 
     for link in knowledge_links:
         await db.UserKnowledgeAreasManager.delete_link(
-            link.user_id, link.knowledge_id, conn=conn, auto_commit=False
+            link.knowledge_id, conn=conn, auto_commit=False
         )
 
     for kid in knowledge_ids:
@@ -121,11 +121,7 @@ async def _delete_knowledge(user_id: uuid.UUID, conn: aiosqlite.Connection) -> N
 
 
 async def _delete_area_data(area_id: uuid.UUID, conn: aiosqlite.Connection) -> None:
-    """Delete all data for a single area (summaries, leaf history, leaf coverage)."""
-    summaries = await db.AreaSummariesManager.list_by_area(area_id, conn)
-    for s in summaries:
-        await db.AreaSummariesManager.delete(s.id, conn=conn, auto_commit=False)
-
+    """Delete all data for a single area (leaf history, leaf coverage)."""
     # Delete leaf history and coverage for all leaves in this area
     descendants = await db.LifeAreasManager.get_descendants(area_id, conn)
     leaf_ids = [d.id for d in descendants]

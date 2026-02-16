@@ -4,12 +4,12 @@ import json
 import logging
 import uuid
 
+import aiosqlite
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
-from src.shared.messages import format_role
 from src.shared.timestamp import get_timestamp
 from src.shared.tree_utils import build_sub_area_info, build_tree_text
 
@@ -18,7 +18,6 @@ from .knowledge_nodes import (
     KnowledgeExtractionResult,
     KnowledgeItem,
     extract_knowledge,
-    save_knowledge,
 )
 from .state import KnowledgeExtractionState
 
@@ -38,9 +37,8 @@ __all__ = [
     "extract_knowledge",
     "extract_summaries",
     "load_area_data",
-    "mark_area_extracted",
-    "save_knowledge",
-    "save_summary",
+    "persist_extraction",
+    "prepare_summary",
 ]
 
 
@@ -76,23 +74,29 @@ def _collect_leaf_summaries(
 
 
 async def _load_leaf_area_data(area: db.LifeArea, area_id: uuid.UUID) -> dict:
-    """Load data for leaf area (no descendants) from leaf_history."""
-    messages = await db.LeafHistoryManager.get_messages(area_id)
-    if not messages:
-        logger.info("No messages for leaf area", extra={"area_id": str(area_id)})
+    """Load data for leaf area (no descendants) from leaf_coverage summary."""
+    leaf_coverage = await db.LeafCoverageManager.get_by_id(area_id)
+    if not leaf_coverage:
+        logger.info("No coverage record for leaf area", extra={"area_id": str(area_id)})
+        return {"is_successful": False}
+    if not leaf_coverage.summary_text:
+        logger.info(
+            "Coverage record has no summary text", extra={"area_id": str(area_id)}
+        )
         return {"is_successful": False}
 
-    message_texts = [f"{format_role(m['role'])}: {m['content']}" for m in messages]
     logger.info(
-        "Loaded leaf area messages",
-        extra={"area_id": str(area_id), "message_count": len(messages)},
+        "Loaded leaf area summary from coverage",
+        extra={"area_id": str(area_id)},
     )
     return {
         "area_title": area.title,
         "sub_areas_tree": area.title,
         "sub_area_paths": [area.title],
-        "messages": message_texts,
-        "use_leaf_summaries": False,
+        "messages": [],
+        "extracted_summary": {area.title: leaf_coverage.summary_text},
+        "use_leaf_summaries": True,
+        "is_leaf": True,
         "user_id": area.user_id,
     }
 
@@ -138,7 +142,7 @@ async def load_area_data(state: KnowledgeExtractionState) -> dict:
     """Load area data including title, sub-areas, and summaries.
 
     Handles two cases:
-    1. Leaf area (no descendants): Get messages from leaf_history for direct extraction
+    1. Leaf area (no descendants): Read summary from leaf_coverage.summary_text
     2. Root area (has descendants): Use pre-extracted leaf summaries from leaf_coverage
     """
     area_id = state.area_id
@@ -233,13 +237,13 @@ def _build_summary_content(extracted_summary: dict[str, str]) -> str:
     return "\n".join(parts)
 
 
-async def save_summary(state: KnowledgeExtractionState) -> dict:
-    """Save summary with embedding to area_summaries table.
+async def prepare_summary(state: KnowledgeExtractionState) -> dict:
+    """Generate embedding vector for the combined summary content.
 
     This node:
     1. Combines extracted summaries into a single content string
     2. Generates an embedding vector for the content
-    3. Saves to area_summaries table
+    3. Returns vector in state for atomic persistence in persist_extraction
 
     Note: The success check is handled by the router before this node.
     """
@@ -249,45 +253,96 @@ async def save_summary(state: KnowledgeExtractionState) -> dict:
 
     if not summary_content:
         logger.info(
-            "Skipping summary save - no meaningful content",
+            "Skipping summary - no meaningful content",
             extra={"area_id": str(state.area_id)},
         )
         return {"summary_content": ""}
 
+    if not state.is_leaf:
+        logger.info(
+            "Skipping embedding for root area",
+            extra={"area_id": str(state.area_id)},
+        )
+        return {"summary_content": summary_content}
+
     embed_client = get_embedding_client()
     try:
-        embedding = await embed_client.aembed_query(summary_content)
+        vector = await embed_client.aembed_query(summary_content)
     except Exception:
         logger.exception(
             "Failed to generate embedding for summary",
             extra={"area_id": str(state.area_id)},
         )
-        return {"summary_content": ""}
-
-    summary_id = new_id()
-    area_summary = db.AreaSummary(
-        id=summary_id,
-        area_id=state.area_id,
-        summary_text=summary_content,
-        vector=embedding,
-        created_ts=get_timestamp(),
-    )
-    await db.AreaSummariesManager.create(summary_id, area_summary)
+        return {"summary_content": summary_content}
 
     logger.info(
-        "Saved area summary with embedding",
+        "Prepared summary embedding",
         extra={
             "area_id": str(state.area_id),
-            "summary_id": str(summary_id),
             "content_length": len(summary_content),
         },
     )
 
-    return {"summary_content": summary_content}
+    return {"summary_content": summary_content, "summary_vector": vector}
 
 
-async def mark_area_extracted(state: KnowledgeExtractionState) -> dict:
-    """Mark area as extracted after successful knowledge save."""
-    await db.LifeAreasManager.mark_extracted(state.area_id)
-    logger.info("Marked area as extracted", extra={"area_id": str(state.area_id)})
+async def _save_knowledge_items(
+    state: KnowledgeExtractionState, now: float, conn: aiosqlite.Connection
+) -> int:
+    """Save extracted knowledge items and area links within a transaction."""
+    saved_count = 0
+    for item in state.extracted_knowledge:
+        knowledge_id = new_id()
+        knowledge = db.UserKnowledge(
+            id=knowledge_id,
+            description=item["content"],
+            kind=item["kind"],
+            confidence=item["confidence"],
+            created_ts=now,
+        )
+        await db.UserKnowledgeManager.create(
+            knowledge_id, knowledge, conn, auto_commit=False
+        )
+        link = db.UserKnowledgeArea(
+            knowledge_id=knowledge_id,
+            area_id=state.area_id,
+        )
+        await db.UserKnowledgeAreasManager.create_link(link, conn, auto_commit=False)
+        saved_count += 1
+    return saved_count
+
+
+async def persist_extraction(state: KnowledgeExtractionState) -> dict:
+    """Persist all extraction results atomically.
+
+    Writes vector, knowledge items, and mark_extracted in one transaction.
+    """
+    from src.infrastructure.db.connection import transaction
+
+    now = get_timestamp()
+    async with transaction() as conn:
+        # 1. Save leaf vector (for leaf areas)
+        if state.summary_vector:
+            await db.LeafCoverageManager.update_vector(
+                state.area_id, state.summary_vector, now, conn=conn
+            )
+
+        # 2. Save knowledge items + area links
+        saved_count = 0
+        if state.extracted_knowledge and state.user_id:
+            saved_count = await _save_knowledge_items(state, now, conn)
+
+        # 3. Mark area extracted
+        await db.LifeAreasManager.mark_extracted(
+            state.area_id, conn=conn, timestamp=now
+        )
+
+    logger.info(
+        "Persisted extraction atomically",
+        extra={
+            "area_id": str(state.area_id),
+            "has_vector": bool(state.summary_vector),
+            "knowledge_count": saved_count,
+        },
+    )
     return {}

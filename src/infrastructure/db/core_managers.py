@@ -89,20 +89,24 @@ class LifeAreasManager(ORMBase[LifeArea]):
 
     @classmethod
     async def mark_extracted(
-        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
+        cls,
+        area_id: uuid.UUID,
+        conn: aiosqlite.Connection | None = None,
+        timestamp: float | None = None,
     ) -> None:
-        """Mark area as extracted with current timestamp."""
+        """Mark area as extracted with given or current timestamp."""
         from src.shared.timestamp import get_timestamp
 
         from .connection import get_connection
 
+        ts = timestamp if timestamp is not None else get_timestamp()
         query = f"UPDATE {cls._table} SET extracted_at = ? WHERE id = ?"
         if conn is None:
             async with get_connection() as local_conn:
-                await local_conn.execute(query, (get_timestamp(), str(area_id)))
+                await local_conn.execute(query, (ts, str(area_id)))
                 await local_conn.commit()
         else:
-            await conn.execute(query, (get_timestamp(), str(area_id)))
+            await conn.execute(query, (ts, str(area_id)))
 
     @classmethod
     async def reset_extraction(

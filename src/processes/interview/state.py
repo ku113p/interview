@@ -75,3 +75,7 @@ class State(BaseModel):
     leaf_evaluation: LeafEvaluation | None = None
     question_text: str | None = None  # The question we asked for current leaf
     all_leaves_done: bool = False  # True when all leaves covered/skipped
+
+    # Deferred DB write data (collected for atomic persist in save_history)
+    leaf_summary_text: str | None = None
+    leaf_completion_status: str | None = None  # "covered" or "skipped"

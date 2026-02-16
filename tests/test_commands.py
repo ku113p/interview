@@ -678,8 +678,8 @@ class TestHandleResetAreaConfirm:
         _reset_area_token_lookup.clear()
         now = time.time()
 
-        # Create area with extraction and summary
-        area_id, summary_id, history_id = new_id(), new_id(), new_id()
+        # Create area with extraction data
+        area_id, history_id = new_id(), new_id()
         await db.LifeAreasManager.create(
             area_id,
             db.LifeArea(
@@ -688,16 +688,6 @@ class TestHandleResetAreaConfirm:
                 parent_id=None,
                 user_id=sample_user.id,
                 extracted_at=now,
-            ),
-        )
-        await db.AreaSummariesManager.create(
-            summary_id,
-            db.AreaSummary(
-                id=summary_id,
-                area_id=area_id,
-                summary_text="test",
-                vector=[0.1] * 10,
-                created_ts=now,
             ),
         )
         # Create history and link to leaf
@@ -720,7 +710,6 @@ class TestHandleResetAreaConfirm:
         result = await handle_reset_area_confirm(sample_user.id, token)
 
         assert "Reset complete" in result and "My Area" in result
-        assert await db.AreaSummariesManager.list_by_area(area_id) == []
 
         area = await db.LifeAreasManager.get_by_id(area_id)
         assert area is not None and area.extracted_at is None

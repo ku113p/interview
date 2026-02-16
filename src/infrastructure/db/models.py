@@ -30,15 +30,6 @@ class LifeArea:
 
 
 @dataclass
-class AreaSummary:
-    id: uuid.UUID
-    area_id: uuid.UUID
-    summary_text: str
-    vector: list[float]
-    created_ts: float
-
-
-@dataclass
 class UserKnowledge:
     id: uuid.UUID
     description: str
@@ -49,7 +40,6 @@ class UserKnowledge:
 
 @dataclass
 class UserKnowledgeArea:
-    user_id: uuid.UUID
     knowledge_id: uuid.UUID
     area_id: uuid.UUID
 

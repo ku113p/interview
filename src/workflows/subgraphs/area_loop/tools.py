@@ -48,26 +48,16 @@ UUIDStr = Annotated[str, AfterValidator(_validate_uuid)]
 class ListLifeAreasArgs(BaseModel):
     """Arguments for listing life areas."""
 
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
-
 
 class GetLifeAreaArgs(BaseModel):
     """Arguments for getting a single life area."""
 
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
     area_id: UUIDStr = Field(..., description="UUID of the life area to fetch")
 
 
 class CreateLifeAreaArgs(BaseModel):
     """Arguments for creating a life area."""
 
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
     title: str = Field(..., description="Title/name for the new life area")
     parent_id: UUIDStr | None = Field(
         None,
@@ -78,18 +68,12 @@ class CreateLifeAreaArgs(BaseModel):
 class DeleteLifeAreaArgs(BaseModel):
     """Arguments for deleting a life area."""
 
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
     area_id: UUIDStr = Field(..., description="UUID of the life area to delete")
 
 
 class SetCurrentAreaArgs(BaseModel):
     """Arguments for setting the current area for interview."""
 
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
     area_id: UUIDStr = Field(
         ...,
         description="UUID of the life area to set as current for interview",
@@ -109,9 +93,6 @@ class SubAreaNode(BaseModel):
 class CreateSubtreeArgs(BaseModel):
     """Arguments for creating a subtree of life areas."""
 
-    user_id: UUIDStr = Field(
-        ..., description="UUID of the user (provided in system message)"
-    )
     parent_id: UUIDStr = Field(
         ..., description="UUID of parent life area to attach subtree to"
     )
@@ -125,11 +106,14 @@ class CreateSubtreeArgs(BaseModel):
 # -----------------------------------------------------------------------------
 
 
-async def call_tool(tool_call: ToolCall, conn: aiosqlite.Connection | None = None):
+async def call_tool(
+    tool_call: ToolCall, user_id: str, conn: aiosqlite.Connection | None = None
+):
     """Execute a tool call by name with given arguments."""
     tool_name = tool_call["name"]
     tool_args = dict(tool_call.get("args", {}) or {})
     tool_args.pop("conn", None)
+    tool_args["user_id"] = user_id
 
     tool_fn = TOOL_METHODS.get(tool_name)
 

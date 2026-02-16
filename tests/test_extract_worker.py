@@ -111,25 +111,20 @@ class TestExtractWorker:
 
 
 async def _create_leaf_with_messages(user_id, area_id):
-    """Helper to create a leaf area with history messages."""
+    """Helper to create a leaf area with summary in leaf_coverage."""
     area = db.LifeArea(id=area_id, title="Skills", parent_id=None, user_id=user_id)
     await db.LifeAreasManager.create(area_id, area)
 
     now = get_timestamp()
-    messages = [
-        ("ai", "What programming languages do you know?"),
-        ("user", "I'm proficient in Python and have 5 years of experience."),
-    ]
-    for i, (role, content) in enumerate(messages):
-        history_id = new_id()
-        history = db.History(
-            id=history_id,
-            message_data={"role": role, "content": content},
-            user_id=user_id,
-            created_ts=now + i,
-        )
-        await db.HistoriesManager.create(history_id, history)
-        await db.LeafHistoryManager.link(area_id, history_id)
+    # Create leaf coverage with summary (as the main graph would)
+    coverage = db.LeafCoverage(
+        leaf_id=area_id,
+        root_area_id=area_id,
+        status="covered",
+        summary_text="Proficient in Python with 5 years experience",
+        updated_at=now,
+    )
+    await db.LeafCoverageManager.create(area_id, coverage)
 
 
 def _create_extraction_mock_llm():
@@ -186,11 +181,7 @@ async def _run_extract_pool_with_mocks(channels, mock_llm):
 
 
 async def _verify_extraction_results(area_id, user_id):
-    """Verify extraction created summaries, knowledge, and links."""
-    summaries = await db.AreaSummariesManager.list_by_area(area_id)
-    assert len(summaries) == 1
-    assert "Skills" in summaries[0].summary_text
-
+    """Verify extraction created knowledge, links, and marked area extracted."""
     all_knowledge = await db.UserKnowledgeManager.list()
     assert len(all_knowledge) == 2
     descriptions = [k.description for k in all_knowledge]
@@ -200,6 +191,10 @@ async def _verify_extraction_results(area_id, user_id):
     links = await db.UserKnowledgeAreasManager.list_by_user(user_id)
     assert len(links) == 2
     assert all(link.area_id == area_id for link in links)
+
+    # Area should be marked as extracted
+    area = await db.LifeAreasManager.get_by_id(area_id)
+    assert area.extracted_at is not None
 
 
 class TestFullLeafExtractionFlow:

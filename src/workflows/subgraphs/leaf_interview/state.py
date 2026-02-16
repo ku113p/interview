@@ -29,6 +29,10 @@ class LeafInterviewState(BaseModel):
     all_leaves_done: bool = False
     leaf_evaluation: LeafEvaluation | None = None
 
+    # Deferred DB write data (collected for atomic persist in save_history)
+    leaf_summary_text: str | None = None
+    leaf_completion_status: str | None = None  # "covered" or "skipped"
+
     # Output
     messages_to_save: Annotated[MessageBuckets, merge_message_buckets]
     is_successful: bool | None = None

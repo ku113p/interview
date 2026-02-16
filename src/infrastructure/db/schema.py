@@ -47,25 +47,11 @@ _SCHEMA_SQL = """
         created_ts REAL NOT NULL
     );
     CREATE TABLE IF NOT EXISTS user_knowledge_areas (
-        user_id TEXT NOT NULL,
-        knowledge_id TEXT NOT NULL,
-        area_id TEXT NOT NULL,
-        PRIMARY KEY (user_id, knowledge_id)
+        knowledge_id TEXT PRIMARY KEY,
+        area_id TEXT NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS user_knowledge_areas_user_id_idx
-        ON user_knowledge_areas(user_id);
     CREATE INDEX IF NOT EXISTS user_knowledge_areas_area_id_idx
         ON user_knowledge_areas(area_id);
-    CREATE TABLE IF NOT EXISTS area_summaries (
-        id TEXT PRIMARY KEY,
-        area_id TEXT NOT NULL,
-        summary_text TEXT NOT NULL,
-        vector TEXT NOT NULL,
-        created_ts REAL NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS area_summaries_area_id_idx
-        ON area_summaries(area_id);
-
     -- Leaf coverage tracking: status of each leaf area in an interview
     CREATE TABLE IF NOT EXISTS leaf_coverage (
         leaf_id TEXT PRIMARY KEY,
@@ -146,6 +132,18 @@ async def init_schema_async(conn: aiosqlite.Connection, db_path: str) -> None:
         await conn.execute("DROP TABLE IF EXISTS criteria")
         await conn.execute("DROP TABLE IF EXISTS life_area_messages")
         await conn.execute("DROP TABLE IF EXISTS leaf_extraction_queue")
+        await conn.execute("DROP TABLE IF EXISTS area_summaries")
+
+        # Migration: recreate user_knowledge_areas without user_id column
+        await conn.execute("DROP TABLE IF EXISTS user_knowledge_areas")
+        await conn.executescript("""
+            CREATE TABLE IF NOT EXISTS user_knowledge_areas (
+                knowledge_id TEXT PRIMARY KEY,
+                area_id TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS user_knowledge_areas_area_id_idx
+                ON user_knowledge_areas(area_id);
+        """)
 
         await conn.commit()
         _db_initialized_paths.add(db_path)

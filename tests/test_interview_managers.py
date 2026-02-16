@@ -67,8 +67,30 @@ class TestLeafCoverageManager:
         assert result.status == "covered"
 
     @pytest.mark.asyncio
-    async def test_save_summary(self, temp_db):
-        """Should save summary text and vector."""
+    async def test_save_summary_text(self, temp_db):
+        """Should save summary text only."""
+        leaf_id, root_area_id = new_id(), new_id()
+        now = get_timestamp()
+
+        coverage = db.LeafCoverage(
+            leaf_id=leaf_id,
+            root_area_id=root_area_id,
+            status="covered",
+            updated_at=now,
+        )
+        await db.LeafCoverageManager.create(leaf_id, coverage)
+
+        await db.LeafCoverageManager.save_summary_text(
+            leaf_id, "User has Python experience", now + 1
+        )
+
+        result = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert result.summary_text == "User has Python experience"
+        assert result.vector is None
+
+    @pytest.mark.asyncio
+    async def test_update_vector(self, temp_db):
+        """Should save embedding vector only."""
         leaf_id, root_area_id = new_id(), new_id()
         now = get_timestamp()
 
@@ -81,13 +103,11 @@ class TestLeafCoverageManager:
         await db.LeafCoverageManager.create(leaf_id, coverage)
 
         vector = [0.1, 0.2, 0.3]
-        await db.LeafCoverageManager.save_summary(
-            leaf_id, "User has Python experience", vector, now + 1
-        )
+        await db.LeafCoverageManager.update_vector(leaf_id, vector, now + 1)
 
         result = await db.LeafCoverageManager.get_by_id(leaf_id)
-        assert result.summary_text == "User has Python experience"
         assert result.vector == vector
+        assert result.summary_text is None
 
     @pytest.mark.asyncio
     async def test_delete_by_root_area(self, temp_db):

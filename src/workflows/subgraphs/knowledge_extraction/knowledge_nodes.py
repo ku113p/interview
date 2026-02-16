@@ -7,10 +7,6 @@ from typing import Literal
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from src.infrastructure.db import managers as db
-from src.shared.ids import new_id
-from src.shared.timestamp import get_timestamp
-
 from .state import KnowledgeExtractionState
 
 logger = logging.getLogger(__name__)
@@ -121,64 +117,3 @@ async def extract_knowledge(state: KnowledgeExtractionState, llm: ChatOpenAI) ->
             "Failed to extract knowledge", extra={"area_id": str(state.area_id)}
         )
         return {"extracted_knowledge": []}
-
-
-async def save_knowledge(state: KnowledgeExtractionState) -> dict:
-    """Save extracted knowledge items to database.
-
-    This node:
-    1. For each extracted item, saves to user_knowledge table
-    2. Links knowledge to user and area via user_knowledge_areas table
-
-    Note: Duplicate detection is not implemented yet - each extraction
-    creates new records. Future versions may implement fuzzy matching.
-    """
-    from src.infrastructure.db.connection import get_connection
-
-    if not state.extracted_knowledge or not state.user_id:
-        logger.info(
-            "Skipping knowledge save - no knowledge or user_id",
-            extra={
-                "area_id": str(state.area_id),
-                "has_user_id": state.user_id is not None,
-                "knowledge_count": len(state.extracted_knowledge),
-            },
-        )
-        return {}
-
-    saved_count = 0
-    async with get_connection() as conn:
-        for item in state.extracted_knowledge:
-            knowledge_id = new_id()
-            knowledge = db.UserKnowledge(
-                id=knowledge_id,
-                description=item["content"],
-                kind=item["kind"],
-                confidence=item["confidence"],
-                created_ts=get_timestamp(),
-            )
-            await db.UserKnowledgeManager.create(
-                knowledge_id, knowledge, conn, auto_commit=False
-            )
-
-            link = db.UserKnowledgeArea(
-                user_id=state.user_id,
-                knowledge_id=knowledge_id,
-                area_id=state.area_id,
-            )
-            await db.UserKnowledgeAreasManager.create_link(
-                link, conn, auto_commit=False
-            )
-            saved_count += 1
-        await conn.commit()
-
-    logger.info(
-        "Saved knowledge items",
-        extra={
-            "area_id": str(state.area_id),
-            "user_id": str(state.user_id),
-            "saved_count": saved_count,
-        },
-    )
-
-    return {}

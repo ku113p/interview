@@ -3,9 +3,6 @@
 This module provides a single import point for all database entities.
 """
 
-# Area Data Managers
-from .area_data_managers import AreaSummariesManager
-
 # Core Managers
 from .core_managers import (
     HistoriesManager,
@@ -27,7 +24,6 @@ from .knowledge_managers import (
 )
 from .models import (
     ActiveInterviewContext,
-    AreaSummary,
     History,
     LeafCoverage,
     LifeArea,
@@ -39,7 +35,6 @@ from .models import (
 __all__ = [
     # Models
     "ActiveInterviewContext",
-    "AreaSummary",
     "History",
     "LeafCoverage",
     "LifeArea",
@@ -48,7 +43,6 @@ __all__ = [
     "UserKnowledgeArea",
     # Managers
     "ActiveInterviewContextManager",
-    "AreaSummariesManager",
     "HistoriesManager",
     "LeafCoverageManager",
     "LeafHistoryManager",

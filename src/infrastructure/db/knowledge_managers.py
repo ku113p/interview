@@ -46,15 +46,15 @@ class UserKnowledgeAreasManager:
         conn: aiosqlite.Connection | None = None,
         auto_commit: bool = True,
     ):
-        """Create a link between user, knowledge, and area."""
+        """Create a link between knowledge and area."""
         from src.infrastructure.db.connection import get_connection
 
         query = f"""
             INSERT OR REPLACE INTO {cls._table}
-            (user_id, knowledge_id, area_id)
-            VALUES (?, ?, ?)
+            (knowledge_id, area_id)
+            VALUES (?, ?)
         """
-        values = (str(data.user_id), str(data.knowledge_id), str(data.area_id))
+        values = (str(data.knowledge_id), str(data.area_id))
 
         if conn is None:
             async with get_connection() as local_conn:
@@ -72,9 +72,10 @@ class UserKnowledgeAreasManager:
         from src.infrastructure.db.connection import get_connection
 
         query = f"""
-            SELECT user_id, knowledge_id, area_id
-            FROM {cls._table}
-            WHERE user_id = ?
+            SELECT uka.knowledge_id, uka.area_id
+            FROM {cls._table} uka
+            JOIN life_areas la ON uka.area_id = la.id
+            WHERE la.user_id = ?
         """
         if conn is None:
             async with get_connection() as local_conn:
@@ -86,7 +87,6 @@ class UserKnowledgeAreasManager:
 
         return [
             UserKnowledgeArea(
-                user_id=uuid.UUID(row["user_id"]),
                 knowledge_id=uuid.UUID(row["knowledge_id"]),
                 area_id=uuid.UUID(row["area_id"]),
             )
@@ -101,7 +101,7 @@ class UserKnowledgeAreasManager:
         from src.infrastructure.db.connection import get_connection
 
         query = f"""
-            SELECT user_id, knowledge_id, area_id
+            SELECT knowledge_id, area_id
             FROM {cls._table}
             WHERE area_id = ?
         """
@@ -115,7 +115,6 @@ class UserKnowledgeAreasManager:
 
         return [
             UserKnowledgeArea(
-                user_id=uuid.UUID(row["user_id"]),
                 knowledge_id=uuid.UUID(row["knowledge_id"]),
                 area_id=uuid.UUID(row["area_id"]),
             )
@@ -125,7 +124,6 @@ class UserKnowledgeAreasManager:
     @classmethod
     async def delete_link(
         cls,
-        user_id: uuid.UUID,
         knowledge_id: uuid.UUID,
         conn: aiosqlite.Connection | None = None,
         auto_commit: bool = True,
@@ -135,12 +133,12 @@ class UserKnowledgeAreasManager:
 
         query = f"""
             DELETE FROM {cls._table}
-            WHERE user_id = ? AND knowledge_id = ?
+            WHERE knowledge_id = ?
         """
         if conn is None:
             async with get_connection() as local_conn:
-                await local_conn.execute(query, (str(user_id), str(knowledge_id)))
+                await local_conn.execute(query, (str(knowledge_id),))
                 if auto_commit:
                     await local_conn.commit()
         else:
-            await conn.execute(query, (str(user_id), str(knowledge_id)))
+            await conn.execute(query, (str(knowledge_id),))

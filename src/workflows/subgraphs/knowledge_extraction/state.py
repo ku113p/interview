@@ -13,6 +13,7 @@ class KnowledgeExtractionState(BaseModel):
     user_id: uuid.UUID | None = None
 
     # Area data loaded from database
+    is_leaf: bool = False  # True if area has no descendants (leaf_coverage row exists)
     area_title: str = ""
     sub_areas_tree: str = ""  # Indented tree text
     sub_area_paths: list[str] = []  # Paths like "Work > Projects"
@@ -25,6 +26,9 @@ class KnowledgeExtractionState(BaseModel):
 
     # Summary content for embedding (combined from extracted_summary)
     summary_content: str = ""
+
+    # Embedding vector from prepare_summary
+    summary_vector: list[float] | None = None
 
     # Extracted knowledge items: [{"content": str, "kind": str, "confidence": float}]
     extracted_knowledge: list[dict] = []

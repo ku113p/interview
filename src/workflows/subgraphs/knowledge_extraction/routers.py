@@ -25,12 +25,12 @@ def route_has_data(
 
 def route_extraction_success(
     state: KnowledgeExtractionState,
-) -> Literal["save_summary", "__end__"]:
+) -> Literal["prepare_summary", "__end__"]:
     """Route after extract_summaries - continue only if successful.
 
     Returns:
-        "save_summary" if extraction succeeded, "__end__" otherwise.
+        "prepare_summary" if extraction succeeded, "__end__" otherwise.
     """
     if not state.is_successful or not state.extracted_summary:
         return "__end__"
-    return "save_summary"
+    return "prepare_summary"

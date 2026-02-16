@@ -18,7 +18,7 @@ sqlite3 -header -column interview.db "$ARGUMENTS"
 SELECT
   (SELECT COUNT(*) FROM life_areas WHERE user_id = 'UUID') as areas,
   (SELECT COUNT(*) FROM life_areas WHERE user_id = 'UUID' AND parent_id IS NOT NULL) as sub_areas,
-  (SELECT COUNT(*) FROM area_summaries WHERE area_id IN (SELECT id FROM life_areas WHERE user_id = 'UUID')) as summaries,
+  (SELECT COUNT(*) FROM leaf_coverage WHERE root_area_id IN (SELECT id FROM life_areas WHERE user_id = 'UUID') AND summary_text IS NOT NULL) as summaries,
   (SELECT COUNT(*) FROM user_knowledge_areas WHERE user_id = 'UUID') as knowledge,
   (SELECT COUNT(*) FROM histories WHERE user_id = 'UUID') as history
 ```

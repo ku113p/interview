@@ -111,20 +111,32 @@ class LeafCoverageManager(ORMBase[LeafCoverage]):
                 await c.commit()
 
     @classmethod
-    async def save_summary(
+    async def save_summary_text(
         cls,
         leaf_id: uuid.UUID,
         summary_text: str,
+        updated_at: float,
+        conn: aiosqlite.Connection | None = None,
+    ):
+        """Write summary text only (no vector)."""
+        query = f"UPDATE {cls._table} SET summary_text=?, updated_at=? WHERE leaf_id=?"
+        async with _with_conn(conn) as c:
+            await c.execute(query, (summary_text, updated_at, str(leaf_id)))
+            if conn is None:
+                await c.commit()
+
+    @classmethod
+    async def update_vector(
+        cls,
+        leaf_id: uuid.UUID,
         vector: list[float],
         updated_at: float,
         conn: aiosqlite.Connection | None = None,
     ):
-        """Save summary and vector for a covered leaf."""
-        query = f"UPDATE {cls._table} SET summary_text=?, vector=?, updated_at=? WHERE leaf_id=?"
+        """Write embedding vector only."""
+        query = f"UPDATE {cls._table} SET vector=?, updated_at=? WHERE leaf_id=?"
         async with _with_conn(conn) as c:
-            await c.execute(
-                query, (summary_text, json.dumps(vector), updated_at, str(leaf_id))
-            )
+            await c.execute(query, (json.dumps(vector), updated_at, str(leaf_id)))
             if conn is None:
                 await c.commit()
 

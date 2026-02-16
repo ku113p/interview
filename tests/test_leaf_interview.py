@@ -1,4 +1,4 @@
-"""Unit tests for leaf interview nodes."""
+"""Unit tests for leaf interview nodes and save_history persistence."""
 
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -9,6 +9,10 @@ from src.domain import InputMode, User
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.interview_models import LeafEvaluation
+from src.workflows.nodes.persistence.save_history import (
+    SaveHistoryState,
+    save_history,
+)
 from src.workflows.subgraphs.leaf_interview.nodes import (
     generate_leaf_response,
     load_interview_context,
@@ -134,6 +138,46 @@ class TestLoadInterviewContext:
         assert result["active_leaf_id"] == leaf_id
         assert result["question_text"] == "What are your skills?"
 
+    @pytest.mark.asyncio
+    async def test_returns_already_extracted_when_area_has_extracted_at(self, temp_db):
+        """Should bail early when area already has extracted_at set."""
+        from src.shared.timestamp import get_timestamp
+
+        user_id, area_id = new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+
+        area = db.LifeArea(
+            id=area_id,
+            title="Career",
+            parent_id=None,
+            user_id=user_id,
+            extracted_at=get_timestamp(),
+        )
+        await db.LifeAreasManager.create(area_id, area)
+
+        state = _create_state(user, area_id)
+        result = await load_interview_context(state)
+
+        assert result["area_already_extracted"] is True
+        assert result["all_leaves_done"] is True
+        assert result["active_leaf_id"] is None
+
+    @pytest.mark.asyncio
+    async def test_auto_advances_past_covered_leaf(self, temp_db):
+        """Should advance to next uncovered leaf when context points to a covered one."""
+        user_id, area_id = new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+
+        leaf1_id, leaf2_id = await _setup_two_leaves_with_coverage(
+            user_id, area_id, leaf1_status="covered"
+        )
+
+        state = _create_state(user, area_id)
+        result = await load_interview_context(state)
+
+        assert result["active_leaf_id"] == leaf2_id
+        assert result["all_leaves_done"] is False
+
 
 class TestQuickEvaluate:
     """Tests for quick_evaluate node."""
@@ -193,8 +237,8 @@ class TestUpdateCoverageStatus:
         assert result == {"is_successful": True}
 
     @pytest.mark.asyncio
-    async def test_marks_leaf_covered_when_complete(self, temp_db):
-        """Should mark leaf as covered when evaluation is complete."""
+    async def test_returns_completion_data_when_complete(self, temp_db):
+        """Should return completion data in state without writing to DB."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
         user = User(id=user_id, mode=InputMode.auto)
 
@@ -225,16 +269,17 @@ class TestUpdateCoverageStatus:
 
         result = await update_coverage_status(state, mock_llm)
 
-        # Returns completed_leaf_id when leaf is marked complete (for async extraction)
-        assert result == {"completed_leaf_id": leaf_id}
+        # Returns completion data in state for deferred persistence
+        assert result["completed_leaf_id"] == leaf_id
+        assert result["leaf_completion_status"] == "covered"
 
-        # Verify coverage status was updated
-        updated_coverage = await db.LeafCoverageManager.get_by_id(leaf_id)
-        assert updated_coverage.status == "covered"
+        # DB should NOT be updated yet (deferred to save_history)
+        unchanged = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert unchanged.status == "active"
 
     @pytest.mark.asyncio
-    async def test_summary_saved_to_leaf_coverage(self, temp_db):
-        """Should save summary and vector to leaf_coverage when leaf completes."""
+    async def test_returns_summary_data_in_state(self, temp_db):
+        """Should return summary text in state for deferred persistence."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
         user = User(id=user_id, mode=InputMode.auto)
         await _setup_leaf_with_history(user_id, area_id, leaf_id)
@@ -245,30 +290,64 @@ class TestUpdateCoverageStatus:
             active_leaf_id=leaf_id,
             leaf_evaluation=LeafEvaluation(status="complete", reason="All answered"),
         )
-        mock_llm, expected_vector = _mock_llm_and_embeddings()
+        mock_llm = _mock_llm_for_summary()
 
-        with patch("src.infrastructure.embeddings.get_embedding_client") as mock_get:
-            mock_get.return_value = mock_llm._embed_client
-            result = await update_coverage_status(state, mock_llm)
+        result = await update_coverage_status(state, mock_llm)
 
-        assert result == {"completed_leaf_id": leaf_id}
-        updated_coverage = await db.LeafCoverageManager.get_by_id(leaf_id)
-        assert updated_coverage.status == "covered"
-        assert updated_coverage.summary_text == "User has 5 years of Python experience."
-        assert updated_coverage.vector == expected_vector
+        assert result["completed_leaf_id"] == leaf_id
+        assert result["leaf_completion_status"] == "covered"
+        assert result["leaf_summary_text"] == "User has 5 years of Python experience."
+        assert "leaf_summary_vector" not in result
+
+        # DB should NOT be updated yet
+        unchanged = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert unchanged.status == "active"
+        assert unchanged.summary_text is None
+
+    @pytest.mark.asyncio
+    async def test_extracts_summary_on_first_turn_without_db_history(self, temp_db):
+        """Should extract summary from state.messages when DB history is empty."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+
+        # Create area and coverage but NO history messages in DB
+        area = db.LifeArea(id=area_id, title="Sports", parent_id=None, user_id=user_id)
+        await db.LifeAreasManager.create(area_id, area)
+
+        from src.shared.timestamp import get_timestamp
+
+        now = get_timestamp()
+        coverage = db.LeafCoverage(
+            leaf_id=leaf_id,
+            root_area_id=area_id,
+            status="active",
+            updated_at=now,
+        )
+        await db.LeafCoverageManager.create(leaf_id, coverage)
+
+        state = _create_state(
+            user,
+            area_id,
+            active_leaf_id=leaf_id,
+            messages=[HumanMessage(content="I play basketball and tennis")],
+            leaf_evaluation=LeafEvaluation(status="complete", reason="All answered"),
+        )
+        mock_llm = _mock_llm_for_summary()
+
+        result = await update_coverage_status(state, mock_llm)
+
+        assert result["completed_leaf_id"] == leaf_id
+        assert result["leaf_summary_text"] is not None
+        mock_llm.ainvoke.assert_called_once()
 
 
-def _mock_llm_and_embeddings():
-    """Create mock LLM and embedding client for summary extraction tests."""
+def _mock_llm_for_summary():
+    """Create mock LLM for summary extraction tests."""
     mock_llm = MagicMock()
     mock_response = MagicMock()
     mock_response.content = "User has 5 years of Python experience."
     mock_llm.ainvoke = AsyncMock(return_value=mock_response)
-    expected_vector = [0.1, 0.2, 0.3]
-    mock_embed_client = AsyncMock()
-    mock_embed_client.aembed_query.return_value = expected_vector
-    mock_llm._embed_client = mock_embed_client
-    return mock_llm, expected_vector
+    return mock_llm
 
 
 async def _setup_leaf_with_history(user_id, area_id, leaf_id):
@@ -364,10 +443,16 @@ class TestSelectNextLeaf:
 
     @pytest.mark.asyncio
     async def test_moves_to_next_uncovered_leaf(self, temp_db):
-        """Should move to next uncovered leaf when current is complete."""
+        """Should move to next uncovered leaf, excluding the just-completed one.
+
+        leaf1 status remains 'active' in DB (deferred write) but is excluded
+        via exclude_ids so the next uncovered leaf (leaf2) is selected.
+        """
         user_id, area_id = new_id(), new_id()
         user = User(id=user_id, mode=InputMode.auto)
-        leaf1_id, leaf2_id = await _setup_two_leaves_with_coverage(user_id, area_id)
+        leaf1_id, leaf2_id = await _setup_two_leaves_with_coverage(
+            user_id, area_id, leaf1_status="active"
+        )
 
         state = _create_state(
             user,
@@ -381,9 +466,25 @@ class TestSelectNextLeaf:
         assert result["active_leaf_id"] == leaf2_id
         assert result["completed_leaf_path"] == "Skills"
 
+        # DB should NOT have been updated (deferred to save_history)
+        ctx = await db.ActiveInterviewContextManager.get_by_user(user_id)
+        assert ctx.active_leaf_id == leaf1_id  # Still points to old leaf
+
 
 class TestGenerateLeafResponse:
     """Tests for generate_leaf_response node."""
+
+    @pytest.mark.asyncio
+    async def test_bails_out_on_prior_failure(self):
+        """Should return empty dict when is_successful is False."""
+        user = User(id=new_id(), mode=InputMode.auto)
+        state = _create_state(user, new_id(), is_successful=False, all_leaves_done=True)
+        mock_llm = MagicMock()
+
+        result = await generate_leaf_response(state, mock_llm)
+
+        assert result == {}
+        mock_llm.ainvoke.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_generates_completion_when_all_done(self):
@@ -438,3 +539,237 @@ class TestGenerateLeafResponse:
         assert "messages" in result
         assert result["messages"][0].content == "Tell me about your skills."
         assert result["is_successful"] is True
+
+
+def _create_save_state(user: User, **kwargs) -> SaveHistoryState:
+    """Helper to create SaveHistoryState for tests."""
+    defaults = {
+        "messages_to_save": {},
+        "is_successful": True,
+        "active_leaf_id": None,
+        "completed_leaf_id": None,
+        "question_text": None,
+        "is_fully_covered": False,
+        "leaf_summary_text": None,
+        "leaf_completion_status": None,
+    }
+    defaults.update(kwargs)
+    return SaveHistoryState(user=user, **defaults)
+
+
+class TestSaveHistoryLeafPersistence:
+    """Tests for deferred leaf persistence in save_history."""
+
+    @pytest.mark.asyncio
+    async def test_persists_leaf_completion_status(self, temp_db):
+        """Should mark completed leaf as covered in DB."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+
+        from src.shared.timestamp import get_timestamp
+
+        ts = get_timestamp()
+        state = _create_save_state(
+            user,
+            messages_to_save={ts: [AIMessage(content="Next question")]},
+            active_leaf_id=leaf_id,
+            completed_leaf_id=leaf_id,
+            leaf_completion_status="covered",
+        )
+        await save_history(state)
+
+        updated = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert updated.status == "covered"
+
+    @pytest.mark.asyncio
+    async def test_persists_leaf_summary_text(self, temp_db):
+        """Should save summary text to DB (vector deferred to extraction)."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+
+        from src.shared.timestamp import get_timestamp
+
+        ts = get_timestamp()
+        state = _create_save_state(
+            user,
+            messages_to_save={ts: [AIMessage(content="Next question")]},
+            completed_leaf_id=leaf_id,
+            leaf_completion_status="covered",
+            leaf_summary_text="User has Python skills",
+        )
+        await save_history(state)
+
+        updated = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert updated.summary_text == "User has Python skills"
+        assert updated.vector is None  # Vector deferred to extraction process
+        assert updated.status == "covered"
+
+    @pytest.mark.asyncio
+    async def test_persists_context_transition(self, temp_db):
+        """Should update active leaf and mark new leaf active on transition."""
+        user_id, area_id = new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        leaf1_id, leaf2_id = await _setup_two_leaves_with_coverage(
+            user_id, area_id, leaf1_status="active"
+        )
+
+        from src.shared.timestamp import get_timestamp
+
+        ts = get_timestamp()
+        state = _create_save_state(
+            user,
+            messages_to_save={ts: [AIMessage(content="Next question")]},
+            active_leaf_id=leaf2_id,
+            completed_leaf_id=leaf1_id,
+            leaf_completion_status="covered",
+            question_text="Tell me about your goals",
+        )
+        await save_history(state)
+
+        # Completed leaf should be marked covered
+        leaf1 = await db.LeafCoverageManager.get_by_id(leaf1_id)
+        assert leaf1.status == "covered"
+
+        # New leaf should be marked active
+        leaf2 = await db.LeafCoverageManager.get_by_id(leaf2_id)
+        assert leaf2.status == "active"
+
+        # Context should point to new leaf
+        ctx = await db.ActiveInterviewContextManager.get_by_user(user_id)
+        assert ctx.active_leaf_id == leaf2_id
+        assert ctx.question_text == "Tell me about your goals"
+
+    @pytest.mark.asyncio
+    async def test_deletes_context_when_fully_covered(self, temp_db):
+        """Should delete interview context when all leaves are covered."""
+        user_id, area_id = new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        leaf1_id, _ = await _setup_two_leaves_with_coverage(
+            user_id, area_id, leaf1_status="active"
+        )
+
+        from src.shared.timestamp import get_timestamp
+
+        ts = get_timestamp()
+        state = _create_save_state(
+            user,
+            messages_to_save={ts: [AIMessage(content="All done!")]},
+            completed_leaf_id=leaf1_id,
+            leaf_completion_status="covered",
+            is_fully_covered=True,
+        )
+        await save_history(state)
+
+        # Context should be deleted
+        ctx = await db.ActiveInterviewContextManager.get_by_user(user_id)
+        assert ctx is None
+
+        # Completed leaf should still be marked covered
+        leaf1 = await db.LeafCoverageManager.get_by_id(leaf1_id)
+        assert leaf1.status == "covered"
+
+    @pytest.mark.asyncio
+    async def test_no_leaf_writes_without_completion(self, temp_db):
+        """Should skip leaf writes when no completion data is present."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+
+        from src.shared.timestamp import get_timestamp
+
+        ts = get_timestamp()
+        state = _create_save_state(
+            user,
+            messages_to_save={ts: [HumanMessage(content="My answer")]},
+            active_leaf_id=leaf_id,
+        )
+        await save_history(state)
+
+        # Coverage should remain unchanged
+        unchanged = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert unchanged.status == "active"
+
+    @pytest.mark.asyncio
+    async def test_saves_summary_text_without_vector(self, temp_db):
+        """Should save summary text even without vector (vector deferred to extraction)."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+
+        from src.shared.timestamp import get_timestamp
+
+        ts = get_timestamp()
+        state = _create_save_state(
+            user,
+            messages_to_save={ts: [AIMessage(content="Next")]},
+            completed_leaf_id=leaf_id,
+            leaf_completion_status="covered",
+            leaf_summary_text="Some summary",
+        )
+        await save_history(state)
+
+        # Summary text saved, vector remains None (deferred to extraction)
+        updated = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert updated.status == "covered"
+        assert updated.summary_text == "Some summary"
+        assert updated.vector is None
+
+    @pytest.mark.asyncio
+    async def test_skips_completion_when_status_missing(self, temp_db):
+        """Should skip leaf writes when completed_leaf_id set but status is None."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+
+        from src.shared.timestamp import get_timestamp
+
+        ts = get_timestamp()
+        state = _create_save_state(
+            user,
+            messages_to_save={ts: [AIMessage(content="Next")]},
+            completed_leaf_id=leaf_id,
+            leaf_completion_status=None,  # Missing status
+        )
+        await save_history(state)
+
+        # Coverage should remain unchanged
+        unchanged = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert unchanged.status == "active"
+
+    @pytest.mark.asyncio
+    async def test_transaction_rollback_leaves_no_partial_state(self, temp_db):
+        """Should roll back all writes if _save_context_transition fails."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+
+        from src.shared.timestamp import get_timestamp
+
+        ts = get_timestamp()
+        state = _create_save_state(
+            user,
+            messages_to_save={ts: [AIMessage(content="Next question")]},
+            active_leaf_id=leaf_id,
+            completed_leaf_id=leaf_id,
+            leaf_completion_status="covered",
+            leaf_summary_text="summary",
+        )
+
+        with patch(
+            "src.workflows.nodes.persistence.save_history._save_context_transition",
+            side_effect=RuntimeError("simulated failure"),
+        ):
+            with pytest.raises(RuntimeError, match="simulated failure"):
+                await save_history(state)
+
+        # Rollback: coverage status should still be "active"
+        unchanged = await db.LeafCoverageManager.get_by_id(leaf_id)
+        assert unchanged.status == "active"
+        assert unchanged.summary_text is None
+
+        # Rollback: no new history records created
+        histories = await db.LeafHistoryManager.get_messages(leaf_id)
+        # Only the 2 original messages from _setup_leaf_with_history
+        assert len(histories) == 2
