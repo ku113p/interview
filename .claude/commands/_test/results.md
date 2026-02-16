@@ -5,25 +5,25 @@
 | Metric | Value |
 |--------|-------|
 | Total Cases | 11 |
-| Passed | 10 |
-| Failed | 1 |
-| Pass Rate | 91% |
+| Passed | 11 |
+| Failed | 0 |
+| Pass Rate | 100% |
 
 ## Results by Case
 
 | # | Case Name | Status | Areas | Sub-Areas | Summaries | Knowledge | Last Run |
 |---|-----------|--------|-------|-----------|-----------|-----------|----------|
-| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-16 23:30 |
-| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-16 23:30 |
-| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-16 23:30 |
-| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-16 23:30 |
-| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 1/true | 4/true | 2026-02-16 23:30 |
-| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-16 23:30 |
-| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-16 23:30 |
-| 24 | Small Talk Flow | FAIL | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-16 23:30 |
-| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-16 23:30 |
-| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 2/true | 6/true | 2026-02-16 23:30 |
-| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 1/true | 3/true | 2026-02-16 23:30 |
+| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-17 01:07 |
+| 5 | Quick Interaction | PASS | 0/1 | 0/0-0 | 0/false | 0/false | 2026-02-17 01:07 |
+| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-17 01:07 |
+| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-17 01:07 |
+| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 1/true | 4/true | 2026-02-17 01:07 |
+| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-17 01:07 |
+| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-17 01:07 |
+| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-17 01:07 |
+| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-17 01:07 |
+| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 1/true | 2/true | 2026-02-17 01:07 |
+| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 1/true | 3/true | 2026-02-17 01:07 |
 
 ## Test Case Descriptions
 
@@ -63,6 +63,24 @@ Test cases use the following expected fields:
 - `knowledge` - Boolean: expect user_knowledge_areas > 0
 
 ## Recent Changes
+
+### 2026-02-17: Schema Cleanup - Removed Legacy Tables
+
+**Removed `area_summaries` table:**
+- Deleted legacy `area_summaries` table and `AreaSummariesManager`
+- Summaries now stored in `leaf_coverage.summary_text`
+- Vectors now stored in `leaf_coverage.vector`
+- Updated all deletion handlers and test fixtures
+
+**Normalized `user_knowledge_areas` table:**
+- Removed redundant `user_id` column (derivable from `area_id → life_areas.user_id`)
+- Changed PRIMARY KEY from composite `(user_id, knowledge_id)` to single `knowledge_id`
+- Updated all knowledge managers to use JOIN for user filtering
+- Added migration to DROP and recreate table with new schema
+
+**Test Results:**
+- All 11 test cases passing (100%)
+- Test 24 now passing (was failing due to `"null"` string handling, fixed in previous commit)
 
 ### 2026-02-16: Fixed Tests 25 + 27, Resolve current_area_id to root
 
@@ -146,12 +164,6 @@ Test cases use the following expected fields:
 - Added test 21 for hierarchical sub-area validation
 - Fixed token limit for knowledge extraction (1024 -> 4096)
 
-## Open Bugs
-
-### Case 24 - Small Talk Flow (`_str_to_uuid` doesn't handle `"null"`)
-
-The LLM sometimes serializes `None` as the string `"null"` in tool call parameters. `_str_to_uuid("null")` attempts `uuid.UUID("null")` which raises `ValueError: badly formed hexadecimal UUID string`. Fix: add `"null"` to the early-return check alongside `None` and `"root"` in `_str_to_uuid()`.
-
 ## Known Flaky Tests
 
 ### Case 13 - Knowledge Skill Extraction (LLM Non-Determinism)
@@ -163,6 +175,9 @@ Case 13 intermittently fails because `quick_evaluate` sometimes rates substantiv
 Case 25 intermittently fails because the LLM classifies "I want to add more about my projects" as `manage_areas` instead of routing to the existing completed area. This causes `area_loop` to create a new sub-area instead of showing the completion notice. Like case 13, this is LLM routing non-determinism, not a code bug.
 
 ## Resolved Issues
+
+### Test 24 - Small Talk Flow `_str_to_uuid` null handling (Fixed 2026-02-17)
+The LLM sometimes serialized `None` as the string `"null"` in tool call parameters. `_str_to_uuid("null")` attempted `uuid.UUID("null")` which raised `ValueError: badly formed hexadecimal UUID string`. Fixed by adding `"null"` to the early-return check in `_str_to_uuid()`.
 
 ### Test 26 - Auto-set Current Area (Fixed 2026-02-15)
 After creating a root area with sub-areas, the LLM did not call `set_current_area`. The leaf interview then used a random UUID instead of the created area. Fixed by auto-setting `current_area_id` in `LifeAreaMethods.create` when creating root areas.
