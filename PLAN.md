@@ -431,36 +431,46 @@ class SummariesManager:
 **A. New Node: `create_turn_summary`**
 ```python
 async def create_turn_summary(state: LeafInterviewState, llm: ChatOpenAI):
-    """Generate and save summary for this conversation turn."""
+    """Generate summary for this conversation turn (deferred write)."""
     if not state.active_leaf_id or state.all_leaves_done:
         return {}
 
-    # Get user's message
+    # Get user's current message
     current_messages = filter_tool_messages(state.messages)
     if not current_messages:
         return {}
 
     user_message = normalize_content(current_messages[-1].content)
+
+    # Get previous AI question from leaf_history (last AI message)
+    leaf_messages = await db.LeafHistoryManager.get_messages(state.active_leaf_id)
+    question_text = None
+    if leaf_messages:
+        # Last message in history is the AI's question
+        for msg in reversed(leaf_messages):
+            if msg.get("role") == "assistant":
+                question_text = msg.get("content")
+                break
+
+    # Fallback to state.question_text if no history yet
+    if not question_text:
+        question_text = state.question_text or "Initial question about this topic"
+
     leaf_path = await get_leaf_path(state.active_leaf_id, state.area_id)
 
     # Generate summary
     prompt = PROMPT_TURN_SUMMARY.format(
         leaf_path=leaf_path,
-        question_text=state.question_text or "Initial question",
+        question_text=question_text,
         user_message=user_message,
     )
     messages = [SystemMessage(content=prompt), HumanMessage(content="Extract summary.")]
     response = await invoke_with_retry(lambda: llm.ainvoke(messages))
     summary_text = normalize_content(response.content)
 
-    # Save to DB
-    summary_id = await db.SummariesManager.create(
-        area_id=state.active_leaf_id,
-        summary_text=summary_text,
-    )
-
-    logger.info("Saved turn summary", extra={"summary_id": str(summary_id)})
-    return {"turn_summary_id": summary_id}
+    # Return summary in state for deferred persistence (written in save_history)
+    logger.info("Generated turn summary", extra={"summary_len": len(summary_text)})
+    return {"turn_summary_text": summary_text}
 ```
 
 **B. Modified Node: `_get_next_uncovered_leaf`**
@@ -566,7 +576,24 @@ async def _get_leaf_areas_for_root(area_id: uuid.UUID) -> list[SubAreaInfo]:
 
 ### 4. Update Persistence (`src/workflows/nodes/persistence/save_history.py`)
 
-**A. Modified: `_save_leaf_completion`**
+**A. New Function: `_save_turn_summary`**
+```python
+async def _save_turn_summary(state: SaveHistoryState, conn, now: float) -> None:
+    """Save turn summary if present (deferred write from create_turn_summary)."""
+    if not state.turn_summary_text or not state.active_leaf_id:
+        return
+
+    # Save summary to DB
+    summary_id = await db.SummariesManager.create(
+        area_id=state.active_leaf_id,
+        summary_text=state.turn_summary_text,
+        conn=conn
+    )
+
+    logger.info("Saved turn summary", extra={"summary_id": str(summary_id)})
+```
+
+**B. Modified: `_save_leaf_completion`**
 ```python
 async def _save_leaf_completion(state: SaveHistoryState, conn, now: float) -> None:
     """Set covered_at when leaf is complete or skipped."""
@@ -580,9 +607,27 @@ async def _save_leaf_completion(state: SaveHistoryState, conn, now: float) -> No
     logger.info("Set covered_at", extra={"leaf_id": str(state.completed_leaf_id)})
 ```
 
-**B. ~~Modified: `_save_context_transition`~~ NOT NEEDED**
+**C. Modified: `save_history`**
+```python
+async def save_history(state: SaveHistoryState) -> dict:
+    messages_by_ts = state.messages_to_save or {}
+    if not messages_by_ts:
+        logger.debug("No messages to save", extra={"user_id": str(state.user.id)})
+        return {}
 
-We can delete this function entirely - no context transitions to save!
+    now = get_timestamp()
+    async with transaction() as conn:
+        await _save_messages(state, conn, now)
+        await _save_turn_summary(state, conn, now)  # NEW: Save turn summary
+        await _save_leaf_completion(state, conn, now)
+        # _save_context_transition DELETED - no longer needed
+
+    return {}
+```
+
+**D. Delete: `_save_context_transition`**
+
+This function is no longer needed - no active_interview_context to save!
 
 **C. New Manager Method Needed:**
 ```python
@@ -597,14 +642,16 @@ async def set_covered_at(area_id: UUID, timestamp: float, conn=None):
         )
 ```
 
-### 5. Update Extract Target (`src/workflows/nodes/input/extract_target.py`)
+### 5. ~~Update Extract Target~~ NO CHANGES NEEDED
 
-**Changes:**
-- Replace `ActiveInterviewContextManager.get_by_user()`
-- With `ActiveAreaManager.get_by_user()`
-- Check if active area exists for routing override logic
+**Current behavior is already correct:**
+- extract_target classifies user intent and extracts area_id from message
+- This area_id is passed to leaf_interview subgraph in state
+- No tracking needed - the "active area" is whatever user is currently discussing
 
-### 5. Update Leaf Interview Graph (`src/workflows/subgraphs/leaf_interview/graph.py`)
+**Note:** The current override logic using `ActiveInterviewContextManager.get_by_user()` can be removed, but this is optional. The routing works fine without it since extract_target already classifies intent.
+
+### 6. Update Leaf Interview Graph (`src/workflows/subgraphs/leaf_interview/graph.py`)
 
 **Add new node to graph:**
 ```python
