@@ -18,7 +18,7 @@ MAX_SUBTREE_DEPTH = 5
 
 def _str_to_uuid(value: str | None) -> uuid.UUID | None:
     """Convert string to UUID, returning None if input is None or 'root'."""
-    if value is None or value == "root":
+    if value is None or value in ("root", "null"):
         return None
     return uuid.UUID(value)
 
@@ -66,29 +66,13 @@ class LifeAreaMethods:
         return area
 
     @staticmethod
-    async def _auto_set_current(
-        user_id: str, area_id: str, conn: aiosqlite.Connection | None
-    ) -> None:
-        """Auto-set area as current. Skip silently if user not in DB."""
-        try:
-            await CurrentAreaMethods.set_current(user_id, area_id, conn=conn)
-        except KeyError as e:
-            if "not found" not in str(e):
-                raise
-
-    @staticmethod
     async def create(
         user_id: str,
         title: str,
         parent_id: str | None = None,
         conn: aiosqlite.Connection | None = None,
     ) -> db.LifeArea:
-        """Create a life area.
-
-        When creating a root area (no parent), automatically sets it as the
-        user's current area for interviews. This ensures the interview flow
-        has a valid area to work with immediately after creation.
-        """
+        """Create a life area."""
         u_id, p_id = _str_to_uuid(user_id), _str_to_uuid(parent_id)
         if u_id is None:
             raise KeyError("user_id is required")
@@ -98,9 +82,6 @@ class LifeAreaMethods:
         area_id = new_id()
         area = db.LifeArea(id=area_id, title=title, parent_id=p_id, user_id=u_id)
         await db.LifeAreasManager.create(area_id, area, conn=conn)
-
-        if p_id is None:
-            await LifeAreaMethods._auto_set_current(user_id, str(area_id), conn)
         return area
 
     @staticmethod
@@ -223,6 +204,19 @@ class LifeAreaMethods:
         await db.LifeAreasManager.delete(a_id, conn=conn)
 
 
+async def _resolve_root(
+    area: db.LifeArea, conn: aiosqlite.Connection | None = None
+) -> db.LifeArea:
+    """Walk up the parent chain to find the root area."""
+    root = area
+    while root.parent_id is not None:
+        parent = await db.LifeAreasManager.get_by_id(root.parent_id, conn=conn)
+        if parent is None:
+            break
+        root = parent
+    return root
+
+
 class CurrentAreaMethods:
     """Operations for managing the current interview area."""
 
@@ -230,15 +224,18 @@ class CurrentAreaMethods:
     async def set_current(
         user_id: str, area_id: str, conn: aiosqlite.Connection | None = None
     ) -> db.LifeArea:
-        """Set an area as the current area for interview."""
-        # Verify area exists and belongs to user
+        """Set an area as the current area for interview.
+
+        Always resolves to the root area, since the leaf interview
+        walks descendants from the root.
+        """
         area = await LifeAreaMethods.get(user_id, area_id, conn=conn)
+        root = await _resolve_root(area, conn=conn)
 
         u_id = _str_to_uuid(user_id)
         if u_id is None:
             raise KeyError("Invalid user_id")
 
-        # Get existing user and update current_area_id
         user = await db.UsersManager.get_by_id(u_id, conn=conn)
         if user is None:
             raise KeyError(f"User {user_id} not found")
@@ -247,7 +244,7 @@ class CurrentAreaMethods:
             id=user.id,
             name=user.name,
             mode=user.mode,
-            current_area_id=area.id,
+            current_area_id=root.id,
         )
         await db.UsersManager.update(u_id, updated_user, conn=conn)
-        return area
+        return root

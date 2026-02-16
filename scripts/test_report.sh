@@ -88,7 +88,7 @@ for RUN in $(seq 1 $REPEAT); do
         SELECT
             (SELECT COUNT(*) FROM life_areas WHERE user_id = '$USER_ID'),
             (SELECT COUNT(*) FROM life_areas WHERE parent_id IS NOT NULL AND user_id = '$USER_ID'),
-            (SELECT COUNT(*) FROM area_summaries WHERE area_id IN (SELECT id FROM life_areas WHERE user_id = '$USER_ID')),
+            (SELECT COUNT(*) FROM leaf_coverage WHERE summary_text IS NOT NULL AND leaf_id IN (SELECT id FROM life_areas WHERE user_id = '$USER_ID')),
             (SELECT COUNT(*) FROM user_knowledge_areas WHERE user_id = '$USER_ID')
     " | tr '|' ' ')
 
@@ -100,8 +100,8 @@ for RUN in $(seq 1 $REPEAT); do
     [ "$EXPECT_SUMMARIES" = "true" ] && [ "$SUMMARIES" -eq 0 ] && STATUS="FAIL" && ERRORS="${ERRORS}summaries=0(exp>0) "
     [ "$EXPECT_KNOWLEDGE" = "true" ] && [ "$KNOWLEDGE" -eq 0 ] && STATUS="FAIL" && ERRORS="${ERRORS}knowledge=0(exp>0) "
 
-    # Check for errors in log
-    ERROR_LINES=$(grep -i "error\|exception\|traceback" "$LOGFILE" 2>/dev/null || true)
+    # Check for errors in log (exclude httpx INFO lines that contain "Error" in HTTP status text)
+    ERROR_LINES=$(grep -i "error\|exception\|traceback" "$LOGFILE" 2>/dev/null | grep -v '"name": "httpx"' || true)
     if [ -n "$ERROR_LINES" ]; then
         STATUS="FAIL"
         ERRORS="${ERRORS}log_errors "
@@ -134,8 +134,8 @@ for RUN in $(seq 1 $REPEAT); do
     sqlite3 -header -column interview.db "SELECT id, title, parent_id FROM life_areas WHERE parent_id IS NOT NULL AND user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
 
     echo ""
-    echo "Summaries:"
-    sqlite3 -header -column interview.db "SELECT s.id, substr(s.summary, 1, 60) as summary_preview FROM area_summaries s JOIN life_areas a ON s.area_id = a.id WHERE a.user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
+    echo "Summaries (leaf_coverage with summary_text):"
+    sqlite3 -header -column interview.db "SELECT lc.leaf_id, substr(lc.summary_text, 1, 60) as summary_preview, lc.status FROM leaf_coverage lc JOIN life_areas a ON lc.leaf_id = a.id WHERE a.user_id = '$USER_ID' AND lc.summary_text IS NOT NULL" 2>/dev/null || echo "  (none)"
 
     echo ""
     echo "Knowledge:"

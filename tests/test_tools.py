@@ -142,6 +142,54 @@ class TestSetCurrentArea:
         with pytest.raises(KeyError):
             await CurrentAreaMethods.set_current(str(sample_user.id), str(area_id))
 
+    @pytest.mark.asyncio
+    async def test_set_current_area_resolves_to_root(self, temp_db, sample_user):
+        """Setting a sub-area as current should resolve to its root area."""
+        # Arrange - create user in DB
+        await db.UsersManager.create(
+            sample_user.id,
+            db.User(
+                id=sample_user.id,
+                name="test",
+                mode=sample_user.mode.value,
+                current_area_id=None,
+            ),
+        )
+
+        # Create root area
+        root_id = new_id()
+        root = db.LifeArea(
+            id=root_id,
+            title="Career",
+            parent_id=None,
+            user_id=sample_user.id,
+        )
+        await db.LifeAreasManager.create(root_id, root)
+
+        # Create child sub-area
+        child_id = new_id()
+        child = db.LifeArea(
+            id=child_id,
+            title="Current Role",
+            parent_id=root_id,
+            user_id=sample_user.id,
+        )
+        await db.LifeAreasManager.create(child_id, child)
+
+        # Act - set current to the child (leaf)
+        result = await CurrentAreaMethods.set_current(
+            str(sample_user.id), str(child_id)
+        )
+
+        # Assert - returned area is the root, not the child
+        assert result.id == root_id
+        assert result.title == "Career"
+
+        # Assert - user's current_area_id is the root
+        updated_user = await db.UsersManager.get_by_id(sample_user.id)
+        assert updated_user is not None
+        assert updated_user.current_area_id == root_id
+
 
 class TestCreateSubtree:
     """Test the create_subtree tool."""

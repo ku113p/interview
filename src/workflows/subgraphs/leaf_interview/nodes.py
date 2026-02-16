@@ -173,19 +173,39 @@ async def _handle_no_next_leaf(
     return _build_leaf_state(None)
 
 
-async def _load_or_create_context(user_id: uuid.UUID, area_id: uuid.UUID) -> dict:
-    """Load existing context or create new one for the user."""
+async def _check_early_exit(
+    area_id: uuid.UUID,
+) -> tuple[dict | None, list[SubAreaInfo]]:
+    """Return (early_state, leaf_areas) — early_state is set if we should bail."""
+    area = await db.LifeAreasManager.get_by_id(area_id)
+    if area is not None and area.extracted_at is not None:
+        logger.info("Area already extracted", extra={"area_id": str(area_id)})
+        return {"area_already_extracted": True, **_build_leaf_state(None)}, []
     leaf_areas = await _get_leaf_areas_for_root(area_id)
     if not leaf_areas:
         logger.info("No leaf areas found", extra={"area_id": str(area_id)})
-        return _build_leaf_state(None)
+        return _build_leaf_state(None), []
+    return None, leaf_areas
+
+
+async def _load_or_create_context(user_id: uuid.UUID, area_id: uuid.UUID) -> dict:
+    """Load existing context or create new one for the user."""
+    early, leaf_areas = await _check_early_exit(area_id)
+    if early is not None:
+        return early
 
     context = await db.ActiveInterviewContextManager.get_by_user(user_id)
     if context and context.root_area_id == area_id:
         existing = _find_existing_context_state(context, leaf_areas)
         if existing:
-            logger.info("Loaded existing context", extra={"user_id": str(user_id)})
-            return existing
+            cov = await db.LeafCoverageManager.get_by_id(context.active_leaf_id)
+            if not cov or cov.status not in ("covered", "skipped"):
+                logger.info("Loaded existing context", extra={"user_id": str(user_id)})
+                return existing
+            logger.info(
+                "Active leaf already covered, advancing",
+                extra={"leaf_id": str(context.active_leaf_id)},
+            )
 
     next_leaf = await _get_next_uncovered_leaf(area_id, leaf_areas)
     if not next_leaf:
@@ -270,8 +290,6 @@ async def _extract_leaf_summary(
 ) -> str | None:
     """Extract a summary of the user's responses for this leaf."""
     leaf_messages = await db.LeafHistoryManager.get_messages(state.active_leaf_id)
-    if not leaf_messages:
-        return None
 
     # Add current user message not yet in history
     current_messages = filter_tool_messages(state.messages)

@@ -36,6 +36,7 @@ def _normalize_role(role: str) -> str:
         return "ai"
     if role == "tool":
         return "tool"
+    logger.warning("Unexpected message role '%s', defaulting to 'ai'", role)
     return "ai"
 
 

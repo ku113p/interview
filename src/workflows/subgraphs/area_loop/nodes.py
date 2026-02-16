@@ -71,12 +71,12 @@ def _validate_tool_call(call_dict: dict[str, object]) -> tuple[str, str]:
 
 
 async def _execute_tool_call(
-    call: dict[str, object], conn: aiosqlite.Connection
+    call: dict[str, object], user_id: str, conn: aiosqlite.Connection
 ) -> ToolMessage:
     """Execute a single tool call and return the result message."""
     call_id, call_name = _validate_tool_call(call)
     try:
-        result = await call_tool(cast(ToolCall, call), conn=conn)
+        result = await call_tool(cast(ToolCall, call), user_id=user_id, conn=conn)
     except Exception as exc:
         raise ToolExecutionError(
             ToolMessage(
@@ -100,14 +100,14 @@ def _make_result(
 
 
 async def _run_tool_calls(
-    tool_calls: list[dict[str, object]],
+    tool_calls: list[dict[str, object]], user_id: str
 ) -> tuple[list[ToolMessage], MessageBuckets]:
     """Execute all tool calls within a transaction."""
     messages: list[ToolMessage] = []
     messages_to_save: MessageBuckets = {}
     async with transaction() as conn:
         for call in tool_calls:
-            msg = await _execute_tool_call(call, conn)
+            msg = await _execute_tool_call(call, user_id, conn)
             messages.append(msg)
             messages_to_save.setdefault(get_timestamp(), []).append(msg)
     return messages, messages_to_save
@@ -124,7 +124,9 @@ async def area_tools(state: AreaState):
 
     logger.info("Executing tool calls", extra={"count": len(tool_calls)})
     try:
-        messages, messages_to_save = await _run_tool_calls(tool_calls)
+        messages, messages_to_save = await _run_tool_calls(
+            tool_calls, str(state.user.id)
+        )
     except ToolExecutionError as exc:
         logger.warning("Tool execution error")
         return _make_result([exc.message], {get_timestamp(): [exc.message]}, False)

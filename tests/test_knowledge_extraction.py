@@ -705,6 +705,59 @@ class TestPersistExtraction:
         updated_area = await db.LifeAreasManager.get_by_id(area_id)
         assert updated_area.extracted_at is not None
 
+    @pytest.mark.asyncio
+    async def test_persist_extraction_rolls_back_on_failure(self, temp_db):
+        """Should roll back all writes if mark_extracted fails."""
+        area_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+
+        # Create area
+        area = db.LifeArea(id=area_id, title="Career", parent_id=None, user_id=user_id)
+        await db.LifeAreasManager.create(area_id, area)
+
+        # Create leaf coverage record
+        from src.shared.timestamp import get_timestamp
+
+        now = get_timestamp()
+        coverage = db.LeafCoverage(
+            leaf_id=area_id,
+            root_area_id=area_id,
+            status="covered",
+            summary_text="Has Python skills",
+            updated_at=now,
+        )
+        await db.LeafCoverageManager.create(area_id, coverage)
+
+        state = KnowledgeExtractionState(
+            area_id=area_id,
+            user_id=user_id,
+            area_title="Career",
+            summary_vector=[0.1, 0.2, 0.3],
+            extracted_knowledge=[
+                {"content": "Python", "kind": "skill", "confidence": 0.9},
+            ],
+        )
+
+        with patch.object(
+            db.LifeAreasManager,
+            "mark_extracted",
+            side_effect=RuntimeError("simulated failure"),
+        ):
+            with pytest.raises(RuntimeError, match="simulated failure"):
+                await persist_extraction(state)
+
+        # Rollback: vector should still be None
+        updated_coverage = await db.LeafCoverageManager.get_by_id(area_id)
+        assert updated_coverage.vector is None
+
+        # Rollback: no knowledge items saved
+        all_knowledge = await db.UserKnowledgeManager.list()
+        assert len(all_knowledge) == 0
+
+        # Rollback: area.extracted_at should still be None
+        updated_area = await db.LifeAreasManager.get_by_id(area_id)
+        assert updated_area.extracted_at is None
+
 
 async def _create_area_with_leaf_summaries(area_id, user_id, sub_area_summaries):
     """Helper to create area with sub-areas and leaf summaries in database.

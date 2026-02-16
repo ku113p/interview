@@ -76,8 +76,13 @@ def _collect_leaf_summaries(
 async def _load_leaf_area_data(area: db.LifeArea, area_id: uuid.UUID) -> dict:
     """Load data for leaf area (no descendants) from leaf_coverage summary."""
     leaf_coverage = await db.LeafCoverageManager.get_by_id(area_id)
-    if not leaf_coverage or not leaf_coverage.summary_text:
-        logger.info("No summary for leaf area", extra={"area_id": str(area_id)})
+    if not leaf_coverage:
+        logger.info("No coverage record for leaf area", extra={"area_id": str(area_id)})
+        return {"is_successful": False}
+    if not leaf_coverage.summary_text:
+        logger.info(
+            "Coverage record has no summary text", extra={"area_id": str(area_id)}
+        )
         return {"is_successful": False}
 
     logger.info(
