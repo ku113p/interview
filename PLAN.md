@@ -651,7 +651,7 @@ async def set_covered_at(area_id: UUID, timestamp: float, conn=None):
 
 **Note:** The current override logic using `ActiveInterviewContextManager.get_by_user()` can be removed, but this is optional. The routing works fine without it since extract_target already classifies intent.
 
-### 6. Update Leaf Interview Graph (`src/workflows/subgraphs/leaf_interview/graph.py`)
+### 5. Update Leaf Interview Graph (`src/workflows/subgraphs/leaf_interview/graph.py`)
 
 **Add new node to graph:**
 ```python
