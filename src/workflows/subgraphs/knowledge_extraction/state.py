@@ -21,5 +21,3 @@ class KnowledgeExtractionState(BaseModel):
 
     # Extracted knowledge items: [{"content": str, "kind": str, "confidence": float}]
     extracted_knowledge: list[dict] = []
-
-    is_successful: bool = False

@@ -15,6 +15,7 @@ from src.workflows.nodes.persistence.save_history import (
     save_history,
 )
 from src.workflows.subgraphs.leaf_interview.nodes import (
+    create_turn_summary,
     generate_leaf_response,
     load_interview_context,
     quick_evaluate,
@@ -110,6 +111,73 @@ def _create_save_state(user: User, **kwargs) -> SaveHistoryState:
     }
     defaults.update(kwargs)
     return SaveHistoryState(user=user, **defaults)
+
+
+class TestCreateTurnSummary:
+    """Tests for create_turn_summary node."""
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_when_no_active_leaf(self):
+        """Should return {} when active_leaf_id is None."""
+        user = User(id=new_id(), mode=InputMode.auto)
+        state = _create_state(
+            user, new_id(), active_leaf_id=None, messages=[HumanMessage(content="hi")]
+        )
+        result = await create_turn_summary(state, MagicMock())
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_when_no_human_message(self, temp_db):
+        """Should return {} when messages contains only AI messages."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+        state = _create_state(
+            user,
+            area_id,
+            active_leaf_id=leaf_id,
+            messages=[AIMessage(content="Question?")],
+        )
+        result = await create_turn_summary(state, MagicMock())
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_when_off_topic(self, temp_db):
+        """Should return {} when LLM returns empty string (off-topic)."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+        state = _create_state(
+            user,
+            area_id,
+            active_leaf_id=leaf_id,
+            messages=[HumanMessage(content="What time is it?")],
+        )
+        mock_response = MagicMock()
+        mock_response.content = ""
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+        result = await create_turn_summary(state, mock_llm)
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_returns_summary_text_on_success(self, temp_db):
+        """Should return turn_summary_text when LLM returns content."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        await _setup_leaf_with_history(user_id, area_id, leaf_id)
+        state = _create_state(
+            user,
+            area_id,
+            active_leaf_id=leaf_id,
+            messages=[HumanMessage(content="I know Python.")],
+        )
+        mock_response = MagicMock()
+        mock_response.content = "User knows Python well."
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+        result = await create_turn_summary(state, mock_llm)
+        assert result == {"turn_summary_text": "User knows Python well."}
 
 
 class TestLoadInterviewContext:

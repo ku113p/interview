@@ -22,7 +22,8 @@ _SCHEMA_SQL = """
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         parent_id TEXT,
-        user_id TEXT NOT NULL
+        user_id TEXT NOT NULL,
+        covered_at REAL
     );
     -- Leaf-to-history join table: links leaves to their conversation messages
     CREATE TABLE IF NOT EXISTS leaf_history (

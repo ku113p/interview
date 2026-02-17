@@ -176,24 +176,24 @@ The leaf interview flow uses focused prompts for each stage:
    - Output: status (complete/partial/skipped) + reason
    - ~300-500 tokens depending on number of summaries
 
-4. **Leaf Question** (`PROMPT_LEAF_QUESTION`): Generates initial question about one leaf
+3. **Leaf Question** (`PROMPT_LEAF_QUESTION`): Generates initial question about one leaf
    - Input: leaf path (e.g., "Work > Google > Responsibilities")
    - Output: Single focused question
    - ~300 tokens
 
-5. **Leaf Followup** (`PROMPT_LEAF_FOLLOWUP`): Asks for more detail after partial answer
+4. **Leaf Followup** (`PROMPT_LEAF_FOLLOWUP`): Asks for more detail after partial answer
    - Input: leaf path, evaluation reason
    - Output: Direct factual question (no motivational language)
    - History: Only leaf-specific messages + latest user message (prevents topic contamination)
    - ~400 tokens
 
-6. **Leaf Complete** (`PROMPT_LEAF_COMPLETE`): Transitions to next leaf
+5. **Leaf Complete** (`PROMPT_LEAF_COMPLETE`): Transitions to next leaf
    - Input: completed leaf path, next leaf path
    - Output: Brief ack (3-5 words) + question for next topic
    - History: Empty (prevents contamination from previous topic)
    - ~300 tokens
 
-7. **All Leaves Done** (`PROMPT_ALL_LEAVES_DONE`): Completion message
+6. **All Leaves Done** (`PROMPT_ALL_LEAVES_DONE`): Completion message
    - Output: Thank you + suggestion for next steps
    - ~200 tokens
 

@@ -43,32 +43,32 @@ Overall direction is sound and the code is substantially simpler. Three issues n
 
 ---
 
-#### Missing unit tests
-Three new pieces have no unit tests:
+#### ~~Missing unit tests~~ — PARTIALLY FIXED
+`create_turn_summary` (4 tests covering all paths) added to `tests/test_leaf_interview.py`.
+`test_persist_extraction_rolls_back_on_failure` now asserts `vector IS NULL` after rollback.
+
+Remaining (not blocking merge):
 
 | Missing | Location |
 |---------|----------|
-| `create_turn_summary` node (all paths) | `src/workflows/subgraphs/leaf_interview/nodes.py` |
 | `route_after_context_load` 3-way router | `src/workflows/subgraphs/leaf_interview/graph.py` |
 | `_save_turn_summary` helper | `src/workflows/nodes/persistence/save_history.py` |
-
-Also: `test_persist_extraction_rolls_back_on_failure` no longer asserts `vector IS NULL` after failure — rollback is not fully verified.
 
 ---
 
 ### LOW
 
-#### `is_successful` in `KnowledgeExtractionState` is dead code
+#### ~~`is_successful` in `KnowledgeExtractionState` is dead code~~ — FIXED
 **File:** `src/workflows/subgraphs/knowledge_extraction/state.py`
 
-Set to `False` on error in `load_summary`, but never read. `_route_after_load` in `graph.py` branches on `state.summary_text`, not `is_successful`. Should be removed.
+Removed `is_successful` field from state. `load_summary` now returns `{}` on failure. `_route_after_load` in `graph.py` branches on `state.summary_text`. Test updated accordingly.
 
 ---
 
-#### `life_areas` CREATE TABLE missing `covered_at`
+#### ~~`life_areas` CREATE TABLE missing `covered_at`~~ — FIXED
 **File:** `src/infrastructure/db/schema.py`
 
-`covered_at` exists only via `ALTER TABLE ADD COLUMN` in `_run_migrations`, not in the `CREATE TABLE` definition. The schema definition should be the source of truth. (`extracted_at` has been removed from both the column and migrations.)
+Added `covered_at REAL` to the `CREATE TABLE IF NOT EXISTS life_areas` definition. The `ALTER TABLE ADD COLUMN` migration is retained for existing databases.
 
 ---
 
@@ -79,8 +79,8 @@ Each recursive `_traverse(child_id)` call issues a full `get_descendants` query.
 
 ---
 
-#### LLM_MANIFEST.md prompt numbering skips 3
-Leaf interview prompts are numbered 1, 2, 4, 5, 6, 7 — number 3 is missing.
+#### ~~LLM_MANIFEST.md prompt numbering skips 3~~ — FIXED
+Leaf interview prompts renumbered from 1, 2, 4, 5, 6, 7 → 1, 2, 3, 4, 5, 6.
 
 ---
 

@@ -57,7 +57,7 @@ class TestLoadSummary:
             mock_get.return_value = None
             result = await load_summary(state)
 
-        assert result == {"is_successful": False}
+        assert result == {}
 
 
 class TestVectorizeSummary:
@@ -281,6 +281,9 @@ class TestPersistExtraction:
 
         all_knowledge = await db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 0
+
+        summary = await db.SummariesManager.get_by_id(summary_id)
+        assert summary is not None and summary.vector is None
 
 
 def _create_knowledge_mock_llm():

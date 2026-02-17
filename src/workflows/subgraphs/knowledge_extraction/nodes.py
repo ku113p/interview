@@ -33,7 +33,7 @@ async def load_summary(state: KnowledgeExtractionState) -> dict:
     summary = await db.SummariesManager.get_by_id(state.summary_id)
     if not summary:
         logger.warning("Summary not found", extra={"summary_id": str(state.summary_id)})
-        return {"is_successful": False}
+        return {}
     return {
         "summary_text": summary.summary_text,
         "summary_content": summary.summary_text,
