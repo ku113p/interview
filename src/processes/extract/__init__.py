@@ -1,6 +1,6 @@
 """Extract process: Knowledge extraction from completed areas."""
 
-from src.processes.extract.interfaces import ExtractTask
+from src.processes.extract.interfaces import ExtractTask, SummaryVectorizeTask
 
 
 # Lazy import for worker function to avoid circular imports
@@ -11,4 +11,4 @@ def run_extract_pool(channels):
     return _run_extract_pool(channels)
 
 
-__all__ = ["ExtractTask", "run_extract_pool"]
+__all__ = ["ExtractTask", "SummaryVectorizeTask", "run_extract_pool"]

@@ -154,36 +154,38 @@ PROMPT_TRANSCRIBE = "Transcribe this audio verbatim."
 # Leaf Interview (New Focused Flow)
 # =============================================================================
 
-PROMPT_QUICK_EVALUATE = """\
-You are evaluating whether a user has adequately answered a single interview topic.
+PROMPT_TURN_SUMMARY = """\
+You are extracting a concise summary from a conversation turn.
 
-**Topic being asked about:**
-{leaf_path}
+**Topic:** {leaf_path}
+**Question asked:** {question_text}
+**User response:** {user_message}
 
-**Question asked:**
-{question_text}
+Extract a 2-4 sentence summary capturing what the user said about this topic.
+Focus on facts, experiences, preferences, and concrete information.
 
-**User's accumulated messages for this topic:**
-{accumulated_messages}
+If the user's response is NOT relevant to the topic (e.g. off-topic question, \
+meta-comment about the interview, or doesn't address the topic at all), \
+return an empty string.
 
-**CRITICAL: Content must match the topic!**
-The user's answer MUST be about "{leaf_path}" specifically. If they answered about \
-a different topic (even if related), that is NOT a complete answer for THIS topic.
+Return ONLY the summary text or an empty string. No labels or formatting."""
 
-**Evaluate the response:**
-- "complete": User provided substantive information about THIS SPECIFIC topic \
-("{leaf_path}"). They gave concrete details, examples, or clear answers that \
-directly address "{leaf_path}". Confirmations like "yes" or "that's all" count \
-as complete ONLY if prior messages already contain substantive content about \
-this exact topic.
-- "partial": User's response does not adequately address "{leaf_path}". This includes:
-  - Vague or incomplete information about the topic
-  - Information about a DIFFERENT topic (even if related)
-  - Only a confirmation without prior substantive content
-  - Content that doesn't match what was asked
-- "skipped": User explicitly said they don't know, can't remember, don't have \
-experience with this, or want to skip. Do NOT mark as skipped just because the \
-answer is brief - only if they explicitly declined to answer.
+
+PROMPT_SUMMARY_EVALUATE = """\
+You are evaluating whether a topic has been fully covered based on conversation summaries.
+
+**Topic:** {leaf_path}
+
+**Conversation summaries:**
+{summaries}
+
+Classify as:
+- "complete": User has provided substantive information about this topic \
+(concrete details, examples, or clear answers that directly address the topic)
+- "partial": User started answering but needs more detail or clarification, \
+or the information is vague or incomplete
+- "skipped": User explicitly declined to discuss this topic (said they don't know, \
+can't remember, don't have experience, or want to skip)
 
 Provide your evaluation with 'status' and 'reason'."""
 
@@ -252,21 +254,3 @@ Be conversational and helpful. Include the reset command at the end.
 
 Reset command: /reset-area_{area_id}
 """)
-
-PROMPT_LEAF_SUMMARY = _with_language_rule("""\
-You are extracting a concise summary of what the user shared about a specific topic.
-
-**Topic:**
-{leaf_path}
-
-**Conversation about this topic:**
-{messages}
-
-**Instructions:**
-- Write a brief summary (2-4 sentences) capturing the key facts and details the user shared
-- Focus on specific, concrete information (names, dates, numbers, experiences)
-- Write in third person (e.g., "The user has..." or "They work at...")
-- If the user provided minimal info, keep the summary minimal
-- Do not add interpretations or information not mentioned by the user
-
-Return ONLY the summary text, no additional formatting or labels.""")

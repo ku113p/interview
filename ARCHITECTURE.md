@@ -68,37 +68,39 @@ Focused interview flow asking one leaf at a time.
 ```
 START
   ↓
-load_interview_context
-  ├── Has active context? → load it
-  └── No context? → pick first uncovered leaf, create context
+load_interview_context        # Pick first uncovered leaf
   ↓
 route_after_context_load
   ├─→ (all_leaves_done OR area_already_extracted) → completed_area_response → END
-  └─→ quick_evaluate
-        ↓
-      update_coverage_status  # Mark leaf as covered/skipped
-        ↓
-      select_next_leaf        # Pick next uncovered leaf
-        ↓
-      generate_leaf_response → END
+  ├─→ create_turn_summary     # First path: process user's answer
+  │     ↓
+  │   quick_evaluate          # Evaluate answer using accumulated summaries
+  │     ↓
+  │   update_coverage_status  # Signal covered/skipped via set_covered_at
+  │     ↓
+  │   select_next_leaf        # Stay (partial) or advance to next leaf
+  │     ↓
+  │   generate_leaf_response → END
+  └─→ generate_leaf_response → END   # No prior answer (first turn)
 ```
 
 **Node details:**
-- `load_interview_context`: Load/create active leaf context for user
-- `quick_evaluate`: Evaluate user response (complete/partial/skipped)
-- `update_coverage_status`: Mark leaf as covered/skipped; extracts summary text when covered (embedding deferred to extraction process)
-- `select_next_leaf`: Stay on current (partial) or pick next uncovered leaf
+- `load_interview_context`: Find first uncovered leaf for the root area
+- `create_turn_summary`: Extract 2-4 sentence summary of the current user answer using `PROMPT_TURN_SUMMARY`; stores in `turn_summary_text` (deferred write to `summaries` table by `save_history`)
+- `quick_evaluate`: Evaluate coverage using all persisted summaries + current `turn_summary_text` (complete/partial/skipped)
+- `update_coverage_status`: Signal `set_covered_at=True` when leaf is complete or skipped (deferred DB write)
+- `select_next_leaf`: Stay on current leaf (partial) or pick next uncovered leaf
 - `generate_leaf_response`: Generate focused question or transition message
 - `completed_area_response`: Handle already-extracted areas
 
-**Inline summary extraction:**
-When a leaf is marked as "covered", `update_coverage_status` extracts a 2-4 sentence summary of the user's responses using `PROMPT_LEAF_SUMMARY`. The summary text is saved to `leaf_coverage.summary_text` by `save_history`. The embedding vector (`leaf_coverage.vector`) is computed later by the knowledge extraction process, keeping the interview hot path fast.
+**Per-turn summary flow:**
+Each user answer is summarized via `create_turn_summary` (`PROMPT_TURN_SUMMARY`). The summary text is written to the `summaries` table by `save_history` (atomic with message writes). After persisting, `save_history` returns `pending_summary_id` which the interview worker enqueues as a `SummaryVectorizeTask` to the extract pool — keeping the interview hot path fast.
 
 **Benefits:**
-- O(1) token growth per turn (only current leaf + accumulated messages)
+- O(1) token growth per turn (only current leaf + accumulated summaries)
 - Clearer, more focused questions
-- Per-leaf coverage persistence
-- Inline summary extraction (summaries available immediately when leaf completes)
+- Per-turn summaries available immediately for evaluation and extraction
+- Embedding vectorization decoupled to background worker
 
 ## Command Handling
 
@@ -121,7 +123,7 @@ Commands are handled in the graph via `handle_command` node, making them transpo
 When deleting a user, data is removed in this order:
 1. `user_knowledge_areas` links
 2. `user_knowledge` items
-3. Per-area: `leaf_coverage`, `leaf_history`
+3. Per-area: `summaries`, `leaf_history`
 4. `life_areas`
 5. `histories`
 6. `users`
@@ -162,8 +164,8 @@ Tool-calling loop for hierarchical area management.
 
 ### knowledge_extraction
 Post-interview knowledge extraction (triggered when all leaves covered).
-- `load_area_data`: Reads pre-extracted summaries from `leaf_coverage.summary_text`
-- `extract_summaries`: Skipped when leaf summaries available (inline extraction already done)
+- `load_area_data`: Reads per-turn summaries from `summaries` table (falls back to raw leaf messages)
+- `extract_summaries`: Skipped when per-turn summaries available (already written per turn)
 - `prepare_summary`: Generates embedding vector for combined summary (no DB write)
 - `extract_knowledge`: Extract skills/facts via LLM
 - `persist_extraction`: Atomic write of vector + knowledge items + mark_extracted in one transaction
@@ -189,7 +191,7 @@ The application is organized into 3 independent async processes that communicate
 | auth | `src/processes/auth/` | Exchange external user IDs for internal user_ids | `run_auth_pool`, `AuthRequest`, `resolve_user_id` |
 | transport | `src/processes/transport/` | CLI and Telegram transports | `run_cli`, `run_telegram`, `parse_user_id` |
 | interview | `src/processes/interview/` | Main graph worker for message processing | `run_graph_pool`, `get_graph`, `State`, `Target` |
-| extract | `src/processes/extract/` | Knowledge extraction from completed areas | `run_extract_pool`, `ExtractTask` |
+| extract | `src/processes/extract/` | Knowledge extraction from completed areas | `run_extract_pool`, `ExtractTask`, `SummaryVectorizeTask` |
 
 ### Runtime Infrastructure
 
@@ -211,10 +213,11 @@ Shared runtime utilities in `src/runtime/`:
 ### Channel Message Types
 
 ```python
-ChannelRequest   # transport → graph (correlation_id, user_id, client_message)
-ChannelResponse  # graph → transport (correlation_id, response_text)
-ExtractTask      # graph → extract (area_id, user_id)
-AuthRequest      # transport → auth (provider, external_id, display_name, response_future)
+ChannelRequest        # transport → graph (correlation_id, user_id, client_message)
+ChannelResponse       # graph → transport (correlation_id, response_text)
+ExtractTask           # graph → extract (area_id) — triggered when leaf completes
+SummaryVectorizeTask  # graph → extract (summary_id) — triggered per turn summary saved
+AuthRequest           # transport → auth (provider, external_id, display_name, response_future)
 ```
 
 ### Communication Flow
@@ -225,7 +228,9 @@ AuthRequest      # transport → auth (provider, external_id, display_name, resp
    - Transport matches responses to pending requests by ID
 
 2. **Background Extraction**:
-   - Graph worker queues `ExtractTask` when sub-areas covered
+   - Graph worker queues `ExtractTask` when a leaf is fully covered
+   - Graph worker queues `SummaryVectorizeTask` each time a turn summary is saved
+   - Both task types share the `channels.extract` queue and worker pool
    - Extract workers process independently (fire-and-forget)
 
 3. **Graceful Shutdown**:
@@ -251,7 +256,7 @@ main.py
     │       └── imports src.processes.extract.interfaces
     │
     └── src.processes.extract
-            └── interfaces.py (ExtractTask)
+            └── interfaces.py (ExtractTask, SummaryVectorizeTask)
 ```
 
 Key: Each process only imports **interfaces** from other processes, never implementation.
@@ -306,12 +311,11 @@ User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the sam
 |-------|---------|
 | `users` | User profiles (id, mode, current_area_id) |
 | `histories` | Conversation messages (JSON) |
-| `life_areas` | Topics with hierarchy (parent_id, extracted_at timestamp when knowledge was extracted) |
+| `life_areas` | Topics with hierarchy (parent_id, covered_at, extracted_at) |
 | `leaf_history` | Join table linking leaves to their conversation messages |
+| `summaries` | Per-turn summaries (summary_text, question_id, answer_id, vector) |
 | `user_knowledge` | Skills/facts extracted |
 | `user_knowledge_areas` | Knowledge-area links |
-| `leaf_coverage` | Per-leaf interview coverage status (pending/active/covered/skipped) with summary + vector |
-| `active_interview_context` | Current interview state per user (active leaf) |
 
 ORM pattern: `ORMBase[T]` with managers per table. Database managers are exported from `src/infrastructure/db/managers.py`.
 
@@ -388,12 +392,18 @@ State:
   command_response: str | None # Set when command handled (ends workflow early)
   area_already_extracted: bool # True if area has extracted_at set
 
-  # Leaf interview state
-  active_leaf_id: UUID | None     # Current leaf being asked about
-  active_leaf_path: str | None    # Full path like "Work > Google > Responsibilities"
+  # Leaf interview state (mapped from LeafInterviewState subgraph output)
+  active_leaf_id: UUID | None       # Current leaf being asked about
+  completed_leaf_id: UUID | None    # Leaf just marked complete (for extraction)
+  completed_leaf_path: str | None   # Path of just-completed leaf (for transition msg)
   leaf_evaluation: LeafEvaluation | None  # complete/partial/skipped
-  question_text: str | None       # The question we asked
-  all_leaves_done: bool           # True when all leaves covered/skipped
+  question_text: str | None         # The question we asked for current leaf
+  all_leaves_done: bool             # True when all leaves covered/skipped
+
+  # Deferred DB write data (collected for atomic persist in save_history)
+  turn_summary_text: str | None     # Per-turn summary text
+  set_covered_at: bool              # Signal to set covered_at on completed leaf
+  pending_summary_id: UUID | None   # Set by save_history → triggers vectorization task
 ```
 
 ### Message Deduplication
@@ -406,9 +416,9 @@ Merge function uses SHA-256 hash of (type, content, tool_calls) to prevent dupli
 | Node | Model | Purpose |
 |------|-------|---------|
 | extract_target | gpt-5.1-codex-mini | Fast intent classification |
-| quick_evaluate | gpt-5.1-codex-mini | Evaluate user answer (complete/partial/skipped) |
+| quick_evaluate | gpt-5.1-codex-mini | Evaluate coverage using accumulated summaries |
 | generate_leaf_response | gpt-5.1-codex-mini | Generate focused questions |
-| leaf_summary | gpt-5.1-codex-mini | Extract summary from messages |
+| create_turn_summary | gpt-5.1-codex-mini | Extract per-turn summary from user answer |
 | area_chat | gpt-5.1-codex-mini | Tool-based area management |
 | knowledge_extraction | gpt-5.1-codex-mini | Knowledge extraction |
 | transcribe | gemini-2.5-flash-lite | Audio transcription |

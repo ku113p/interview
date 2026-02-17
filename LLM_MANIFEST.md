@@ -7,9 +7,9 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | Node | Model | Purpose |
 |------|-------|---------|
 | `extract_target` | `gpt-5.1-codex-mini` | Fast intent classification (interview vs areas vs small_talk) |
-| `quick_evaluate` | `gpt-5.1-codex-mini` | Evaluate user answer for leaf (complete/partial/skipped) |
+| `create_turn_summary` | `gpt-5.1-codex-mini` | Extract per-turn summary from user answer |
+| `quick_evaluate` | `gpt-5.1-codex-mini` | Evaluate leaf coverage using accumulated summaries |
 | `generate_leaf_response` | `gpt-5.1-codex-mini` | Generate focused questions about single leaf |
-| `leaf_summary` | `gpt-5.1-codex-mini` | Extract summary when leaf completes |
 | `small_talk_response` | `gpt-5.1-codex-mini` | Greetings, app questions, casual chat |
 | `completed_area_response` | `gpt-5.1-codex-mini` | Response when area already extracted |
 | `area_chat` | `gpt-5.1-codex-mini` | Hierarchical area management with tools |
@@ -27,7 +27,7 @@ This document describes all AI/LLM behavior in the interview assistant codebase.
 | `quick_evaluate` | 0.0 | Deterministic evaluation |
 | `area_chat` | 0.2 | Consistent tool-calling behavior |
 | `generate_leaf_response` | 0.5 | Natural conversational variation |
-| `leaf_summary` | 0.5 | Natural variation in summary phrasing |
+| `create_turn_summary` | 0.5 | Natural variation in summary phrasing |
 | `small_talk_response` | 0.5 | Natural conversational variation |
 | `completed_area_response` | 0.5 | Natural conversational variation |
 
@@ -70,8 +70,8 @@ LLM instances are created via lazy-initialized getters in `src/infrastructure/ll
 |--------|-------|-------------|------------|-----------|-------|
 | `get_llm_extract_target()` | gpt-5.1-codex-mini | 0.0 | 1024 | low | Structured output |
 | `get_llm_transcribe()` | gemini-2.5-flash-lite | 0.0 | 8192 | n/a | |
-| `get_llm_quick_evaluate()` | gpt-5.1-codex-mini | 0.0 | 1024 | low | Structured output |
-| `get_llm_leaf_response()` | gpt-5.1-codex-mini | 0.5 | 1024 | default | |
+| `get_llm_quick_evaluate()` | gpt-5.1-codex-mini | 0.0 | 1024 | low | Structured output (summary evaluate) |
+| `get_llm_leaf_response()` | gpt-5.1-codex-mini | 0.5 | 1024 | default | Used for turn summary + leaf response |
 | `get_llm_area_chat()` | gpt-5.1-codex-mini | 0.2 | 4096 | default | Tool-calling |
 | `get_llm_small_talk()` | gpt-5.1-codex-mini | 0.5 | 4096 | default | |
 
@@ -94,11 +94,11 @@ All prompts are centralized in `src/shared/prompts.py`:
 | Purpose | Constant/Function |
 |---------|-------------------|
 | Intent classification | `PROMPT_EXTRACT_TARGET_TEMPLATE`, `build_extract_target_prompt()` |
-| Quick evaluate (leaf answer) | `PROMPT_QUICK_EVALUATE` |
+| Per-turn summary extraction | `PROMPT_TURN_SUMMARY` |
+| Summary evaluate (leaf coverage) | `PROMPT_SUMMARY_EVALUATE` |
 | Leaf question (initial) | `PROMPT_LEAF_QUESTION` |
 | Leaf followup (partial) | `PROMPT_LEAF_FOLLOWUP` |
 | Leaf transition (complete) | `PROMPT_LEAF_COMPLETE` |
-| Leaf summary extraction | `PROMPT_LEAF_SUMMARY` |
 | All leaves done | `PROMPT_ALL_LEAVES_DONE` |
 | Small talk response | `PROMPT_SMALL_TALK` |
 | Completed area response | `PROMPT_COMPLETED_AREA` (in completed_area_response.py) |
@@ -165,35 +165,35 @@ class CreateSubtreeArgs(BaseModel):
 
 The leaf interview flow uses focused prompts for each stage:
 
-1. **Quick Evaluate** (`PROMPT_QUICK_EVALUATE`): Evaluates if user answered a single leaf topic
-   - Input: leaf path, question asked, ALL accumulated messages
-   - Output: status (complete/partial/skipped) + reason
-   - ~300-500 tokens depending on accumulated messages
+1. **Turn Summary** (`PROMPT_TURN_SUMMARY`): Extracts a 2-4 sentence summary from one user answer
+   - Input: leaf path, question asked, user response
+   - Output: summary text or empty string (if off-topic)
+   - ~200-400 tokens
+   - Result stored in `summaries` table; embedding vectorized in background
 
-2. **Leaf Question** (`PROMPT_LEAF_QUESTION`): Generates initial question about one leaf
+2. **Summary Evaluate** (`PROMPT_SUMMARY_EVALUATE`): Evaluates leaf coverage using all accumulated summaries
+   - Input: leaf path, all persisted summaries for this leaf
+   - Output: status (complete/partial/skipped) + reason
+   - ~300-500 tokens depending on number of summaries
+
+4. **Leaf Question** (`PROMPT_LEAF_QUESTION`): Generates initial question about one leaf
    - Input: leaf path (e.g., "Work > Google > Responsibilities")
    - Output: Single focused question
    - ~300 tokens
 
-3. **Leaf Followup** (`PROMPT_LEAF_FOLLOWUP`): Asks for more detail after partial answer
+5. **Leaf Followup** (`PROMPT_LEAF_FOLLOWUP`): Asks for more detail after partial answer
    - Input: leaf path, evaluation reason
    - Output: Direct factual question (no motivational language)
    - History: Only leaf-specific messages + latest user message (prevents topic contamination)
    - ~400 tokens
 
-4. **Leaf Complete** (`PROMPT_LEAF_COMPLETE`): Transitions to next leaf
+6. **Leaf Complete** (`PROMPT_LEAF_COMPLETE`): Transitions to next leaf
    - Input: completed leaf path, next leaf path
    - Output: Brief ack (3-5 words) + question for next topic
    - History: Empty (prevents contamination from previous topic)
    - ~300 tokens
 
-5. **Leaf Summary** (`PROMPT_LEAF_SUMMARY`): Extracts summary when leaf is complete
-   - Input: leaf path, accumulated conversation messages
-   - Output: 2-4 sentence summary of user's responses for this topic
-   - ~400 tokens
-   - Summary is saved to `leaf_coverage.summary_text` with embedding vector
-
-6. **All Leaves Done** (`PROMPT_ALL_LEAVES_DONE`): Completion message
+7. **All Leaves Done** (`PROMPT_ALL_LEAVES_DONE`): Completion message
    - Output: Thank you + suggestion for next steps
    - ~200 tokens
 
@@ -208,7 +208,7 @@ The new flow sends only the current leaf context, not ALL messages and tree stru
 
 ### Knowledge Extraction Prompt Structure
 
-The `extract_summaries` node in `knowledge_extraction` subgraph uses the tree/paths format to summarize user responses per sub-area. When leaf summaries are available (from `leaf_coverage` table), this LLM call is skipped entirely.
+The `extract_summaries` node in `knowledge_extraction` subgraph uses the tree/paths format to summarize user responses per sub-area. When per-turn summaries are available (from `summaries` table), this LLM call is skipped entirely.
 
 ## Error Handling
 
@@ -248,7 +248,6 @@ This applies to:
 - `PROMPT_LEAF_QUESTION` - Initial leaf questions
 - `PROMPT_LEAF_FOLLOWUP` - Follow-up questions
 - `PROMPT_LEAF_COMPLETE` - Transition to next topic
-- `PROMPT_LEAF_SUMMARY` - Summary extraction (preserves user's language in summaries)
 - `PROMPT_ALL_LEAVES_DONE` - Completion message
 - `PROMPT_COMPLETED_AREA` - Already-extracted area response
 

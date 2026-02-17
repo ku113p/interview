@@ -77,5 +77,6 @@ class State(BaseModel):
     all_leaves_done: bool = False  # True when all leaves covered/skipped
 
     # Deferred DB write data (collected for atomic persist in save_history)
-    leaf_summary_text: str | None = None
-    leaf_completion_status: str | None = None  # "covered" or "skipped"
+    turn_summary_text: str | None = None
+    set_covered_at: bool = False
+    pending_summary_id: uuid.UUID | None = None

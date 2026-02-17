@@ -13,3 +13,10 @@ class ExtractTask:
     """
 
     area_id: uuid.UUID
+
+
+@dataclass
+class SummaryVectorizeTask:
+    """Task to compute and store the embedding vector for one summary."""
+
+    summary_id: uuid.UUID

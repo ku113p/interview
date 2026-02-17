@@ -1,200 +1,141 @@
 """Unit tests for interview-specific database managers."""
 
+import uuid
+
 import pytest
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.timestamp import get_timestamp
 
 
-class TestLeafCoverageManager:
-    """Tests for LeafCoverageManager."""
+async def _create_leaf_messages(
+    user_id: uuid.UUID, leaf_id: uuid.UUID, now: float
+) -> list[uuid.UUID]:
+    """Create two messages linked to leaf_id and return their IDs."""
+    created_ids = []
+    for i, (role, content) in enumerate(
+        [("assistant", "What is your experience?"), ("user", "Five years.")]
+    ):
+        history_id = new_id()
+        created_ids.append(history_id)
+        history = db.History(
+            id=history_id,
+            message_data={"role": role, "content": content},
+            user_id=user_id,
+            created_ts=now + i,
+        )
+        await db.HistoriesManager.create(history_id, history)
+        await db.LeafHistoryManager.link(leaf_id, history_id)
+    return created_ids
+
+
+class TestSummariesManager:
+    """Tests for SummariesManager."""
 
     @pytest.mark.asyncio
     async def test_create_and_get_by_id(self, temp_db):
-        """Should create and retrieve a leaf coverage record."""
-        leaf_id, root_area_id = new_id(), new_id()
+        """Should create and retrieve a summary record."""
+        area_id = new_id()
         now = get_timestamp()
 
-        coverage = db.LeafCoverage(
-            leaf_id=leaf_id,
-            root_area_id=root_area_id,
-            status="pending",
-            updated_at=now,
+        summary_id = await db.SummariesManager.create_summary(
+            area_id=area_id,
+            summary_text="User has 5 years of Python experience.",
+            created_at=now,
         )
-        await db.LeafCoverageManager.create(leaf_id, coverage)
 
-        result = await db.LeafCoverageManager.get_by_id(leaf_id)
+        result = await db.SummariesManager.get_by_id(summary_id)
         assert result is not None
-        assert result.leaf_id == leaf_id
-        assert result.status == "pending"
-
-    @pytest.mark.asyncio
-    async def test_list_by_root_area(self, temp_db):
-        """Should list all coverage records for a root area."""
-        root_area_id = new_id()
-        leaf1_id, leaf2_id = new_id(), new_id()
-        now = get_timestamp()
-
-        for leaf_id in [leaf1_id, leaf2_id]:
-            coverage = db.LeafCoverage(
-                leaf_id=leaf_id,
-                root_area_id=root_area_id,
-                status="pending",
-                updated_at=now,
-            )
-            await db.LeafCoverageManager.create(leaf_id, coverage)
-
-        result = await db.LeafCoverageManager.list_by_root_area(root_area_id)
-        assert len(result) == 2
-
-    @pytest.mark.asyncio
-    async def test_update_status(self, temp_db):
-        """Should update the status of a leaf coverage record."""
-        leaf_id, root_area_id = new_id(), new_id()
-        now = get_timestamp()
-
-        coverage = db.LeafCoverage(
-            leaf_id=leaf_id,
-            root_area_id=root_area_id,
-            status="pending",
-            updated_at=now,
-        )
-        await db.LeafCoverageManager.create(leaf_id, coverage)
-
-        await db.LeafCoverageManager.update_status(leaf_id, "covered", now + 1)
-
-        result = await db.LeafCoverageManager.get_by_id(leaf_id)
-        assert result.status == "covered"
-
-    @pytest.mark.asyncio
-    async def test_save_summary_text(self, temp_db):
-        """Should save summary text only."""
-        leaf_id, root_area_id = new_id(), new_id()
-        now = get_timestamp()
-
-        coverage = db.LeafCoverage(
-            leaf_id=leaf_id,
-            root_area_id=root_area_id,
-            status="covered",
-            updated_at=now,
-        )
-        await db.LeafCoverageManager.create(leaf_id, coverage)
-
-        await db.LeafCoverageManager.save_summary_text(
-            leaf_id, "User has Python experience", now + 1
-        )
-
-        result = await db.LeafCoverageManager.get_by_id(leaf_id)
-        assert result.summary_text == "User has Python experience"
+        assert result.id == summary_id
+        assert result.area_id == area_id
+        assert result.summary_text == "User has 5 years of Python experience."
         assert result.vector is None
 
     @pytest.mark.asyncio
-    async def test_update_vector(self, temp_db):
-        """Should save embedding vector only."""
-        leaf_id, root_area_id = new_id(), new_id()
+    async def test_list_by_area(self, temp_db):
+        """Should list all summaries for an area in creation order."""
+        area_id = new_id()
         now = get_timestamp()
 
-        coverage = db.LeafCoverage(
-            leaf_id=leaf_id,
-            root_area_id=root_area_id,
-            status="covered",
-            updated_at=now,
+        id1 = await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="First summary.", created_at=now
         )
-        await db.LeafCoverageManager.create(leaf_id, coverage)
+        id2 = await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="Second summary.", created_at=now + 1
+        )
+
+        results = await db.SummariesManager.list_by_area(area_id)
+        assert len(results) == 2
+        assert results[0].id == id1
+        assert results[1].id == id2
+
+    @pytest.mark.asyncio
+    async def test_list_by_area_empty(self, temp_db):
+        """Should return empty list for area with no summaries."""
+        area_id = new_id()
+        results = await db.SummariesManager.list_by_area(area_id)
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_update_vector(self, temp_db):
+        """Should save embedding vector to a summary."""
+        area_id = new_id()
+        now = get_timestamp()
+
+        summary_id = await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="Summary text.", created_at=now
+        )
 
         vector = [0.1, 0.2, 0.3]
-        await db.LeafCoverageManager.update_vector(leaf_id, vector, now + 1)
+        await db.SummariesManager.update_vector(summary_id, vector)
 
-        result = await db.LeafCoverageManager.get_by_id(leaf_id)
+        result = await db.SummariesManager.get_by_id(summary_id)
         assert result.vector == vector
-        assert result.summary_text is None
 
     @pytest.mark.asyncio
-    async def test_delete_by_root_area(self, temp_db):
-        """Should delete all coverage records for a root area."""
-        root_area_id = new_id()
-        leaf1_id, leaf2_id = new_id(), new_id()
+    async def test_delete_by_area(self, temp_db):
+        """Should delete all summaries for an area."""
+        area_id = new_id()
+        other_area_id = new_id()
         now = get_timestamp()
 
-        for leaf_id in [leaf1_id, leaf2_id]:
-            coverage = db.LeafCoverage(
-                leaf_id=leaf_id,
-                root_area_id=root_area_id,
-                status="pending",
-                updated_at=now,
-            )
-            await db.LeafCoverageManager.create(leaf_id, coverage)
+        await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="Summary 1.", created_at=now
+        )
+        await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="Summary 2.", created_at=now + 1
+        )
+        await db.SummariesManager.create_summary(
+            area_id=other_area_id, summary_text="Other area.", created_at=now
+        )
 
-        await db.LeafCoverageManager.delete_by_root_area(root_area_id)
+        await db.SummariesManager.delete_by_area(area_id)
 
-        result = await db.LeafCoverageManager.list_by_root_area(root_area_id)
-        assert len(result) == 0
+        deleted = await db.SummariesManager.list_by_area(area_id)
+        assert len(deleted) == 0
 
-
-class TestActiveInterviewContextManager:
-    """Tests for ActiveInterviewContextManager."""
+        remaining = await db.SummariesManager.list_by_area(other_area_id)
+        assert len(remaining) == 1
 
     @pytest.mark.asyncio
-    async def test_create_and_get_by_user(self, temp_db):
-        """Should create and retrieve context by user ID."""
-        user_id, root_area_id, leaf_id = new_id(), new_id(), new_id()
+    async def test_create_with_question_and_answer_ids(self, temp_db):
+        """Should store question_id and answer_id on summaries."""
+        area_id = new_id()
+        question_id = new_id()
+        answer_id = new_id()
         now = get_timestamp()
 
-        ctx = db.ActiveInterviewContext(
-            user_id=user_id,
-            root_area_id=root_area_id,
-            active_leaf_id=leaf_id,
+        summary_id = await db.SummariesManager.create_summary(
+            area_id=area_id,
+            summary_text="Summary with references.",
             created_at=now,
-        )
-        await db.ActiveInterviewContextManager.create(user_id, ctx)
-
-        result = await db.ActiveInterviewContextManager.get_by_user(user_id)
-        assert result is not None
-        assert result.user_id == user_id
-        assert result.active_leaf_id == leaf_id
-
-    @pytest.mark.asyncio
-    async def test_update_active_leaf(self, temp_db):
-        """Should update active leaf."""
-        user_id, root_area_id = new_id(), new_id()
-        leaf1_id, leaf2_id = new_id(), new_id()
-        now = get_timestamp()
-
-        ctx = db.ActiveInterviewContext(
-            user_id=user_id,
-            root_area_id=root_area_id,
-            active_leaf_id=leaf1_id,
-            created_at=now,
-            question_text="Old question",
-        )
-        await db.ActiveInterviewContextManager.create(user_id, ctx)
-
-        await db.ActiveInterviewContextManager.update_active_leaf(
-            user_id, leaf2_id, "New question"
+            question_id=question_id,
+            answer_id=answer_id,
         )
 
-        result = await db.ActiveInterviewContextManager.get_by_user(user_id)
-        assert result.active_leaf_id == leaf2_id
-        assert result.question_text == "New question"
-
-    @pytest.mark.asyncio
-    async def test_delete_by_user(self, temp_db):
-        """Should delete context for a user."""
-        user_id, root_area_id, leaf_id = new_id(), new_id(), new_id()
-        now = get_timestamp()
-
-        ctx = db.ActiveInterviewContext(
-            user_id=user_id,
-            root_area_id=root_area_id,
-            active_leaf_id=leaf_id,
-            created_at=now,
-        )
-        await db.ActiveInterviewContextManager.create(user_id, ctx)
-
-        await db.ActiveInterviewContextManager.delete_by_user(user_id)
-
-        result = await db.ActiveInterviewContextManager.get_by_user(user_id)
-        assert result is None
+        result = await db.SummariesManager.get_by_id(summary_id)
+        assert result.question_id == question_id
+        assert result.answer_id == answer_id
 
 
 class TestLeafHistoryManager:
@@ -322,3 +263,24 @@ class TestLeafHistoryManager:
         # Should still only have one message
         count = await db.LeafHistoryManager.get_message_count(leaf_id)
         assert count == 1
+
+    @pytest.mark.asyncio
+    async def test_get_messages_with_ids(self, temp_db):
+        """Should return (uuid, dict) pairs in chronological order."""
+        import uuid as uuid_module
+
+        user_id, leaf_id = new_id(), new_id()
+        now = get_timestamp()
+        created_ids = await _create_leaf_messages(user_id, leaf_id, now)
+
+        results = await db.LeafHistoryManager.get_messages_with_ids(leaf_id)
+
+        assert len(results) == 2
+        msg_id0, msg0 = results[0]
+        msg_id1, msg1 = results[1]
+        assert isinstance(msg_id0, uuid_module.UUID)
+        assert isinstance(msg0, dict)
+        assert msg_id0 == created_ids[0]
+        assert msg0["content"] == "What is your experience?"
+        assert msg_id1 == created_ids[1]
+        assert msg1["content"] == "Five years."

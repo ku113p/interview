@@ -7,239 +7,105 @@ from typing import Any
 import aiosqlite
 
 from .base import ORMBase, _with_conn
-from .models import ActiveInterviewContext, LeafCoverage
+from .models import Summary
 
 
-class LeafCoverageManager(ORMBase[LeafCoverage]):
-    """Manager for leaf_coverage table."""
+class SummariesManager(ORMBase[Summary]):
+    """Manager for summaries table (per-turn summaries for leaf areas)."""
 
-    _table = "leaf_coverage"
+    _table = "summaries"
     _columns = (
-        "leaf_id",
-        "root_area_id",
-        "status",
+        "id",
+        "area_id",
         "summary_text",
+        "question_id",
+        "answer_id",
         "vector",
-        "updated_at",
-    )
-
-    @classmethod
-    def _row_to_obj(cls, row: aiosqlite.Row) -> LeafCoverage:
-        vector = json.loads(row["vector"]) if row["vector"] else None
-        return LeafCoverage(
-            leaf_id=uuid.UUID(row["leaf_id"]),
-            root_area_id=uuid.UUID(row["root_area_id"]),
-            status=row["status"],
-            summary_text=row["summary_text"],
-            vector=vector,
-            updated_at=row["updated_at"],
-        )
-
-    @classmethod
-    def _obj_to_row(cls, data: LeafCoverage) -> dict[str, Any]:
-        return {
-            "leaf_id": str(data.leaf_id),
-            "root_area_id": str(data.root_area_id),
-            "status": data.status,
-            "summary_text": data.summary_text,
-            "vector": json.dumps(data.vector) if data.vector else None,
-            "updated_at": data.updated_at,
-        }
-
-    @classmethod
-    async def create(
-        cls,
-        leaf_id: uuid.UUID,
-        data: LeafCoverage,
-        conn: aiosqlite.Connection | None = None,
-        auto_commit: bool = True,
-    ):
-        """Create a leaf coverage record if not exists. Uses leaf_id as primary key.
-
-        Uses INSERT OR IGNORE to avoid race conditions when concurrent requests
-        attempt to create the same record - the first write wins and subsequent
-        attempts are safely ignored without overwriting existing data.
-        """
-        values = cls._obj_to_row(data)
-        columns = ", ".join(values.keys())
-        placeholders = ", ".join(["?"] * len(values))
-        query = (
-            f"INSERT OR IGNORE INTO {cls._table} ({columns}) VALUES ({placeholders})"
-        )
-        async with _with_conn(conn) as c:
-            await c.execute(query, tuple(values.values()))
-            if conn is None and auto_commit:
-                await c.commit()
-
-    @classmethod
-    async def get_by_id(
-        cls, leaf_id: uuid.UUID, conn: aiosqlite.Connection | None = None
-    ) -> LeafCoverage | None:
-        """Retrieve leaf coverage by leaf_id (primary key)."""
-        query = f"SELECT {', '.join(cls._columns)} FROM {cls._table} WHERE leaf_id = ?"
-        async with _with_conn(conn) as c:
-            cursor = await c.execute(query, (str(leaf_id),))
-            row = await cursor.fetchone()
-        return cls._row_to_obj(row) if row else None
-
-    @classmethod
-    async def list_by_root_area(
-        cls, root_area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
-    ) -> list[LeafCoverage]:
-        """List all leaf coverage records for a root area.
-
-        Results are ordered by updated_at to ensure deterministic leaf selection
-        when iterating through uncovered leaves.
-        """
-        return await cls._list_by_column(
-            "root_area_id", str(root_area_id), conn, order_by="updated_at"
-        )
-
-    @classmethod
-    async def update_status(
-        cls,
-        leaf_id: uuid.UUID,
-        status: str,
-        updated_at: float,
-        conn: aiosqlite.Connection | None = None,
-    ):
-        """Update the status of a leaf coverage record."""
-        query = f"UPDATE {cls._table} SET status = ?, updated_at = ? WHERE leaf_id = ?"
-        async with _with_conn(conn) as c:
-            await c.execute(query, (status, updated_at, str(leaf_id)))
-            if conn is None:
-                await c.commit()
-
-    @classmethod
-    async def save_summary_text(
-        cls,
-        leaf_id: uuid.UUID,
-        summary_text: str,
-        updated_at: float,
-        conn: aiosqlite.Connection | None = None,
-    ):
-        """Write summary text only (no vector)."""
-        query = f"UPDATE {cls._table} SET summary_text=?, updated_at=? WHERE leaf_id=?"
-        async with _with_conn(conn) as c:
-            await c.execute(query, (summary_text, updated_at, str(leaf_id)))
-            if conn is None:
-                await c.commit()
-
-    @classmethod
-    async def update_vector(
-        cls,
-        leaf_id: uuid.UUID,
-        vector: list[float],
-        updated_at: float,
-        conn: aiosqlite.Connection | None = None,
-    ):
-        """Write embedding vector only."""
-        query = f"UPDATE {cls._table} SET vector=?, updated_at=? WHERE leaf_id=?"
-        async with _with_conn(conn) as c:
-            await c.execute(query, (json.dumps(vector), updated_at, str(leaf_id)))
-            if conn is None:
-                await c.commit()
-
-    @classmethod
-    async def delete_by_root_area(
-        cls, root_area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
-    ) -> None:
-        """Delete all leaf coverage records for a root area."""
-        query = f"DELETE FROM {cls._table} WHERE root_area_id = ?"
-        async with _with_conn(conn) as c:
-            await c.execute(query, (str(root_area_id),))
-            if conn is None:
-                await c.commit()
-
-
-class ActiveInterviewContextManager(ORMBase[ActiveInterviewContext]):
-    """Manager for active_interview_context table."""
-
-    _table = "active_interview_context"
-    _columns = (
-        "user_id",
-        "root_area_id",
-        "active_leaf_id",
-        "question_text",
         "created_at",
     )
+    _area_column = "area_id"
 
     @classmethod
-    def _row_to_obj(cls, row: aiosqlite.Row) -> ActiveInterviewContext:
-        return ActiveInterviewContext(
-            user_id=uuid.UUID(row["user_id"]),
-            root_area_id=uuid.UUID(row["root_area_id"]),
-            active_leaf_id=uuid.UUID(row["active_leaf_id"]),
-            question_text=row["question_text"],
+    def _row_to_obj(cls, row: aiosqlite.Row) -> Summary:
+        vector = json.loads(row["vector"]) if row["vector"] else None
+        return Summary(
+            id=uuid.UUID(row["id"]),
+            area_id=uuid.UUID(row["area_id"]),
+            summary_text=row["summary_text"],
+            question_id=uuid.UUID(row["question_id"]) if row["question_id"] else None,
+            answer_id=uuid.UUID(row["answer_id"]) if row["answer_id"] else None,
+            vector=vector,
             created_at=row["created_at"],
         )
 
     @classmethod
-    def _obj_to_row(cls, data: ActiveInterviewContext) -> dict[str, Any]:
+    def _obj_to_row(cls, data: Summary) -> dict[str, Any]:
         return {
-            "user_id": str(data.user_id),
-            "root_area_id": str(data.root_area_id),
-            "active_leaf_id": str(data.active_leaf_id),
-            "question_text": data.question_text,
+            "id": str(data.id),
+            "area_id": str(data.area_id),
+            "summary_text": data.summary_text,
+            "question_id": str(data.question_id) if data.question_id else None,
+            "answer_id": str(data.answer_id) if data.answer_id else None,
+            "vector": json.dumps(data.vector) if data.vector else None,
             "created_at": data.created_at,
         }
 
     @classmethod
-    async def create(
+    async def create_summary(
         cls,
-        user_id: uuid.UUID,
-        data: ActiveInterviewContext,
+        area_id: uuid.UUID,
+        summary_text: str,
+        created_at: float,
+        question_id: uuid.UUID | None = None,
+        answer_id: uuid.UUID | None = None,
         conn: aiosqlite.Connection | None = None,
-        auto_commit: bool = True,
-    ):
-        """Create an active interview context. Uses user_id as primary key (no id column)."""
-        values = cls._obj_to_row(data)
-        columns = ", ".join(values.keys())
-        placeholders = ", ".join(["?"] * len(values))
-        query = (
-            f"INSERT OR REPLACE INTO {cls._table} ({columns}) VALUES ({placeholders})"
+    ) -> uuid.UUID:
+        """Create a new summary record and return its id."""
+        from src.shared.ids import new_id
+
+        summary_id = new_id()
+        summary = Summary(
+            id=summary_id,
+            area_id=area_id,
+            summary_text=summary_text,
+            created_at=created_at,
+            question_id=question_id,
+            answer_id=answer_id,
         )
-        async with _with_conn(conn) as c:
-            await c.execute(query, tuple(values.values()))
-            if conn is None and auto_commit:
-                await c.commit()
+        await cls.create(summary_id, summary, conn=conn, auto_commit=(conn is None))
+        return summary_id
 
     @classmethod
-    async def get_by_user(
-        cls, user_id: uuid.UUID, conn: aiosqlite.Connection | None = None
-    ) -> ActiveInterviewContext | None:
-        """Retrieve active context for a user."""
-        query = f"SELECT {', '.join(cls._columns)} FROM {cls._table} WHERE user_id = ?"
-        async with _with_conn(conn) as c:
-            cursor = await c.execute(query, (str(user_id),))
-            row = await cursor.fetchone()
-        return cls._row_to_obj(row) if row else None
+    async def list_by_area(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
+    ) -> list[Summary]:
+        """List all summaries for a leaf area, ordered by creation time."""
+        return await cls._list_by_column(
+            "area_id", str(area_id), conn, order_by="created_at"
+        )
 
     @classmethod
-    async def update_active_leaf(
+    async def update_vector(
         cls,
-        user_id: uuid.UUID,
-        active_leaf_id: uuid.UUID,
-        question_text: str | None,
+        summary_id: uuid.UUID,
+        vector: list[float],
         conn: aiosqlite.Connection | None = None,
-    ):
-        """Update the active leaf."""
-        query = (
-            f"UPDATE {cls._table} SET active_leaf_id=?, question_text=? WHERE user_id=?"
-        )
+    ) -> None:
+        """Write embedding vector to a summary record."""
+        query = f"UPDATE {cls._table} SET vector = ? WHERE id = ?"
         async with _with_conn(conn) as c:
-            await c.execute(query, (str(active_leaf_id), question_text, str(user_id)))
+            await c.execute(query, (json.dumps(vector), str(summary_id)))
             if conn is None:
                 await c.commit()
 
     @classmethod
-    async def delete_by_user(
-        cls, user_id: uuid.UUID, conn: aiosqlite.Connection | None = None
-    ):
-        """Delete active context for a user."""
-        query = f"DELETE FROM {cls._table} WHERE user_id = ?"
+    async def delete_by_area(
+        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
+    ) -> None:
+        """Delete all summaries for a leaf area."""
+        query = f"DELETE FROM {cls._table} WHERE area_id = ?"
         async with _with_conn(conn) as c:
-            await c.execute(query, (str(user_id),))
+            await c.execute(query, (str(area_id),))
             if conn is None:
                 await c.commit()
 
@@ -289,6 +155,27 @@ class LeafHistoryManager:
             cursor = await c.execute(query, (str(leaf_id),))
             rows = await cursor.fetchall()
         return [json.loads(row["message_data"]) for row in rows]
+
+    @classmethod
+    async def get_messages_with_ids(
+        cls, leaf_id: uuid.UUID, conn: aiosqlite.Connection | None = None
+    ) -> list[tuple[uuid.UUID, dict]]:
+        """Get all history messages for a leaf with their IDs, ordered by time.
+
+        Returns:
+            List of (history_id, message_data) pairs in chronological order.
+        """
+        query = """
+            SELECT h.id, h.message_data
+            FROM histories h
+            JOIN leaf_history lh ON h.id = lh.history_id
+            WHERE lh.leaf_id = ?
+            ORDER BY h.created_ts
+        """
+        async with _with_conn(conn) as c:
+            cursor = await c.execute(query, (str(leaf_id),))
+            rows = await cursor.fetchall()
+        return [(uuid.UUID(row["id"]), json.loads(row["message_data"])) for row in rows]
 
     @classmethod
     async def get_message_count(

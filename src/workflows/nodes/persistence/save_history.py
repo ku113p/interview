@@ -25,8 +25,8 @@ class SaveHistoryState(BaseModel):
     is_fully_covered: bool = False
 
     # Deferred DB write data from subgraph nodes
-    leaf_summary_text: str | None = None
-    leaf_completion_status: str | None = None  # "covered" or "skipped"
+    turn_summary_text: str | None = None  # Per-turn summary text
+    set_covered_at: bool = False  # Signal to set covered_at on completed leaf
 
 
 def _normalize_role(role: str) -> str:
@@ -55,8 +55,12 @@ def _message_to_dict(msg: BaseMessage) -> dict[str, object]:
     return data
 
 
-async def _save_messages(state: SaveHistoryState, conn) -> None:
-    """Save message history and leaf-history links within a transaction."""
+async def _save_messages(state: SaveHistoryState, conn) -> uuid.UUID | None:
+    """Save message history and leaf-history links within a transaction.
+
+    Returns the history_id of the human (answer) message if any.
+    """
+    answer_id: uuid.UUID | None = None
     for created_ts, messages in state.messages_to_save.items():
         for msg in messages:
             history_id = new_id()
@@ -77,42 +81,59 @@ async def _save_messages(state: SaveHistoryState, conn) -> None:
                 await db.LeafHistoryManager.link(
                     state.completed_leaf_id, history_id, conn=conn
                 )
+                answer_id = history_id
             elif state.active_leaf_id:
                 await db.LeafHistoryManager.link(
                     state.active_leaf_id, history_id, conn=conn
                 )
+    return answer_id
+
+
+async def _save_turn_summary(
+    state: SaveHistoryState,
+    conn,
+    now: float,
+    answer_id: uuid.UUID | None = None,
+) -> uuid.UUID | None:
+    """Save turn summary if present (deferred write from create_turn_summary).
+
+    Returns the created summary_id, or None if no summary was saved.
+    """
+    if not state.turn_summary_text:
+        return None
+
+    leaf_id = state.completed_leaf_id or state.active_leaf_id
+    if not leaf_id:
+        return None
+
+    question_id: uuid.UUID | None = None
+    messages_with_ids = await db.LeafHistoryManager.get_messages_with_ids(
+        leaf_id, conn=conn
+    )
+    for msg_id, msg in reversed(messages_with_ids):
+        if msg.get("role") in ("ai", "assistant"):
+            question_id = msg_id
+            break
+
+    summary_id = await db.SummariesManager.create_summary(
+        area_id=leaf_id,
+        summary_text=state.turn_summary_text,
+        created_at=now,
+        question_id=question_id,
+        answer_id=answer_id,
+        conn=conn,
+    )
+    logger.info("Saved turn summary", extra={"leaf_id": str(leaf_id)})
+    return summary_id
 
 
 async def _save_leaf_completion(state: SaveHistoryState, conn, now: float) -> None:
-    """Persist deferred leaf coverage status and summary within a transaction."""
-    if not state.completed_leaf_id or not state.leaf_completion_status:
+    """Set covered_at when leaf is complete or skipped."""
+    if not state.completed_leaf_id or not state.set_covered_at:
         return
-    if state.leaf_summary_text is not None:
-        await db.LeafCoverageManager.save_summary_text(
-            state.completed_leaf_id, state.leaf_summary_text, now, conn=conn
-        )
-    await db.LeafCoverageManager.update_status(
-        state.completed_leaf_id, state.leaf_completion_status, now, conn=conn
-    )
 
-
-async def _save_context_transition(state: SaveHistoryState, conn, now: float) -> None:
-    """Persist interview context transition within a transaction.
-
-    No-ops on partial evaluation turns (question_text is None) — the existing
-    question_text in the DB from the previous turn remains valid.
-    """
-    if state.is_fully_covered:
-        await db.ActiveInterviewContextManager.delete_by_user(state.user.id, conn=conn)
-    elif state.active_leaf_id and state.question_text:
-        await db.ActiveInterviewContextManager.update_active_leaf(
-            state.user.id, state.active_leaf_id, state.question_text, conn=conn
-        )
-        # If transitioning to a new leaf, mark it active
-        if state.completed_leaf_id and state.active_leaf_id != state.completed_leaf_id:
-            await db.LeafCoverageManager.update_status(
-                state.active_leaf_id, "active", now, conn=conn
-            )
+    await db.LifeAreasManager.set_covered_at(state.completed_leaf_id, now, conn=conn)
+    logger.info("Set covered_at", extra={"leaf_id": str(state.completed_leaf_id)})
 
 
 async def save_history(state: SaveHistoryState) -> dict:
@@ -131,8 +152,11 @@ async def save_history(state: SaveHistoryState) -> dict:
 
     now = get_timestamp()
     async with transaction() as conn:
-        await _save_messages(state, conn)
+        answer_id = await _save_messages(state, conn)
+        summary_id = await _save_turn_summary(state, conn, now, answer_id=answer_id)
         await _save_leaf_completion(state, conn, now)
-        await _save_context_transition(state, conn, now)
 
-    return {}
+    result: dict = {}
+    if summary_id:
+        result["pending_summary_id"] = summary_id
+    return result

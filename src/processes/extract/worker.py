@@ -10,7 +10,8 @@ from src.config.settings import (
     WORKER_POOL_EXTRACT,
 )
 from src.infrastructure.ai import LLMClientBuilder
-from src.processes.extract.interfaces import ExtractTask
+from src.infrastructure.db import managers as db
+from src.processes.extract.interfaces import ExtractTask, SummaryVectorizeTask
 from src.runtime import Channels, run_worker_pool
 from src.workflows.subgraphs.knowledge_extraction.graph import (
     build_knowledge_extraction_graph,
@@ -29,12 +30,35 @@ async def _invoke_extraction_graph(task: ExtractTask, graph, worker_id: int) -> 
     logger.info("Completed extract task", extra=extra)
 
 
+async def _vectorize_summary(task: SummaryVectorizeTask) -> None:
+    """Compute and store the embedding vector for a summary."""
+    from src.infrastructure.embeddings import get_embedding_client
+
+    summary = await db.SummariesManager.get_by_id(task.summary_id)
+    if not summary:
+        logger.warning(
+            "Summary not found for vectorization",
+            extra={"summary_id": str(task.summary_id)},
+        )
+        return
+    embed_client = get_embedding_client()
+    vector = await embed_client.aembed_query(summary.summary_text)
+    await db.SummariesManager.update_vector(task.summary_id, vector)
+    logger.info("Vectorized summary", extra={"summary_id": str(task.summary_id)})
+
+
 async def _run_extraction_with_recovery(
-    task: ExtractTask, graph, channels: Channels, worker_id: int
+    task: ExtractTask | SummaryVectorizeTask,
+    graph,
+    channels: Channels,
+    worker_id: int,
 ) -> None:
-    """Run extraction with error recovery - log and continue on failure."""
+    """Run extraction or vectorization with error recovery - log and continue on failure."""
     try:
-        await _invoke_extraction_graph(task, graph, worker_id)
+        if isinstance(task, SummaryVectorizeTask):
+            await _vectorize_summary(task)
+        else:
+            await _invoke_extraction_graph(task, graph, worker_id)
     except asyncio.CancelledError:
         logger.info("Extract worker %d cancelled", worker_id)
         raise

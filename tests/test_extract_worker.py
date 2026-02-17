@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from src.infrastructure.db import managers as db
-from src.processes.extract import ExtractTask, run_extract_pool
+from src.processes.extract import ExtractTask, SummaryVectorizeTask, run_extract_pool
 from src.runtime import Channels, run_worker_pool
 from src.shared.ids import new_id
 from src.shared.timestamp import get_timestamp
@@ -111,20 +111,19 @@ class TestExtractWorker:
 
 
 async def _create_leaf_with_messages(user_id, area_id):
-    """Helper to create a leaf area with summary in leaf_coverage."""
-    area = db.LifeArea(id=area_id, title="Skills", parent_id=None, user_id=user_id)
+    """Helper to create a leaf area with summary in summaries table."""
+    now = get_timestamp()
+    area = db.LifeArea(
+        id=area_id, title="Skills", parent_id=None, user_id=user_id, covered_at=now
+    )
     await db.LifeAreasManager.create(area_id, area)
 
-    now = get_timestamp()
-    # Create leaf coverage with summary (as the main graph would)
-    coverage = db.LeafCoverage(
-        leaf_id=area_id,
-        root_area_id=area_id,
-        status="covered",
+    # Create per-turn summary (as the main graph would)
+    await db.SummariesManager.create_summary(
+        area_id=area_id,
         summary_text="Proficient in Python with 5 years experience",
-        updated_at=now,
+        created_at=now,
     )
-    await db.LeafCoverageManager.create(area_id, coverage)
 
 
 def _create_extraction_mock_llm():
@@ -234,3 +233,83 @@ class TestWorkerPool:
         await asyncio.wait_for(pool, timeout=2.0)
 
         assert sorted(processed) == [0, 1, 2]
+
+
+class TestSummaryVectorizeWorker:
+    """Test SummaryVectorizeTask handling in the extract worker pool."""
+
+    @pytest.mark.asyncio
+    async def test_worker_vectorizes_summary(self, temp_db):
+        """Should call update_vector when summary exists."""
+        user_id, area_id = new_id(), new_id()
+        now = get_timestamp()
+        area = db.LifeArea(
+            id=area_id, title="Skills", parent_id=None, user_id=user_id, covered_at=now
+        )
+        await db.LifeAreasManager.create(area_id, area)
+
+        summary_id = await db.SummariesManager.create_summary(
+            area_id=area_id,
+            summary_text="User has Python skills.",
+            created_at=now,
+        )
+
+        channels = Channels()
+        await channels.extract.put(SummaryVectorizeTask(summary_id=summary_id))
+
+        mock_embed_client = AsyncMock()
+        mock_embed_client.aembed_query.return_value = [0.1, 0.2, 0.3]
+
+        with (
+            patch("src.processes.extract.worker.LLMClientBuilder") as mock_builder,
+            patch(
+                "src.infrastructure.embeddings.get_embedding_client",
+                return_value=mock_embed_client,
+            ),
+            patch(
+                "src.processes.extract.worker.build_knowledge_extraction_graph"
+            ) as mock_build,
+        ):
+            mock_builder.return_value.build.return_value = MagicMock()
+            mock_build.return_value = MagicMock()
+
+            pool = asyncio.create_task(run_extract_pool(channels))
+            await channels.extract.join()
+            channels.shutdown.set()
+            await asyncio.wait_for(pool, timeout=5.0)
+
+        mock_embed_client.aembed_query.assert_called_once_with(
+            "User has Python skills."
+        )
+        result = await db.SummariesManager.get_by_id(summary_id)
+        assert result.vector == [0.1, 0.2, 0.3]
+
+    @pytest.mark.asyncio
+    async def test_worker_handles_missing_summary(self, temp_db):
+        """Should log warning and not crash when summary_id is unknown."""
+        channels = Channels()
+        unknown_id = new_id()
+        await channels.extract.put(SummaryVectorizeTask(summary_id=unknown_id))
+
+        mock_embed_client = AsyncMock()
+
+        with (
+            patch("src.processes.extract.worker.LLMClientBuilder") as mock_builder,
+            patch(
+                "src.infrastructure.embeddings.get_embedding_client",
+                return_value=mock_embed_client,
+            ),
+            patch(
+                "src.processes.extract.worker.build_knowledge_extraction_graph"
+            ) as mock_build,
+        ):
+            mock_builder.return_value.build.return_value = MagicMock()
+            mock_build.return_value = MagicMock()
+
+            pool = asyncio.create_task(run_extract_pool(channels))
+            await channels.extract.join()
+            channels.shutdown.set()
+            await asyncio.wait_for(pool, timeout=5.0)
+
+        # embed client should not have been called since summary was missing
+        mock_embed_client.aembed_query.assert_not_called()
