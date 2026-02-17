@@ -27,6 +27,7 @@ class LifeArea:
     parent_id: uuid.UUID | None
     user_id: uuid.UUID
     extracted_at: float | None = None
+    covered_at: float | None = None
 
 
 @dataclass
@@ -45,23 +46,13 @@ class UserKnowledgeArea:
 
 
 @dataclass
-class LeafCoverage:
-    """Coverage status for a single leaf area in an interview."""
+class Summary:
+    """Summary of a conversation turn about a leaf area."""
 
-    leaf_id: uuid.UUID
-    root_area_id: uuid.UUID
-    status: str  # 'pending', 'active', 'covered', 'skipped'
-    updated_at: float
-    summary_text: str | None = None
-    vector: list[float] | None = None
-
-
-@dataclass
-class ActiveInterviewContext:
-    """Current interview state per user."""
-
-    user_id: uuid.UUID
-    root_area_id: uuid.UUID
-    active_leaf_id: uuid.UUID
+    id: uuid.UUID
+    area_id: uuid.UUID
+    summary_text: str
     created_at: float
-    question_text: str | None = None
+    question_id: uuid.UUID | None = None
+    answer_id: uuid.UUID | None = None
+    vector: list[float] | None = None

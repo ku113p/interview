@@ -55,46 +55,37 @@ class ExtractionResult(BaseModel):
     summaries: list[SubAreaSummary]
 
 
-def _collect_leaf_summaries(
-    leaf_coverage_list: list, sub_area_info: list
+def _collect_leaf_summaries_from_db(
+    leaf_summaries_map: dict[str, list[str]], sub_area_info: list
 ) -> dict[str, str]:
-    """Collect summaries from covered leaves, mapping to their paths."""
-    if not leaf_coverage_list:
-        return {}
-
-    leaf_id_to_path = {str(info.area.id): info.path for info in sub_area_info}
+    """Aggregate per-turn summaries for each leaf path."""
     summaries: dict[str, str] = {}
-
-    for lc in leaf_coverage_list:
-        if lc.status == "covered" and lc.summary_text:
-            path = leaf_id_to_path.get(str(lc.leaf_id))
-            if path:
-                summaries[path] = lc.summary_text
+    for info in sub_area_info:
+        leaf_id_str = str(info.area.id)
+        texts = leaf_summaries_map.get(leaf_id_str, [])
+        if texts:
+            summaries[info.path] = "\n\n".join(texts)
     return summaries
 
 
 async def _load_leaf_area_data(area: db.LifeArea, area_id: uuid.UUID) -> dict:
-    """Load data for leaf area (no descendants) from leaf_coverage summary."""
-    leaf_coverage = await db.LeafCoverageManager.get_by_id(area_id)
-    if not leaf_coverage:
-        logger.info("No coverage record for leaf area", extra={"area_id": str(area_id)})
-        return {"is_successful": False}
-    if not leaf_coverage.summary_text:
-        logger.info(
-            "Coverage record has no summary text", extra={"area_id": str(area_id)}
-        )
+    """Load data for leaf area (no descendants) from summaries table."""
+    summaries = await db.SummariesManager.list_by_area(area_id)
+    if not summaries:
+        logger.info("No summaries for leaf area", extra={"area_id": str(area_id)})
         return {"is_successful": False}
 
+    summary_text = "\n\n".join(s.summary_text for s in summaries)
     logger.info(
-        "Loaded leaf area summary from coverage",
-        extra={"area_id": str(area_id)},
+        "Loaded leaf area summaries",
+        extra={"area_id": str(area_id), "count": len(summaries)},
     )
     return {
         "area_title": area.title,
         "sub_areas_tree": area.title,
         "sub_area_paths": [area.title],
         "messages": [],
-        "extracted_summary": {area.title: leaf_coverage.summary_text},
+        "extracted_summary": {area.title: summary_text},
         "use_leaf_summaries": True,
         "is_leaf": True,
         "user_id": area.user_id,
@@ -104,13 +95,19 @@ async def _load_leaf_area_data(area: db.LifeArea, area_id: uuid.UUID) -> dict:
 async def _load_root_area_data(
     area: db.LifeArea, area_id: uuid.UUID, sub_areas: list[db.LifeArea]
 ) -> dict:
-    """Load data for root area (has descendants) using leaf summaries."""
+    """Load data for root area (has descendants) using per-turn summaries."""
     tree_text = build_tree_text(sub_areas, area_id)
     sub_area_info = build_sub_area_info(sub_areas, area_id)
     sub_area_paths = [info.path for info in sub_area_info]
 
-    leaf_coverage_list = await db.LeafCoverageManager.list_by_root_area(area_id)
-    leaf_summaries = _collect_leaf_summaries(leaf_coverage_list, sub_area_info)
+    # Load summaries for all leaf descendants
+    leaf_summaries_map: dict[str, list[str]] = {}
+    for info in sub_area_info:
+        summaries = await db.SummariesManager.list_by_area(info.area.id)
+        if summaries:
+            leaf_summaries_map[str(info.area.id)] = [s.summary_text for s in summaries]
+
+    leaf_summaries = _collect_leaf_summaries_from_db(leaf_summaries_map, sub_area_info)
 
     if leaf_summaries:
         logger.info("Using leaf summaries", extra={"count": len(leaf_summaries)})
@@ -142,8 +139,8 @@ async def load_area_data(state: KnowledgeExtractionState) -> dict:
     """Load area data including title, sub-areas, and summaries.
 
     Handles two cases:
-    1. Leaf area (no descendants): Read summary from leaf_coverage.summary_text
-    2. Root area (has descendants): Use pre-extracted leaf summaries from leaf_coverage
+    1. Leaf area (no descendants): Read summaries from summaries table
+    2. Root area (has descendants): Aggregate per-turn summaries for all leaf descendants
     """
     area_id = state.area_id
     area = await db.LifeAreasManager.get_by_id(area_id)
@@ -315,24 +312,18 @@ async def _save_knowledge_items(
 async def persist_extraction(state: KnowledgeExtractionState) -> dict:
     """Persist all extraction results atomically.
 
-    Writes vector, knowledge items, and mark_extracted in one transaction.
+    Writes knowledge items and mark_extracted in one transaction.
     """
     from src.infrastructure.db.connection import transaction
 
     now = get_timestamp()
     async with transaction() as conn:
-        # 1. Save leaf vector (for leaf areas)
-        if state.summary_vector:
-            await db.LeafCoverageManager.update_vector(
-                state.area_id, state.summary_vector, now, conn=conn
-            )
-
-        # 2. Save knowledge items + area links
+        # Save knowledge items + area links
         saved_count = 0
         if state.extracted_knowledge and state.user_id:
             saved_count = await _save_knowledge_items(state, now, conn)
 
-        # 3. Mark area extracted
+        # Mark area extracted
         await db.LifeAreasManager.mark_extracted(
             state.area_id, conn=conn, timestamp=now
         )
@@ -341,7 +332,6 @@ async def persist_extraction(state: KnowledgeExtractionState) -> dict:
         "Persisted extraction atomically",
         extra={
             "area_id": str(state.area_id),
-            "has_vector": bool(state.summary_vector),
             "knowledge_count": saved_count,
         },
     )

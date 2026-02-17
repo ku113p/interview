@@ -12,9 +12,8 @@ from .core_managers import (
 
 # Interview Managers
 from .interview_managers import (
-    ActiveInterviewContextManager,
-    LeafCoverageManager,
     LeafHistoryManager,
+    SummariesManager,
 )
 
 # Knowledge Managers
@@ -23,10 +22,9 @@ from .knowledge_managers import (
     UserKnowledgeManager,
 )
 from .models import (
-    ActiveInterviewContext,
     History,
-    LeafCoverage,
     LifeArea,
+    Summary,
     User,
     UserKnowledge,
     UserKnowledgeArea,
@@ -34,19 +32,17 @@ from .models import (
 
 __all__ = [
     # Models
-    "ActiveInterviewContext",
     "History",
-    "LeafCoverage",
     "LifeArea",
+    "Summary",
     "User",
     "UserKnowledge",
     "UserKnowledgeArea",
     # Managers
-    "ActiveInterviewContextManager",
     "HistoriesManager",
-    "LeafCoverageManager",
     "LeafHistoryManager",
     "LifeAreasManager",
+    "SummariesManager",
     "UserKnowledgeAreasManager",
     "UserKnowledgeManager",
     "UsersManager",

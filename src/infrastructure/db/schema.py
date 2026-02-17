@@ -52,28 +52,17 @@ _SCHEMA_SQL = """
     );
     CREATE INDEX IF NOT EXISTS user_knowledge_areas_area_id_idx
         ON user_knowledge_areas(area_id);
-    -- Leaf coverage tracking: status of each leaf area in an interview
-    CREATE TABLE IF NOT EXISTS leaf_coverage (
-        leaf_id TEXT PRIMARY KEY,
-        root_area_id TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        summary_text TEXT,
+    -- Per-turn summaries for each leaf area interview
+    CREATE TABLE IF NOT EXISTS summaries (
+        id TEXT PRIMARY KEY,
+        area_id TEXT NOT NULL,
+        summary_text TEXT NOT NULL,
+        question_id TEXT,
+        answer_id TEXT,
         vector TEXT,
-        updated_at REAL NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS leaf_coverage_root_area_idx
-        ON leaf_coverage(root_area_id);
-    CREATE INDEX IF NOT EXISTS leaf_coverage_status_idx
-        ON leaf_coverage(status);
-
-    -- Active interview context: current state per user
-    CREATE TABLE IF NOT EXISTS active_interview_context (
-        user_id TEXT PRIMARY KEY,
-        root_area_id TEXT NOT NULL,
-        active_leaf_id TEXT NOT NULL,
-        question_text TEXT,
         created_at REAL NOT NULL
     );
+    CREATE INDEX IF NOT EXISTS idx_summaries_area_id ON summaries(area_id);
 """
 
 
@@ -96,6 +85,35 @@ async def ensure_column_async(
     await conn.execute(f"ALTER TABLE {table} ADD COLUMN {definition}")
 
 
+async def _run_migrations(conn: aiosqlite.Connection) -> None:
+    """Run schema migrations in order."""
+    await ensure_column_async(conn, "users", "current_area_id", "current_area_id TEXT")
+    await ensure_column_async(conn, "life_areas", "extracted_at", "extracted_at REAL")
+    await ensure_column_async(conn, "life_areas", "covered_at", "covered_at REAL")
+
+    # Drop deprecated tables
+    for table in (
+        "criteria",
+        "life_area_messages",
+        "leaf_extraction_queue",
+        "area_summaries",
+        "leaf_coverage",
+        "active_interview_context",
+    ):
+        await conn.execute(f"DROP TABLE IF EXISTS {table}")
+
+    # Recreate user_knowledge_areas without user_id column
+    await conn.execute("DROP TABLE IF EXISTS user_knowledge_areas")
+    await conn.executescript("""
+        CREATE TABLE IF NOT EXISTS user_knowledge_areas (
+            knowledge_id TEXT PRIMARY KEY,
+            area_id TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS user_knowledge_areas_area_id_idx
+            ON user_knowledge_areas(area_id);
+    """)
+
+
 async def init_schema_async(conn: aiosqlite.Connection, db_path: str) -> None:
     """Initialize database schema if not already done for this path.
 
@@ -115,35 +133,6 @@ async def init_schema_async(conn: aiosqlite.Connection, db_path: str) -> None:
             return
 
         await conn.executescript(_SCHEMA_SQL)
-
-        await ensure_column_async(
-            conn,
-            "users",
-            "current_area_id",
-            "current_area_id TEXT",
-        )
-        await ensure_column_async(
-            conn,
-            "life_areas",
-            "extracted_at",
-            "extracted_at REAL",
-        )
-        # Migration: drop deprecated tables if they exist
-        await conn.execute("DROP TABLE IF EXISTS criteria")
-        await conn.execute("DROP TABLE IF EXISTS life_area_messages")
-        await conn.execute("DROP TABLE IF EXISTS leaf_extraction_queue")
-        await conn.execute("DROP TABLE IF EXISTS area_summaries")
-
-        # Migration: recreate user_knowledge_areas without user_id column
-        await conn.execute("DROP TABLE IF EXISTS user_knowledge_areas")
-        await conn.executescript("""
-            CREATE TABLE IF NOT EXISTS user_knowledge_areas (
-                knowledge_id TEXT PRIMARY KEY,
-                area_id TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS user_knowledge_areas_area_id_idx
-                ON user_knowledge_areas(area_id);
-        """)
-
+        await _run_migrations(conn)
         await conn.commit()
         _db_initialized_paths.add(db_path)

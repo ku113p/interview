@@ -62,19 +62,21 @@ class HistoriesManager(ORMBase[History]):
 
 class LifeAreasManager(ORMBase[LifeArea]):
     _table = "life_areas"
-    _columns = ("id", "title", "parent_id", "user_id", "extracted_at")
+    _columns = ("id", "title", "parent_id", "user_id", "extracted_at", "covered_at")
     _user_column = "user_id"
 
     @classmethod
     def _row_to_obj(cls, row: aiosqlite.Row) -> LifeArea:
         parent_id = row["parent_id"]
         extracted_at = row["extracted_at"]
+        covered_at = row["covered_at"]
         return LifeArea(
             id=uuid.UUID(row["id"]),
             title=row["title"],
             parent_id=uuid.UUID(parent_id) if parent_id else None,
             user_id=uuid.UUID(row["user_id"]),
             extracted_at=extracted_at,
+            covered_at=covered_at,
         )
 
     @classmethod
@@ -85,6 +87,7 @@ class LifeAreasManager(ORMBase[LifeArea]):
             "parent_id": str(data.parent_id) if data.parent_id else None,
             "user_id": str(data.user_id),
             "extracted_at": data.extracted_at,
+            "covered_at": data.covered_at,
         }
 
     @classmethod
@@ -124,6 +127,24 @@ class LifeAreasManager(ORMBase[LifeArea]):
             await conn.execute(query, (str(area_id),))
 
     @classmethod
+    async def set_covered_at(
+        cls,
+        area_id: uuid.UUID,
+        timestamp: float | None,
+        conn: aiosqlite.Connection | None = None,
+    ) -> None:
+        """Set covered_at timestamp for a leaf area (NULL to reset)."""
+        from .connection import get_connection
+
+        query = f"UPDATE {cls._table} SET covered_at = ? WHERE id = ?"
+        if conn is None:
+            async with get_connection() as local_conn:
+                await local_conn.execute(query, (timestamp, str(area_id)))
+                await local_conn.commit()
+        else:
+            await conn.execute(query, (timestamp, str(area_id)))
+
+    @classmethod
     async def get_descendants(
         cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
     ) -> list[LifeArea]:
@@ -132,15 +153,15 @@ class LifeAreasManager(ORMBase[LifeArea]):
 
         query = """
             WITH RECURSIVE descendants AS (
-                SELECT id, title, parent_id, user_id, extracted_at
+                SELECT id, title, parent_id, user_id, extracted_at, covered_at
                 FROM life_areas
                 WHERE parent_id = ?
                 UNION ALL
-                SELECT la.id, la.title, la.parent_id, la.user_id, la.extracted_at
+                SELECT la.id, la.title, la.parent_id, la.user_id, la.extracted_at, la.covered_at
                 FROM life_areas la
                 JOIN descendants d ON la.parent_id = d.id
             )
-            SELECT id, title, parent_id, user_id, extracted_at FROM descendants
+            SELECT id, title, parent_id, user_id, extracted_at, covered_at FROM descendants
             ORDER BY id
         """
         if conn is None:
@@ -161,15 +182,15 @@ class LifeAreasManager(ORMBase[LifeArea]):
 
         query = """
             WITH RECURSIVE ancestors AS (
-                SELECT id, title, parent_id, user_id, extracted_at
+                SELECT id, title, parent_id, user_id, extracted_at, covered_at
                 FROM life_areas
                 WHERE id = (SELECT parent_id FROM life_areas WHERE id = ?)
                 UNION ALL
-                SELECT la.id, la.title, la.parent_id, la.user_id, la.extracted_at
+                SELECT la.id, la.title, la.parent_id, la.user_id, la.extracted_at, la.covered_at
                 FROM life_areas la
                 JOIN ancestors a ON la.id = a.parent_id
             )
-            SELECT id, title, parent_id, user_id, extracted_at FROM ancestors
+            SELECT id, title, parent_id, user_id, extracted_at, covered_at FROM ancestors
         """
         if conn is None:
             async with get_connection() as local_conn:

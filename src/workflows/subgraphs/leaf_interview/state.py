@@ -30,8 +30,8 @@ class LeafInterviewState(BaseModel):
     leaf_evaluation: LeafEvaluation | None = None
 
     # Deferred DB write data (collected for atomic persist in save_history)
-    leaf_summary_text: str | None = None
-    leaf_completion_status: str | None = None  # "covered" or "skipped"
+    turn_summary_text: str | None = None  # Summary of this turn (deferred write)
+    set_covered_at: bool = False  # Signal to save_history to set covered_at
 
     # Output
     messages_to_save: Annotated[MessageBuckets, merge_message_buckets]

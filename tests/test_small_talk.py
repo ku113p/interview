@@ -189,16 +189,28 @@ class TestRouteByTarget:
 class TestRouteAfterContextLoad:
     """Tests for the post-context-load router."""
 
-    def test_routes_to_quick_evaluate_when_leaves_pending(self, sample_user):
-        """Should route to quick_evaluate when leaves are not all done."""
+    def test_routes_to_generate_leaf_response_on_first_turn(self, sample_user):
+        """Should route to generate_leaf_response on first turn (no user message)."""
         state = _create_leaf_interview_state(
             sample_user, [], area_already_extracted=False
         )
-        # all_leaves_done defaults to False
+        # all_leaves_done defaults to False, no messages
 
         result = route_after_context_load(state)
 
-        assert result == "quick_evaluate"
+        assert result == "generate_leaf_response"
+
+    def test_routes_to_create_turn_summary_on_subsequent_turn(self, sample_user):
+        """Should route to create_turn_summary when user message is present."""
+        state = _create_leaf_interview_state(
+            sample_user,
+            [HumanMessage(content="I have 5 years Python experience")],
+            area_already_extracted=False,
+        )
+
+        result = route_after_context_load(state)
+
+        assert result == "create_turn_summary"
 
     def test_routes_to_completed_area_response_when_all_leaves_done(self, sample_user):
         """Should route to completed_area_response when all leaves are done."""
