@@ -13,17 +13,17 @@
 
 | # | Case Name | Status | Areas | Sub-Areas | Summaries | Knowledge | Last Run |
 |---|-----------|--------|-------|-----------|-----------|-----------|----------|
-| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 3/true | 5/true | 2026-02-17 15:48 |
-| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-17 15:48 |
-| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-17 15:48 |
-| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-17 15:48 |
-| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 9/true | 2026-02-17 15:48 |
-| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-17 15:48 |
-| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-17 15:48 |
-| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-17 15:48 |
-| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 10/true | 2026-02-17 15:48 |
-| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-17 15:48 |
-| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 3/true | 6/true | 2026-02-17 15:48 |
+| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 3/true | 6/true | 2026-02-17 18:46 |
+| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-17 18:46 |
+| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-17 18:46 |
+| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-17 18:46 |
+| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 8/true | 2026-02-17 18:46 |
+| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-17 18:46 |
+| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-17 18:46 |
+| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-17 18:46 |
+| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-17 18:46 |
+| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 2/true | 3/true | 2026-02-17 18:46 |
+| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 3/true | 5/true | 2026-02-17 18:46 |
 
 ## Test Case Descriptions
 
