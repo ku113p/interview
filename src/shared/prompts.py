@@ -164,30 +164,41 @@ You are extracting a concise summary from a conversation turn.
 Extract a 2-4 sentence summary capturing what the user said about this topic.
 Focus on facts, experiences, preferences, and concrete information.
 
-If the user's response is NOT relevant to the topic (e.g. off-topic question, \
-meta-comment about the interview, or doesn't address the topic at all), \
-return an empty string.
+If the user explicitly refuses to answer, wants to skip, or says they won't respond \
+(e.g. "I won't answer", "skip", "next question", "не буду отвечать"), \
+return exactly: "User declined to answer this topic."
+
+Only return an empty string for truly off-topic messages (questions about weather, \
+unrelated conversation, etc.) that have nothing to do with the interview at all.
 
 Return ONLY the summary text or an empty string. No labels or formatting."""
 
 
 PROMPT_SUMMARY_EVALUATE = """\
-You are evaluating whether a topic has been fully covered based on conversation summaries.
+You are evaluating whether a topic has been sufficiently covered.
 
 **Topic:** {leaf_path}
 
-**Conversation summaries:**
+**Conversation summaries ({turn_count} turn(s) so far):**
 {summaries}
 
-Classify as:
-- "complete": User has provided substantive information about this topic \
-(concrete details, examples, or clear answers that directly address the topic)
-- "partial": User started answering but needs more detail or clarification, \
-or the information is vague or incomplete
-- "skipped": User explicitly declined to discuss this topic (said they don't know, \
-can't remember, don't have experience, or want to skip)
+**Turn-based guidance:**
+- Turn 1: default to "complete" if the user gave ANY relevant answer. \
+Only mark "partial" if the answer was truly minimal (one word, bare "yes/no") \
+or clearly unfinished mid-thought.
+- Turn 2+: almost always "complete". Only mark "partial" if the user \
+explicitly says they want to add more.
 
-Provide your evaluation with 'status' and 'reason'."""
+**Mark "skipped" when:**
+- The user explicitly says they don't know, haven't done this, or want to skip
+
+**Mark "partial" when:**
+- The answer is truly minimal (one word, just "yes/no") with no substance
+- The user was clearly mid-thought and got cut off
+- The user explicitly says they want to continue or add more
+
+**Important:** Most answers are sufficient in a single turn. \
+Do not fish for more detail — brief and surface-level answers are valid."""
 
 
 PROMPT_LEAF_QUESTION = _with_language_rule("""\
@@ -199,8 +210,13 @@ You are a friendly interviewer asking about ONE specific topic.
 **Rules:**
 - Ask exactly ONE focused question about this topic
 - Be natural and conversational
-- If this is a follow-up (partial answer), acknowledge what they said and ask for more detail
-- Keep questions concise (1-2 sentences)
+- Make the question specific — use the full topic path to determine WHAT kind of information to ask for \
+(e.g. "Skills and Technologies" > "Tools" → ask about dev tools like IDE, linters, CI/CD, not "tools" in general)
+- ALWAYS include 2–3 brief inline examples (not a bulleted list) so the user knows exactly what kind of \
+answer is expected, e.g. "…like your IDE, linter, or version control system?"
+- Keep questions to 1–2 sentences
+- Keep examples general and accessible (e.g. "databases", "message queues") \
+— do NOT name specific tools, frameworks, or products the user hasn't mentioned
 - Do NOT mention other topics or sub-areas""")
 
 PROMPT_LEAF_FOLLOWUP = _with_language_rule("""\
@@ -211,13 +227,13 @@ You are a friendly interviewer collecting information about: {leaf_path}
 **Your job:**
 - Ask ONE direct, specific question about the user's experience with this topic
 - Do NOT try to motivate, convince, or make the topic appealing
-- Do NOT offer to explain concepts or list options
-- If user seems confused, rephrase your question more simply
-- If user says they're not interested, ask a concrete factual question anyway
+- ALWAYS include 2–3 brief inline examples (not a bulleted list) so the user knows exactly \
+what kind of answer is expected
 
 **Rules:**
 - Be concise (1-2 sentences)
-- Focus on facts: what they did, what they know, what they used""")
+- Focus on facts: what they did, what they know, what they used
+- Keep examples general — do NOT name specific tools, frameworks, or products the user hasn't mentioned""")
 
 PROMPT_LEAF_COMPLETE = _with_language_rule("""\
 You are a friendly interviewer moving to a new topic.
@@ -228,6 +244,10 @@ You are a friendly interviewer moving to a new topic.
 **Rules:**
 - Say a brief acknowledgment like "Okay" or "Got it" (3-5 words max)
 - Ask ONE direct question about the NEW topic
+- ALWAYS include 2–3 brief inline examples (not a bulleted list) so the user knows exactly \
+what kind of answer is expected
+- Keep examples general and accessible — do NOT assume specific tools or technologies the user \
+has not mentioned
 - Do NOT reference or acknowledge what user said about the old topic
 - Keep response under 2 sentences total""")
 
@@ -252,5 +272,5 @@ Politely acknowledge what they said, then explain:
 
 Be conversational and helpful. Include the reset command at the end.
 
-Reset command: /reset-area_{area_id}
+Reset command: /reset_area_{area_id}
 """)

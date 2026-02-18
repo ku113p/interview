@@ -173,24 +173,26 @@ The leaf interview flow uses focused prompts for each stage:
 
 2. **Summary Evaluate** (`PROMPT_SUMMARY_EVALUATE`): Evaluates leaf coverage using all accumulated summaries
    - Input: leaf path, all persisted summaries for this leaf
-   - Output: status (complete/partial/skipped) + reason
+   - Output: status (complete/partial/skipped) + reason — classification enforced by structured output schema, not prompt text
+   - Lenient by default: turn 1 defaults to "complete" for any relevant answer; "partial" only for truly minimal (one-word/yes-no) or mid-thought answers. Turn 2+ almost always "complete".
    - ~300-500 tokens depending on number of summaries
 
 3. **Leaf Question** (`PROMPT_LEAF_QUESTION`): Generates initial question about one leaf
    - Input: leaf path (e.g., "Work > Google > Responsibilities")
-   - Output: Single focused question
+   - Output: Single focused question with 2-3 inline examples to clarify scope
+   - Uses full topic path to determine what kind of information to ask for (e.g., "Tools" under "Skills" → dev tools, not tools in general)
    - ~300 tokens
 
 4. **Leaf Followup** (`PROMPT_LEAF_FOLLOWUP`): Asks for more detail after partial answer
    - Input: leaf path, evaluation reason
-   - Output: Direct factual question (no motivational language)
+   - Output: Direct factual question with 2-3 inline examples (no motivational language)
    - History: Only leaf-specific messages + latest user message (prevents topic contamination)
    - ~400 tokens
 
 5. **Leaf Complete** (`PROMPT_LEAF_COMPLETE`): Transitions to next leaf
    - Input: completed leaf path, next leaf path
-   - Output: Brief ack (3-5 words) + question for next topic
-   - History: Empty (prevents contamination from previous topic)
+   - Output: Brief ack (3-5 words) + question for next topic with 2-3 inline examples
+   - History: Last 4 messages from current leaf (used to tailor examples to user's stack)
    - ~300 tokens
 
 6. **All Leaves Done** (`PROMPT_ALL_LEAVES_DONE`): Completion message
