@@ -17,7 +17,7 @@ HELP_TEXT = """Commands:
   /delete    Delete your account (requires confirmation)
   /mode      Show current input mode
   /mode <name>  Change mode (auto, interview, areas)
-  /reset-area_<id>  Reset an extracted area (requires confirmation)
+  /reset_area      Reset the current area (requires confirmation)
 """
 
 # Module-level storage for delete tokens.
@@ -219,7 +219,7 @@ async def handle_reset_area_init(user_id: uuid.UUID, area_id_str: str) -> str:
 
     return (
         f"This will delete extracted knowledge and summaries for '{area.title}'.\n"
-        f"To confirm, type: /reset-area_{token}\n"
+        f"To confirm, type: /reset_area_{token}\n"
         f"This token expires in 60 seconds."
     )
 
@@ -231,7 +231,7 @@ async def handle_reset_area_confirm(user_id: uuid.UUID, token: str) -> str:
     # O(1) lookup using reverse mapping
     area_id = _reset_area_token_lookup.pop((user_id, token), None)
     if area_id is None:
-        return "Invalid or expired token. Use /reset-area_<area-id> to start over."
+        return "Invalid or expired token. Use /reset_area_<area-id> to start over."
 
     _reset_area_tokens.pop((user_id, area_id), None)
 
@@ -247,8 +247,15 @@ async def handle_reset_area_confirm(user_id: uuid.UUID, token: str) -> str:
 CommandHandler = Callable[[], Coroutine[None, None, str | None]]
 
 
+async def handle_reset_area_current(user: User) -> str:
+    """Handle /reset_area — reset the user's current area."""
+    if user.current_life_area_id is None:
+        return "No current area set. Select an area to interview first."
+    return await handle_reset_area_init(user.id, str(user.current_life_area_id))
+
+
 async def _handle_reset_area_command(user_id: uuid.UUID, value: str) -> str:
-    """Handle /reset-area_ command - dispatches to init or confirm."""
+    """Handle /reset_area_ command - dispatches to init or confirm."""
     try:
         uuid.UUID(value)
         return await handle_reset_area_init(user_id, value)
@@ -271,6 +278,7 @@ async def process_command(text: str, user: User) -> str | None:
         "/clear": lambda: handle_clear(user.id),
         "/delete": lambda: handle_delete_init(user.id),
         "/mode": lambda: handle_mode_set(user, arg) if arg else handle_mode_show(user),
+        "/reset_area": lambda: handle_reset_area_current(user),
     }
 
     # Check exact match, then pattern-based commands
@@ -278,7 +286,7 @@ async def process_command(text: str, user: User) -> str | None:
         handler = handlers[cmd]
     elif cmd.startswith("/delete_"):
         handler = lambda: handle_delete_confirm(user.id, cmd[8:])
-    elif cmd.startswith("/reset-area_"):
+    elif cmd.startswith("/reset_area_"):
         handler = lambda: _handle_reset_area_command(user.id, cmd[12:])
     else:
         return None

@@ -114,8 +114,9 @@ Commands are handled in the graph via `handle_command` node, making them transpo
 | `/delete_<token>` | Confirm deletion with token (deletes all user data) |
 | `/mode` | Show current input mode |
 | `/mode <name>` | Change mode (auto, interview, areas) |
-| `/reset-area_<id>` | Start area reset (returns confirmation token) |
-| `/reset-area_<token>` | Confirm reset (deletes summaries/knowledge, clears covered_at) |
+| `/reset_area` | Start reset for current area (returns confirmation token) |
+| `/reset_area_<id>` | Start reset for a specific area by ID (returns confirmation token) |
+| `/reset_area_<token>` | Confirm reset (deletes summaries/knowledge, clears covered_at) |
 | `/exit`, `/exit_N` | CLI-only: Exit process (handled in transport) |
 
 ### Deletion Order (FK-safe)

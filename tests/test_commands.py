@@ -619,7 +619,7 @@ class TestHandleResetAreaInit:
         result = await handle_reset_area_init(sample_user.id, str(area_id))
 
         assert "delete extracted knowledge" in result.lower()
-        assert "/reset-area_" in result
+        assert "/reset_area_" in result
         assert "60 seconds" in result
         assert (sample_user.id, area_id) in _reset_area_tokens
 
@@ -712,7 +712,7 @@ class TestProcessCommandResetArea:
             ),
         )
 
-        result = await process_command(f"/reset-area_{area_id}", sample_user)
+        result = await process_command(f"/reset_area_{area_id}", sample_user)
 
         assert "delete extracted knowledge" in result.lower()
 
@@ -722,9 +722,40 @@ class TestProcessCommandResetArea:
         _reset_area_tokens.clear()
         _reset_area_token_lookup.clear()
 
-        result = await process_command("/reset-area_abc123", sample_user)
+        result = await process_command("/reset_area_abc123", sample_user)
 
         assert "Invalid or expired" in result
+
+
+class TestProcessCommandResetAreaCurrent:
+    """Tests for /reset_area (no ID — resets current area)."""
+
+    @pytest.mark.asyncio
+    async def test_no_current_area(self, sample_user):
+        """Should return helpful message when no current area is set."""
+        result = await process_command("/reset_area", sample_user)
+        assert result is not None
+        assert "No current area set" in result
+
+    @pytest.mark.asyncio
+    async def test_with_current_area(self, temp_db, sample_user):
+        """Should initiate reset for the user's current area."""
+        area_id = new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(
+                id=area_id, title="Work", parent_id=None, user_id=sample_user.id
+            ),
+        )
+        user_with_area = User(
+            id=sample_user.id,
+            mode=sample_user.mode,
+            current_life_area_id=area_id,
+        )
+        result = await process_command("/reset_area", user_with_area)
+        assert result is not None
+        assert "delete extracted knowledge" in result.lower()
+        assert "Work" in result
 
 
 class TestResetAreaTokenIsolation:

@@ -15,6 +15,7 @@ from src.workflows.nodes.persistence.save_history import (
     save_history,
 )
 from src.workflows.subgraphs.leaf_interview.nodes import (
+    _find_uncovered_leaf,
     create_turn_summary,
     generate_leaf_response,
     load_interview_context,
@@ -308,6 +309,53 @@ class TestQuickEvaluate:
 
         assert result["leaf_evaluation"].status == "complete"
         mock_structured_llm.ainvoke.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_complete_when_max_exchanges_reached(self, temp_db):
+        """Should bypass LLM and return complete when max exchanges reached."""
+        user_id, area_id, leaf_id = new_id(), new_id(), new_id()
+        user = User(id=user_id, mode=InputMode.auto)
+        now = get_timestamp()
+
+        area = db.LifeArea(id=area_id, title="Career", parent_id=None, user_id=user_id)
+        await db.LifeAreasManager.create(area_id, area)
+        leaf = db.LifeArea(
+            id=leaf_id, title="Skills", parent_id=area_id, user_id=user_id
+        )
+        await db.LifeAreasManager.create(leaf_id, leaf)
+
+        # Insert 2 past user messages (2 past + 1 current = 3 >= MAX_TURNS_PER_LEAF)
+        for i in range(2):
+            hist_id = new_id()
+            hist = db.History(
+                id=hist_id,
+                message_data={"role": "user", "content": f"Answer {i}"},
+                user_id=user_id,
+                created_ts=now + i,
+            )
+            await db.HistoriesManager.create(hist_id, hist)
+            await db.LeafHistoryManager.link(leaf_id, hist_id)
+
+        # Need at least one summary so we pass the "no summaries" early-return
+        await db.SummariesManager.create_summary(
+            area_id=leaf_id,
+            summary_text="User discussed skills.",
+            created_at=now,
+        )
+
+        state = _create_state(
+            user,
+            area_id,
+            active_leaf_id=leaf_id,
+            turn_summary_text="User elaborated on skills.",
+        )
+
+        mock_llm = MagicMock()
+        result = await quick_evaluate(state, mock_llm)
+
+        assert result["leaf_evaluation"].status == "complete"
+        assert "Max exchanges" in result["leaf_evaluation"].reason
+        mock_llm.with_structured_output.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_returns_partial_when_no_summaries(self, temp_db):
@@ -733,3 +781,98 @@ class TestSaveHistoryLeafPersistence:
         # Rollback: no new history records created
         histories = await db.LeafHistoryManager.get_messages(leaf_id)
         assert len(histories) == original_count
+
+
+# ---------------------------------------------------------------------------
+# _find_uncovered_leaf (pure, no DB)
+# ---------------------------------------------------------------------------
+
+
+def _area(
+    title: str,
+    area_id: uuid.UUID,
+    parent_id: uuid.UUID,
+    user_id: uuid.UUID | None = None,
+    covered: bool = False,
+) -> db.LifeArea:
+    """Shorthand to build a LifeArea for tests."""
+    return db.LifeArea(
+        id=area_id,
+        title=title,
+        parent_id=parent_id,
+        user_id=user_id or new_id(),
+        covered_at=1.0 if covered else None,
+    )
+
+
+class TestFindUncoveredLeaf:
+    """Tests for _find_uncovered_leaf (pure in-memory DFS)."""
+
+    def test_returns_none_for_empty_descendants(self):
+        root = new_id()
+        assert _find_uncovered_leaf([], root) is None
+
+    def test_single_uncovered_leaf(self):
+        root = new_id()
+        leaf = _area("A", new_id(), root)
+        assert _find_uncovered_leaf([leaf], root) == leaf
+
+    def test_skips_covered_leaf(self):
+        root = new_id()
+        leaf = _area("A", new_id(), root, covered=True)
+        assert _find_uncovered_leaf([leaf], root) is None
+
+    def test_returns_first_uncovered_among_siblings(self):
+        root, uid = new_id(), new_id()
+        a = _area("A", new_id(), root, uid)
+        b = _area("B", new_id(), root, uid, covered=True)
+        c = _area("C", new_id(), root, uid)
+        result = _find_uncovered_leaf([a, b, c], root)
+        # Should return whichever sorts first by UUID
+        expected = sorted([a, c], key=lambda x: str(x.id))[0]
+        assert result == expected
+
+    def test_depth_first_into_subtree(self):
+        """
+        root
+          ├─ branch (uncovered, has children → not a leaf)
+          │    └─ deep_leaf (uncovered)
+          └─ sibling_leaf (uncovered)
+        Should return deep_leaf first (DFS).
+        """
+        root, uid = new_id(), new_id()
+        branch = _area("Branch", new_id(), root, uid)
+        deep_leaf = _area("Deep", new_id(), branch.id, uid)
+        sibling = _area("Sibling", new_id(), root, uid)
+        descendants = [branch, deep_leaf, sibling]
+        result = _find_uncovered_leaf(descendants, root)
+        assert result == deep_leaf
+
+    def test_exclude_id_skips_leaf(self):
+        root, uid = new_id(), new_id()
+        a = _area("A", new_id(), root, uid)
+        b = _area("B", new_id(), root, uid)
+        # Exclude a, should return b (or vice versa depending on sort)
+        first, second = sorted([a, b], key=lambda x: str(x.id))
+        result = _find_uncovered_leaf([a, b], root, exclude_id=first.id)
+        assert result == second
+
+    def test_all_covered_returns_none(self):
+        root, uid = new_id(), new_id()
+        a = _area("A", new_id(), root, uid, covered=True)
+        b = _area("B", new_id(), root, uid, covered=True)
+        assert _find_uncovered_leaf([a, b], root) is None
+
+    def test_three_level_tree(self):
+        """
+        root
+          └─ mid (not a leaf)
+               ├─ leaf1 (covered)
+               └─ leaf2 (uncovered) ← expected
+        """
+        root, uid = new_id(), new_id()
+        mid = _area("Mid", new_id(), root, uid)
+        leaf1 = _area("L1", new_id(), mid.id, uid, covered=True)
+        leaf2 = _area("L2", new_id(), mid.id, uid)
+        result = _find_uncovered_leaf([mid, leaf1, leaf2], root)
+        assert result == leaf2

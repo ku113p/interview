@@ -6,7 +6,7 @@ import uuid
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
-from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET
+from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET, MAX_TURNS_PER_LEAF
 from src.infrastructure.db import managers as db
 from src.shared.interview_models import LeafEvaluation
 from src.shared.messages import filter_tool_messages
@@ -36,38 +36,57 @@ def _get_leaf_areas(sub_area_info: list[SubAreaInfo]) -> list[SubAreaInfo]:
     return [info for info in sub_area_info if info.area.id in (all_ids - parent_ids)]
 
 
-async def _get_next_uncovered_leaf(
-    area_id: uuid.UUID, exclude_id: uuid.UUID | None = None
+def _find_uncovered_leaf(
+    descendants: list[db.LifeArea],
+    root_id: uuid.UUID,
+    exclude_id: uuid.UUID | None = None,
 ) -> db.LifeArea | None:
-    """Find next uncovered leaf using depth-first traversal.
+    """Pure in-memory DFS over a flat descendant list.
 
-    Traverses the area tree depth-first, returning the first leaf
-    (area with no children) where covered_at IS NULL.
-
-    exclude_id: skip this leaf even if covered_at is NULL (used for
-    the just-completed leaf before its covered_at is persisted).
+    Returns the first leaf (no children) where covered_at IS NULL.
     """
+    children_of: dict[uuid.UUID, list[db.LifeArea]] = {}
+    for area in descendants:
+        children_of.setdefault(area.parent_id, []).append(area)
 
-    async def _traverse(current_id: uuid.UUID) -> db.LifeArea | None:
-        children = await db.LifeAreasManager.get_descendants(current_id)
-        # Only immediate children (parent_id == current_id)
-        immediate = [c for c in children if c.parent_id == current_id]
+    def _traverse(current_id: uuid.UUID) -> db.LifeArea | None:
+        immediate = children_of.get(current_id, [])
         uncovered = [
             c for c in immediate if c.covered_at is None and c.id != exclude_id
         ]
         uncovered.sort(key=lambda x: str(x.id))
 
         for child in uncovered:
-            grandchildren = [c for c in children if c.parent_id == child.id]
-            if grandchildren:
-                result = await _traverse(child.id)
+            if child.id in children_of:
+                result = _traverse(child.id)
                 if result:
                     return result
             else:
                 return child
         return None
 
-    return await _traverse(area_id)
+    return _traverse(root_id)
+
+
+async def _get_next_uncovered_leaf(
+    area_id: uuid.UUID, exclude_id: uuid.UUID | None = None
+) -> db.LifeArea | None:
+    """Find next uncovered leaf using depth-first traversal.
+
+    Fetches all descendants once, then traverses in memory.
+
+    exclude_id: skip this leaf even if covered_at is NULL (used for
+    the just-completed leaf before its covered_at is persisted).
+    """
+    descendants = await db.LifeAreasManager.get_descendants(area_id)
+    return _find_uncovered_leaf(descendants, area_id, exclude_id)
+
+
+async def _count_user_exchanges(leaf_id: uuid.UUID) -> int:
+    """Count past user messages in leaf history, +1 for current turn."""
+    leaf_messages = await db.LeafHistoryManager.get_messages(leaf_id)
+    past = sum(1 for m in leaf_messages if m.get("role") == "user")
+    return past + 1
 
 
 async def _prompt_llm_with_history(llm: ChatOpenAI, prompt: str, history: list) -> str:
@@ -185,6 +204,27 @@ async def create_turn_summary(state: LeafInterviewState, llm: ChatOpenAI):
     return {"turn_summary_text": summary_text}
 
 
+async def _llm_evaluate(
+    llm: ChatOpenAI, leaf_path: str, summary_texts: list[str]
+) -> LeafEvaluation:
+    """Ask LLM to evaluate coverage from aggregated summaries."""
+    aggregated = "\n\n".join(summary_texts)
+    prompt = PROMPT_SUMMARY_EVALUATE.format(
+        leaf_path=leaf_path,
+        summaries=aggregated,
+        turn_count=len(summary_texts),
+    )
+    structured_llm = llm.with_structured_output(LeafEvaluation)
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": "Evaluate coverage."},
+    ]
+    result = await invoke_with_retry(lambda: structured_llm.ainvoke(messages))
+    if not isinstance(result, LeafEvaluation):
+        result = LeafEvaluation.model_validate(result)
+    return result
+
+
 async def _evaluate_with_summaries(
     state: LeafInterviewState, llm: ChatOpenAI
 ) -> LeafEvaluation:
@@ -198,21 +238,15 @@ async def _evaluate_with_summaries(
     if state.turn_summary_text:
         summary_texts.append(state.turn_summary_text)
 
-    aggregated = "\n\n".join(summary_texts)
+    total_exchanges = await _count_user_exchanges(state.active_leaf_id)
+    if total_exchanges >= MAX_TURNS_PER_LEAF:
+        return LeafEvaluation(
+            status="complete",
+            reason=f"Max exchanges ({MAX_TURNS_PER_LEAF}) reached.",
+        )
+
     leaf_path = await get_leaf_path(state.active_leaf_id, state.area_id)
-    prompt = PROMPT_SUMMARY_EVALUATE.format(
-        leaf_path=leaf_path,
-        summaries=aggregated,
-    )
-    structured_llm = llm.with_structured_output(LeafEvaluation)
-    messages = [
-        {"role": "system", "content": prompt},
-        {"role": "user", "content": "Evaluate coverage."},
-    ]
-    result = await invoke_with_retry(lambda: structured_llm.ainvoke(messages))
-    if not isinstance(result, LeafEvaluation):
-        result = LeafEvaluation.model_validate(result)
-    return result
+    return await _llm_evaluate(llm, leaf_path, summary_texts)
 
 
 async def quick_evaluate(state: LeafInterviewState, llm: ChatOpenAI):
@@ -323,7 +357,7 @@ async def _generate_response_content(
         prompt = PROMPT_LEAF_COMPLETE.format(
             completed_leaf=completed_path, next_leaf=current_leaf_path
         )
-        return await _prompt_llm_with_history(llm, prompt, [])
+        return await _prompt_llm_with_history(llm, prompt, current_messages[-4:])
     prompt = PROMPT_LEAF_QUESTION.format(leaf_path=current_leaf_path)
     return await _prompt_llm_with_history(llm, prompt, current_messages[-8:])
 

@@ -50,6 +50,7 @@ MODEL_LEAF_RESPONSE = MODEL_NAME_CODEX_MINI  # Generate focused questions
 MODEL_LEAF_SUMMARY = MODEL_NAME_CODEX_MINI  # Extract summaries from messages
 
 # Token Limits - Leaf Interview
+MAX_TURNS_PER_LEAF = 3  # Force-complete a leaf after this many turns
 MAX_TOKENS_QUICK_EVALUATE = 1024  # Reasoning model needs headroom beyond output
 MAX_TOKENS_LEAF_RESPONSE = 1024  # Short focused questions/responses
 MAX_TOKENS_LEAF_SUMMARY = 512  # Brief summary extraction

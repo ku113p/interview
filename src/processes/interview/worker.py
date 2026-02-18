@@ -74,7 +74,11 @@ async def _get_user_from_db(user_id) -> User:
     db_user = await db.UsersManager.get_by_id(user_id)
     if db_user is None:
         raise ValueError(f"User {user_id} not found in database")
-    return User(id=db_user.id, mode=InputMode(db_user.mode))
+    return User(
+        id=db_user.id,
+        mode=InputMode(db_user.mode),
+        current_life_area_id=db_user.current_area_id,
+    )
 
 
 async def _invoke_graph_and_get_response(

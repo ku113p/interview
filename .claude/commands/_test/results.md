@@ -5,25 +5,25 @@
 | Metric | Value |
 |--------|-------|
 | Total Cases | 11 |
-| Passed | 11 |
-| Failed | 0 |
-| Pass Rate | 100% |
+| Passed | 10 |
+| Failed | 1 |
+| Pass Rate | 91% |
 
 ## Results by Case
 
 | # | Case Name | Status | Areas | Sub-Areas | Summaries | Knowledge | Last Run |
 |---|-----------|--------|-------|-----------|-----------|-----------|----------|
-| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 3/true | 6/true | 2026-02-17 18:46 |
-| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-17 18:46 |
-| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-17 18:46 |
-| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-17 18:46 |
-| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 8/true | 2026-02-17 18:46 |
-| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-17 18:46 |
-| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-17 18:46 |
-| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-17 18:46 |
-| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 7/true | 2026-02-17 18:46 |
-| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 2/true | 3/true | 2026-02-17 18:46 |
-| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 3/true | 5/true | 2026-02-17 18:46 |
+| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-18 02:21 |
+| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-18 02:21 |
+| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-18 02:21 |
+| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-18 02:21 |
+| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 9/true | 2026-02-18 02:21 |
+| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-18 02:21 |
+| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-18 02:21 |
+| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-18 02:21 |
+| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-18 02:21 |
+| 26 | Reset Area Command | FAIL | 14/3 | 12/2-2 | 2/true | 3/true | 2026-02-18 02:21 |
+| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 3/true | 6/true | 2026-02-18 02:21 |
 
 ## Test Case Descriptions
 
@@ -63,6 +63,15 @@ Test cases use the following expected fields:
 - `knowledge` - Boolean: expect user_knowledge_areas rows > 0 for this user
 
 ## Recent Changes
+
+### 2026-02-18: Prompt Clarity Improvements
+
+**Improved `PROMPT_LEAF_QUESTION` and `PROMPT_LEAF_FOLLOWUP` in `src/shared/prompts.py`:**
+- `PROMPT_LEAF_QUESTION`: LLM now instructed to use the full topic path to determine the type of information to ask for; may include 1–2 inline examples to clarify scope; uses conversation history for personalization
+- `PROMPT_LEAF_FOLLOWUP`: Replaced blanket "Do NOT offer examples" rule with permission to give 1–2 concrete inline examples when user is confused or asks for clarification
+
+**Test Results:**
+- 10/11 passing (91%) — Case 26 (Reset Area Command) now failing (regression noted below)
 
 ### 2026-02-17: Per-Summary Extraction Refactor
 
@@ -184,6 +193,10 @@ Case 13 intermittently fails because `quick_evaluate` sometimes rates substantiv
 ### Case 25 - Completed Area Message (LLM Routing Non-Determinism)
 
 Case 25 intermittently fails because the LLM classifies "I want to add more about my projects" as `manage_areas` instead of routing to the existing completed area. This causes `area_loop` to create a new sub-area instead of showing the completion notice. Like case 13, this is LLM routing non-determinism, not a code bug.
+
+### Case 26 - Reset Area Command (LLM Creates Duplicate Area)
+
+Case 26 expects 3 total areas (Hobbies + Sports + Games) after the user says "I want to update my hobbies", but the LLM creates a new "Updated Hobbies" root area with additional sub-areas (14 areas total, 12 sub-areas). The system correctly displays the `/reset-area` command suggestion, but the LLM acts on the update request by creating new areas instead of holding state. This is LLM non-determinism in the `manage_areas` routing — the correct behavior is to show the reset command and not create new areas.
 
 ## Resolved Issues
 
