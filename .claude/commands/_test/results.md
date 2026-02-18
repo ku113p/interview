@@ -5,25 +5,25 @@
 | Metric | Value |
 |--------|-------|
 | Total Cases | 11 |
-| Passed | 10 |
-| Failed | 1 |
-| Pass Rate | 91% |
+| Passed | 11 |
+| Failed | 0 |
+| Pass Rate | 100% |
 
 ## Results by Case
 
 | # | Case Name | Status | Areas | Sub-Areas | Summaries | Knowledge | Last Run |
 |---|-----------|--------|-------|-----------|-----------|-----------|----------|
-| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-18 02:21 |
-| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-18 02:21 |
-| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-18 02:21 |
-| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-18 02:21 |
-| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 9/true | 2026-02-18 02:21 |
-| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-18 02:21 |
-| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-18 02:21 |
-| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-18 02:21 |
-| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 8/true | 2026-02-18 02:21 |
-| 26 | Reset Area Command | FAIL | 14/3 | 12/2-2 | 2/true | 3/true | 2026-02-18 02:21 |
-| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 3/true | 6/true | 2026-02-18 02:21 |
+| 1 | CRUD Operations | PASS | 3/3 | 2/2-2 | 2/true | 6/true | 2026-02-19 15:48 |
+| 5 | Quick Interaction | PASS | 1/1 | 0/0-0 | 0/false | 0/false | 2026-02-19 15:48 |
+| 13 | Knowledge - Skill Extraction | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-19 15:48 |
+| 18 | Multi-Area - Creation | PASS | 3/3 | 0/0-0 | 0/false | 0/false | 2026-02-19 15:48 |
+| 21 | Tree Sub-Areas Full Flow | PASS | 4/4 | 3/3-3 | 2/true | 2/true | 2026-02-19 15:48 |
+| 22 | Subtree - Bulk Create | PASS | 7/7 | 6/6-6 | 0/false | 0/false | 2026-02-19 15:48 |
+| 23 | Subtree - Deep Nesting | PASS | 5/5 | 4/4-4 | 0/false | 0/false | 2026-02-19 15:48 |
+| 24 | Small Talk Flow | PASS | 3/3 | 2/2-2 | 0/false | 0/false | 2026-02-19 15:48 |
+| 25 | Completed Area Message | PASS | 3/3 | 2/2-2 | 2/true | 4/true | 2026-02-19 15:48 |
+| 26 | Reset Area Command | PASS | 3/3 | 2/2-2 | 2/true | 5/true | 2026-02-19 15:48 |
+| 27 | Multi-Turn Leaf Interview | PASS | 2/2 | 1/1-1 | 1/true | 1/true | 2026-02-19 15:48 |
 
 ## Test Case Descriptions
 
