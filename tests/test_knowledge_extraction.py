@@ -209,9 +209,7 @@ class TestPersistExtraction:
 
         all_knowledge = await db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 2
-
-        links = await db.UserKnowledgeAreasManager.list_by_user(user_id)
-        assert len(links) == 2
+        assert all(k.summary_id == summary_id for k in all_knowledge)
 
     @pytest.mark.asyncio
     async def test_persist_extraction_skips_knowledge_when_no_area_id(self, temp_db):
@@ -345,9 +343,7 @@ class TestKnowledgeExtractionGraphIntegration:
 
         all_knowledge = await db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 3
-
-        links = await db.UserKnowledgeAreasManager.list_by_user(user_id)
-        assert len(links) == 3
+        assert all(k.summary_id == summary_id for k in all_knowledge)
 
     @pytest.mark.asyncio
     async def test_graph_handles_embedding_failure_gracefully(self, temp_db):

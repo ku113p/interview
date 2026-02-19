@@ -107,17 +107,10 @@ async def handle_delete_confirm(user_id: uuid.UUID, token: str) -> str:
 
 
 async def _delete_knowledge(user_id: uuid.UUID, conn: aiosqlite.Connection) -> None:
-    """Delete user knowledge and links."""
-    knowledge_links = await db.UserKnowledgeAreasManager.list_by_user(user_id, conn)
-    knowledge_ids = {link.knowledge_id for link in knowledge_links}
-
-    for link in knowledge_links:
-        await db.UserKnowledgeAreasManager.delete_link(
-            link.knowledge_id, conn=conn, auto_commit=False
-        )
-
-    for kid in knowledge_ids:
-        await db.UserKnowledgeManager.delete(kid, conn=conn, auto_commit=False)
+    """Delete user knowledge items."""
+    items = await db.UserKnowledgeManager.list_by_user(user_id, conn)
+    for item in items:
+        await db.UserKnowledgeManager.delete(item.id, conn=conn, auto_commit=False)
 
 
 async def _delete_area_data(area_id: uuid.UUID, conn: aiosqlite.Connection) -> None:

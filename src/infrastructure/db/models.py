@@ -36,12 +36,7 @@ class UserKnowledge:
     kind: str  # 'skill' or 'fact'
     confidence: float
     created_ts: float
-
-
-@dataclass
-class UserKnowledgeArea:
-    knowledge_id: uuid.UUID
-    area_id: uuid.UUID
+    summary_id: uuid.UUID | None = None
 
 
 @dataclass

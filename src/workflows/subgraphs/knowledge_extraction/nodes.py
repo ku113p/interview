@@ -58,7 +58,7 @@ async def vectorize_summary(state: KnowledgeExtractionState) -> dict:
 async def _save_knowledge_items(
     state: KnowledgeExtractionState, now: float, conn: aiosqlite.Connection
 ) -> int:
-    """Save extracted knowledge items and area links within a transaction."""
+    """Save extracted knowledge items within a transaction."""
     saved_count = 0
     for item in state.extracted_knowledge:
         knowledge_id = new_id()
@@ -68,15 +68,11 @@ async def _save_knowledge_items(
             kind=item["kind"],
             confidence=item["confidence"],
             created_ts=now,
+            summary_id=state.summary_id,
         )
         await db.UserKnowledgeManager.create(
             knowledge_id, knowledge, conn, auto_commit=False
         )
-        link = db.UserKnowledgeArea(
-            knowledge_id=knowledge_id,
-            area_id=state.area_id,
-        )
-        await db.UserKnowledgeAreasManager.create_link(link, conn, auto_commit=False)
         saved_count += 1
     return saved_count
 

@@ -1,26 +1,28 @@
-"""Knowledge repository managers: UserKnowledge, UserKnowledgeAreas."""
+"""Knowledge repository managers: UserKnowledge."""
 
 import uuid
 from typing import Any
 
 import aiosqlite
 
-from .base import ORMBase
-from .models import UserKnowledge, UserKnowledgeArea
+from .base import ORMBase, _with_conn
+from .models import UserKnowledge
 
 
 class UserKnowledgeManager(ORMBase[UserKnowledge]):
     _table = "user_knowledge"
-    _columns = ("id", "description", "kind", "confidence", "created_ts")
+    _columns = ("id", "description", "kind", "confidence", "created_ts", "summary_id")
 
     @classmethod
     def _row_to_obj(cls, row: aiosqlite.Row) -> UserKnowledge:
+        summary_id = row["summary_id"]
         return UserKnowledge(
             id=uuid.UUID(row["id"]),
             description=row["description"],
             kind=row["kind"],
             confidence=row["confidence"],
             created_ts=row["created_ts"],
+            summary_id=uuid.UUID(summary_id) if summary_id else None,
         )
 
     @classmethod
@@ -31,114 +33,23 @@ class UserKnowledgeManager(ORMBase[UserKnowledge]):
             "kind": data.kind,
             "confidence": data.confidence,
             "created_ts": data.created_ts,
+            "summary_id": str(data.summary_id) if data.summary_id else None,
         }
-
-
-class UserKnowledgeAreasManager:
-    """Manager for the user_knowledge_areas link table."""
-
-    _table = "user_knowledge_areas"
-
-    @classmethod
-    async def create_link(
-        cls,
-        data: UserKnowledgeArea,
-        conn: aiosqlite.Connection | None = None,
-        auto_commit: bool = True,
-    ):
-        """Create a link between knowledge and area."""
-        from src.infrastructure.db.connection import get_connection
-
-        query = f"""
-            INSERT OR REPLACE INTO {cls._table}
-            (knowledge_id, area_id)
-            VALUES (?, ?)
-        """
-        values = (str(data.knowledge_id), str(data.area_id))
-
-        if conn is None:
-            async with get_connection() as local_conn:
-                await local_conn.execute(query, values)
-                if auto_commit:
-                    await local_conn.commit()
-        else:
-            await conn.execute(query, values)
 
     @classmethod
     async def list_by_user(
         cls, user_id: uuid.UUID, conn: aiosqlite.Connection | None = None
-    ) -> list[UserKnowledgeArea]:
-        """List all knowledge links for a user."""
-        from src.infrastructure.db.connection import get_connection
-
-        query = f"""
-            SELECT uka.knowledge_id, uka.area_id
-            FROM {cls._table} uka
-            JOIN life_areas la ON uka.area_id = la.id
+    ) -> list[UserKnowledge]:
+        """List knowledge items for a user via summary → life_areas join."""
+        query = """
+            SELECT uk.id, uk.description, uk.kind, uk.confidence,
+                   uk.created_ts, uk.summary_id
+            FROM user_knowledge uk
+            JOIN summaries s ON uk.summary_id = s.id
+            JOIN life_areas la ON s.area_id = la.id
             WHERE la.user_id = ?
         """
-        if conn is None:
-            async with get_connection() as local_conn:
-                cursor = await local_conn.execute(query, (str(user_id),))
-                rows = await cursor.fetchall()
-        else:
-            cursor = await conn.execute(query, (str(user_id),))
+        async with _with_conn(conn) as c:
+            cursor = await c.execute(query, (str(user_id),))
             rows = await cursor.fetchall()
-
-        return [
-            UserKnowledgeArea(
-                knowledge_id=uuid.UUID(row["knowledge_id"]),
-                area_id=uuid.UUID(row["area_id"]),
-            )
-            for row in rows
-        ]
-
-    @classmethod
-    async def list_by_area(
-        cls, area_id: uuid.UUID, conn: aiosqlite.Connection | None = None
-    ) -> list[UserKnowledgeArea]:
-        """List all knowledge links for an area."""
-        from src.infrastructure.db.connection import get_connection
-
-        query = f"""
-            SELECT knowledge_id, area_id
-            FROM {cls._table}
-            WHERE area_id = ?
-        """
-        if conn is None:
-            async with get_connection() as local_conn:
-                cursor = await local_conn.execute(query, (str(area_id),))
-                rows = await cursor.fetchall()
-        else:
-            cursor = await conn.execute(query, (str(area_id),))
-            rows = await cursor.fetchall()
-
-        return [
-            UserKnowledgeArea(
-                knowledge_id=uuid.UUID(row["knowledge_id"]),
-                area_id=uuid.UUID(row["area_id"]),
-            )
-            for row in rows
-        ]
-
-    @classmethod
-    async def delete_link(
-        cls,
-        knowledge_id: uuid.UUID,
-        conn: aiosqlite.Connection | None = None,
-        auto_commit: bool = True,
-    ):
-        """Delete a specific knowledge link."""
-        from src.infrastructure.db.connection import get_connection
-
-        query = f"""
-            DELETE FROM {cls._table}
-            WHERE knowledge_id = ?
-        """
-        if conn is None:
-            async with get_connection() as local_conn:
-                await local_conn.execute(query, (str(knowledge_id),))
-                if auto_commit:
-                    await local_conn.commit()
-        else:
-            await conn.execute(query, (str(knowledge_id),))
+        return [cls._row_to_obj(row) for row in rows]

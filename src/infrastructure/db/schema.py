@@ -45,14 +45,9 @@ _SCHEMA_SQL = """
         description TEXT NOT NULL,
         kind TEXT NOT NULL,
         confidence REAL NOT NULL,
-        created_ts REAL NOT NULL
+        created_ts REAL NOT NULL,
+        summary_id TEXT
     );
-    CREATE TABLE IF NOT EXISTS user_knowledge_areas (
-        knowledge_id TEXT PRIMARY KEY,
-        area_id TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS user_knowledge_areas_area_id_idx
-        ON user_knowledge_areas(area_id);
     -- Per-turn summaries for each leaf area interview
     CREATE TABLE IF NOT EXISTS summaries (
         id TEXT PRIMARY KEY,
@@ -86,10 +81,28 @@ async def ensure_column_async(
     await conn.execute(f"ALTER TABLE {table} ADD COLUMN {definition}")
 
 
+async def _drop_column_if_exists(
+    conn: aiosqlite.Connection, table: str, column: str
+) -> None:
+    """Drop a column from a table if it exists (migration helper, SQLite 3.35+)."""
+    cursor = await conn.execute(f"PRAGMA table_info({table})")
+    rows = await cursor.fetchall()
+    columns = {row["name"] for row in rows}
+    if column not in columns:
+        return
+    await conn.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+
+
 async def _run_migrations(conn: aiosqlite.Connection) -> None:
     """Run schema migrations in order."""
     await ensure_column_async(conn, "users", "current_area_id", "current_area_id TEXT")
     await ensure_column_async(conn, "life_areas", "covered_at", "covered_at REAL")
+    await ensure_column_async(conn, "user_knowledge", "summary_id", "summary_id TEXT")
+    await conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_user_knowledge_summary_id"
+        " ON user_knowledge(summary_id)"
+    )
+    await _drop_column_if_exists(conn, "life_areas", "extracted_at")
 
     # Drop deprecated tables
     for table in (
@@ -99,19 +112,9 @@ async def _run_migrations(conn: aiosqlite.Connection) -> None:
         "area_summaries",
         "leaf_coverage",
         "active_interview_context",
+        "user_knowledge_areas",
     ):
         await conn.execute(f"DROP TABLE IF EXISTS {table}")
-
-    # Recreate user_knowledge_areas without user_id column
-    await conn.execute("DROP TABLE IF EXISTS user_knowledge_areas")
-    await conn.executescript("""
-        CREATE TABLE IF NOT EXISTS user_knowledge_areas (
-            knowledge_id TEXT PRIMARY KEY,
-            area_id TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS user_knowledge_areas_area_id_idx
-            ON user_knowledge_areas(area_id);
-    """)
 
 
 async def init_schema_async(conn: aiosqlite.Connection, db_path: str) -> None:

@@ -89,7 +89,7 @@ for RUN in $(seq 1 $REPEAT); do
             (SELECT COUNT(*) FROM life_areas WHERE user_id = '$USER_ID'),
             (SELECT COUNT(*) FROM life_areas WHERE parent_id IS NOT NULL AND user_id = '$USER_ID'),
             (SELECT COUNT(*) FROM summaries JOIN life_areas ON summaries.area_id = life_areas.id WHERE life_areas.user_id = '$USER_ID'),
-            (SELECT COUNT(DISTINCT uka.knowledge_id) FROM user_knowledge_areas uka JOIN life_areas la ON uka.area_id = la.id WHERE la.user_id = '$USER_ID')
+            (SELECT COUNT(DISTINCT uk.id) FROM user_knowledge uk JOIN summaries s ON uk.summary_id = s.id JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = '$USER_ID')
     " | tr '|' ' ')
 
     # Determine status
@@ -139,7 +139,7 @@ for RUN in $(seq 1 $REPEAT); do
 
     echo ""
     echo "Knowledge:"
-    sqlite3 -header -column interview.db "SELECT uk.id, uk.description, uk.kind FROM user_knowledge uk JOIN user_knowledge_areas uka ON uk.id = uka.knowledge_id JOIN life_areas la ON uka.area_id = la.id WHERE la.user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
+    sqlite3 -header -column interview.db "SELECT uk.id, uk.description, uk.kind FROM user_knowledge uk JOIN summaries s ON uk.summary_id = s.id JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
 
     # Keep log for inspection
     echo ""

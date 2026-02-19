@@ -60,7 +60,7 @@ Test cases use the following expected fields:
 - `life_areas` - Exact count of life_areas table rows
 - `sub_areas_min/max` - Range for life_areas with parent_id (sub-areas)
 - `summaries` - Boolean: expect summaries table rows > 0 for this user
-- `knowledge` - Boolean: expect user_knowledge_areas rows > 0 for this user
+- `knowledge` - Boolean: expect user_knowledge rows (via summary_id join) > 0 for this user
 
 ## Recent Changes
 
@@ -77,7 +77,7 @@ Test cases use the following expected fields:
 
 **Replaced `leaf_coverage` with `summaries` table:**
 - `summaries(id, area_id, summary_text, question_id, answer_id, vector, created_at)` — one row per interview turn
-- `user_knowledge_areas.user_id` column removed; user filtered via `JOIN life_areas`
+- `user_knowledge_areas` table removed; `user_knowledge.summary_id` links to summaries directly
 - Fixed `test_report.sh` count + display queries to use new schema
 - Updated `db-query.md` example queries to match
 - Summary/knowledge counts now accurate: cases 1, 21, 25, 26, 27 show higher counts than before
@@ -93,11 +93,10 @@ Test cases use the following expected fields:
 - Vectors now stored in `leaf_coverage.vector`
 - Updated all deletion handlers and test fixtures
 
-**Normalized `user_knowledge_areas` table:**
-- Removed redundant `user_id` column (derivable from `area_id → life_areas.user_id`)
-- Changed PRIMARY KEY from composite `(user_id, knowledge_id)` to single `knowledge_id`
-- Updated all knowledge managers to use JOIN for user filtering
-- Added migration to DROP and recreate table with new schema
+**Removed `user_knowledge_areas` table:**
+- Replaced join table with `user_knowledge.summary_id` FK to `summaries`
+- User filtering now joins `user_knowledge → summaries → life_areas`
+- Migration drops `user_knowledge_areas` table
 
 **Test Results:**
 - All 11 test cases passing (100%)

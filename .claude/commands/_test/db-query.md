@@ -19,7 +19,7 @@ SELECT
   (SELECT COUNT(*) FROM life_areas WHERE user_id = 'UUID') as areas,
   (SELECT COUNT(*) FROM life_areas WHERE user_id = 'UUID' AND parent_id IS NOT NULL) as sub_areas,
   (SELECT COUNT(*) FROM summaries JOIN life_areas ON summaries.area_id = life_areas.id WHERE life_areas.user_id = 'UUID') as summaries,
-  (SELECT COUNT(DISTINCT uka.knowledge_id) FROM user_knowledge_areas uka JOIN life_areas la ON uka.area_id = la.id WHERE la.user_id = 'UUID') as knowledge,
+  (SELECT COUNT(DISTINCT uk.id) FROM user_knowledge uk JOIN summaries s ON uk.summary_id = s.id JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = 'UUID') as knowledge,
   (SELECT COUNT(*) FROM histories WHERE user_id = 'UUID') as history
 ```
 
@@ -53,8 +53,8 @@ FROM summaries s JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = 'UUI
 **List knowledge for a user:**
 ```sql
 SELECT uk.id, uk.description, uk.kind FROM user_knowledge uk
-JOIN user_knowledge_areas uka ON uk.id = uka.knowledge_id
-JOIN life_areas la ON uka.area_id = la.id WHERE la.user_id = 'UUID'
+JOIN summaries s ON uk.summary_id = s.id
+JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = 'UUID'
 ```
 
 **List history entries:**

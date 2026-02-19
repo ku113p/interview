@@ -66,7 +66,7 @@ Located in `cases/`. Each JSON file defines:
 | `life_areas` | int | Exact count of life_areas rows |
 | `sub_areas_min/max` | int | Range for life_areas with parent_id |
 | `summaries` | bool | Expect leaf_coverage with summary_text > 0 |
-| `knowledge` | bool | Expect user_knowledge_areas > 0 |
+| `knowledge` | bool | Expect user_knowledge rows (via summary_id) > 0 |
 
 ## Adding Tests
 

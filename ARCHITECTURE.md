@@ -122,12 +122,11 @@ Commands are handled in the graph via `handle_command` node, making them transpo
 ### Deletion Order (FK-safe)
 
 When deleting a user, data is removed in this order:
-1. `user_knowledge_areas` links
-2. `user_knowledge` items
-3. Per-area: `summaries`, `leaf_history`
-4. `life_areas`
-5. `histories`
-6. `users`
+1. `user_knowledge` items
+2. Per-area: `summaries`, `leaf_history`
+3. `life_areas`
+4. `histories`
+5. `users`
 
 ### Token Storage
 
@@ -314,8 +313,7 @@ User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the sam
 | `life_areas` | Topics with hierarchy (parent_id, covered_at) |
 | `leaf_history` | Join table linking leaves to their conversation messages |
 | `summaries` | Per-turn summaries (summary_text, question_id, answer_id, vector) |
-| `user_knowledge` | Skills/facts extracted |
-| `user_knowledge_areas` | Knowledge-area links |
+| `user_knowledge` | Skills/facts extracted (linked to summaries via summary_id) |
 
 ORM pattern: `ORMBase[T]` with managers per table. Database managers are exported from `src/infrastructure/db/managers.py`.
 

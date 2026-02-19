@@ -162,7 +162,7 @@ async def _run_extract_pool_with_mocks(channels, mock_llm):
 
 
 async def _verify_extraction_results(area_id, user_id, summary_id):
-    """Verify extraction wrote vector, created knowledge, and created links."""
+    """Verify extraction wrote vector, created knowledge with summary_id."""
     updated = await db.SummariesManager.get_by_id(summary_id)
     assert updated.vector == [0.1, 0.2, 0.3]
 
@@ -171,10 +171,7 @@ async def _verify_extraction_results(area_id, user_id, summary_id):
     descriptions = [k.description for k in all_knowledge]
     assert "Proficient in Python" in descriptions
     assert "5 years programming experience" in descriptions
-
-    links = await db.UserKnowledgeAreasManager.list_by_user(user_id)
-    assert len(links) == 2
-    assert all(link.area_id == area_id for link in links)
+    assert all(k.summary_id == summary_id for k in all_knowledge)
 
 
 class TestFullSummaryExtractionFlow:

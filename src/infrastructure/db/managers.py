@@ -18,7 +18,6 @@ from .interview_managers import (
 
 # Knowledge Managers
 from .knowledge_managers import (
-    UserKnowledgeAreasManager,
     UserKnowledgeManager,
 )
 from .models import (
@@ -27,7 +26,6 @@ from .models import (
     Summary,
     User,
     UserKnowledge,
-    UserKnowledgeArea,
 )
 
 __all__ = [
@@ -37,13 +35,11 @@ __all__ = [
     "Summary",
     "User",
     "UserKnowledge",
-    "UserKnowledgeArea",
     # Managers
     "HistoriesManager",
     "LeafHistoryManager",
     "LifeAreasManager",
     "SummariesManager",
-    "UserKnowledgeAreasManager",
     "UserKnowledgeManager",
     "UsersManager",
 ]
