@@ -1,13 +1,15 @@
 """Telegram transport for handling bot communication."""
 
 import asyncio
+import contextlib
 import io
 import logging
 import uuid
-from collections.abc import Callable, Coroutine
+from collections.abc import AsyncIterator, Callable, Coroutine
 from typing import Any
 
 from aiogram import Bot, Dispatcher, F, Router
+from aiogram.enums import ChatAction
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -37,6 +39,32 @@ logger = logging.getLogger(__name__)
 AUTH_TIMEOUT_SECONDS = 30.0
 SEND_RETRY_ATTEMPTS = 3
 SEND_RETRY_BASE_DELAY = 1.0  # seconds
+TYPING_INTERVAL_SECONDS = 4.0
+
+
+async def _typing_loop(bot: Bot, chat_id: int, stop: asyncio.Event) -> None:
+    """Send 'typing' chat action every few seconds until *stop* is set."""
+    while not stop.is_set():
+        try:
+            await bot.send_chat_action(chat_id, ChatAction.TYPING)
+        except TelegramNetworkError:
+            pass
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=TYPING_INTERVAL_SECONDS)
+
+
+@contextlib.asynccontextmanager
+async def _typing(bot: Bot, chat_id: int) -> AsyncIterator[None]:
+    """Show 'typing' indicator for the duration of the block."""
+    stop = asyncio.Event()
+    task = asyncio.create_task(_typing_loop(bot, chat_id, stop))
+    try:
+        yield
+    finally:
+        stop.set()
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 async def _retry_send(
@@ -173,12 +201,15 @@ async def _handle_text_message(
     if not message.from_user or not message.text:
         return
     try:
-        user_id = await _get_user_id(
-            message.from_user.id, _get_display_name(message), channels
-        )
-        client_msg = ClientMessage(data=message.text)
-        response = await _send_request(user_id, client_msg, channels, pending_responses)
-        await _send_response(bot, message.chat.id, response)
+        async with _typing(bot, message.chat.id):
+            user_id = await _get_user_id(
+                message.from_user.id, _get_display_name(message), channels
+            )
+            client_msg = ClientMessage(data=message.text)
+            response = await _send_request(
+                user_id, client_msg, channels, pending_responses
+            )
+            await _send_response(bot, message.chat.id, response)
     except asyncio.TimeoutError:
         await _safe_reply(message, "Service temporarily unavailable. Please try again.")
     except Exception:
@@ -227,7 +258,8 @@ async def _handle_voice_message(
     if not message.from_user or not message.voice:
         return
     try:
-        await _process_voice(message, bot, channels, pending_responses)
+        async with _typing(bot, message.chat.id):
+            await _process_voice(message, bot, channels, pending_responses)
     except asyncio.TimeoutError:
         await _safe_reply(message, "Service temporarily unavailable. Please try again.")
     except Exception:
@@ -267,7 +299,8 @@ async def _handle_video_note_message(
     if not message.from_user or not message.video_note:
         return
     try:
-        await _process_video_note(message, bot, channels, pending_responses)
+        async with _typing(bot, message.chat.id):
+            await _process_video_note(message, bot, channels, pending_responses)
     except asyncio.TimeoutError:
         await _safe_reply(message, "Service temporarily unavailable. Please try again.")
     except Exception:
