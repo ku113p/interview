@@ -2,7 +2,6 @@
 
 import uuid
 
-import pytest
 from src.infrastructure.db import managers as db
 from src.shared.ids import new_id
 from src.shared.timestamp import get_timestamp
@@ -32,7 +31,6 @@ async def _create_leaf_messages(
 class TestSummariesManager:
     """Tests for SummariesManager."""
 
-    @pytest.mark.asyncio
     async def test_create_and_get_by_id(self, temp_db):
         """Should create and retrieve a summary record."""
         area_id = new_id()
@@ -51,7 +49,6 @@ class TestSummariesManager:
         assert result.summary_text == "User has 5 years of Python experience."
         assert result.vector is None
 
-    @pytest.mark.asyncio
     async def test_list_by_area(self, temp_db):
         """Should list all summaries for an area in creation order."""
         area_id = new_id()
@@ -69,14 +66,12 @@ class TestSummariesManager:
         assert results[0].id == id1
         assert results[1].id == id2
 
-    @pytest.mark.asyncio
     async def test_list_by_area_empty(self, temp_db):
         """Should return empty list for area with no summaries."""
         area_id = new_id()
         results = await db.SummariesManager.list_by_area(area_id)
         assert results == []
 
-    @pytest.mark.asyncio
     async def test_update_vector(self, temp_db):
         """Should save embedding vector to a summary."""
         area_id = new_id()
@@ -92,7 +87,6 @@ class TestSummariesManager:
         result = await db.SummariesManager.get_by_id(summary_id)
         assert result.vector == vector
 
-    @pytest.mark.asyncio
     async def test_delete_by_area(self, temp_db):
         """Should delete all summaries for an area."""
         area_id = new_id()
@@ -117,7 +111,6 @@ class TestSummariesManager:
         remaining = await db.SummariesManager.list_by_area(other_area_id)
         assert len(remaining) == 1
 
-    @pytest.mark.asyncio
     async def test_create_with_question_and_answer_ids(self, temp_db):
         """Should store question_id and answer_id on summaries."""
         area_id = new_id()
@@ -137,7 +130,6 @@ class TestSummariesManager:
         assert result.question_id == question_id
         assert result.answer_id == answer_id
 
-    @pytest.mark.asyncio
     async def test_list_by_user(self, temp_db):
         """Should list summaries for a user via area join."""
         user_id = new_id()
@@ -178,7 +170,6 @@ class TestSummariesManager:
         assert "Mine 1." in texts
         assert "Mine 2." in texts
 
-    @pytest.mark.asyncio
     async def test_list_vectors_by_user(self, temp_db):
         """Should return only vectorized summaries for the user."""
         user_id = new_id()
@@ -211,7 +202,6 @@ class TestSummariesManager:
 class TestLeafHistoryManager:
     """Tests for LeafHistoryManager."""
 
-    @pytest.mark.asyncio
     async def test_link_and_get_messages(self, temp_db):
         """Should link history to leaf and retrieve messages."""
         user_id = new_id()
@@ -237,7 +227,6 @@ class TestLeafHistoryManager:
         assert messages[0]["role"] == "user"
         assert messages[0]["content"] == "Hello"
 
-    @pytest.mark.asyncio
     async def test_get_messages_ordered_by_time(self, temp_db):
         """Should return messages in chronological order."""
         user_id = new_id()
@@ -262,7 +251,6 @@ class TestLeafHistoryManager:
         assert messages[1]["content"] == "Second"
         assert messages[2]["content"] == "Third"
 
-    @pytest.mark.asyncio
     async def test_get_message_count(self, temp_db):
         """Should return correct message count for a leaf."""
         user_id = new_id()
@@ -284,7 +272,6 @@ class TestLeafHistoryManager:
         count = await db.LeafHistoryManager.get_message_count(leaf_id)
         assert count == 3
 
-    @pytest.mark.asyncio
     async def test_delete_by_leaf(self, temp_db):
         """Should delete all history links for a leaf."""
         user_id = new_id()
@@ -309,7 +296,6 @@ class TestLeafHistoryManager:
         messages = await db.LeafHistoryManager.get_messages(leaf_id)
         assert len(messages) == 0
 
-    @pytest.mark.asyncio
     async def test_link_ignores_duplicate(self, temp_db):
         """Should ignore duplicate links (INSERT OR IGNORE)."""
         user_id = new_id()
@@ -334,7 +320,6 @@ class TestLeafHistoryManager:
         count = await db.LeafHistoryManager.get_message_count(leaf_id)
         assert count == 1
 
-    @pytest.mark.asyncio
     async def test_get_messages_with_ids(self, temp_db):
         """Should return (uuid, dict) pairs in chronological order."""
         import uuid as uuid_module

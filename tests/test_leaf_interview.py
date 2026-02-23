@@ -117,7 +117,6 @@ def _create_save_state(user: User, **kwargs) -> SaveHistoryState:
 class TestCreateTurnSummary:
     """Tests for create_turn_summary node."""
 
-    @pytest.mark.asyncio
     async def test_returns_empty_when_no_active_leaf(self):
         """Should return {} when active_leaf_id is None."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -127,7 +126,6 @@ class TestCreateTurnSummary:
         result = await create_turn_summary(state, MagicMock())
         assert result == {}
 
-    @pytest.mark.asyncio
     async def test_returns_empty_when_no_human_message(self, temp_db):
         """Should return {} when messages contains only AI messages."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -142,7 +140,6 @@ class TestCreateTurnSummary:
         result = await create_turn_summary(state, MagicMock())
         assert result == {}
 
-    @pytest.mark.asyncio
     async def test_returns_empty_when_off_topic(self, temp_db):
         """Should return {} when LLM returns empty string (off-topic)."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -161,7 +158,6 @@ class TestCreateTurnSummary:
         result = await create_turn_summary(state, mock_llm)
         assert result == {}
 
-    @pytest.mark.asyncio
     async def test_returns_summary_text_on_success(self, temp_db):
         """Should return turn_summary_text when LLM returns content."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -184,7 +180,6 @@ class TestCreateTurnSummary:
 class TestLoadInterviewContext:
     """Tests for load_interview_context node."""
 
-    @pytest.mark.asyncio
     async def test_returns_all_leaves_done_when_no_sub_areas(self, temp_db):
         """Should set active_leaf_id=None when root has no children."""
         user_id, area_id = new_id(), new_id()
@@ -198,7 +193,6 @@ class TestLoadInterviewContext:
 
         assert result["active_leaf_id"] is None
 
-    @pytest.mark.asyncio
     async def test_finds_first_uncovered_leaf(self, temp_db):
         """Should set active_leaf_id to first uncovered leaf."""
         user_id, area_id = new_id(), new_id()
@@ -218,7 +212,6 @@ class TestLoadInterviewContext:
 
         assert result["active_leaf_id"] == leaf_id
 
-    @pytest.mark.asyncio
     async def test_skips_covered_leaf_and_returns_next(self, temp_db):
         """Should skip leaf1 (covered_at set) and return leaf2."""
         user_id, area_id = new_id(), new_id()
@@ -232,7 +225,6 @@ class TestLoadInterviewContext:
 
         assert result["active_leaf_id"] == leaf2_id
 
-    @pytest.mark.asyncio
     async def test_all_leaves_done_when_all_covered(self, temp_db):
         """Should return active_leaf_id=None when all leaves have covered_at set."""
         user_id, area_id = new_id(), new_id()
@@ -261,7 +253,6 @@ class TestLoadInterviewContext:
 class TestQuickEvaluate:
     """Tests for quick_evaluate node."""
 
-    @pytest.mark.asyncio
     async def test_returns_none_when_all_leaves_done(self):
         """Should return None evaluation when active_leaf_id is None."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -273,7 +264,6 @@ class TestQuickEvaluate:
         assert result["leaf_evaluation"] is None
         mock_llm.with_structured_output.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_evaluates_using_summaries(self, temp_db):
         """Should call LLM with aggregated summaries."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -310,7 +300,6 @@ class TestQuickEvaluate:
         assert result["leaf_evaluation"].status == "complete"
         mock_structured_llm.ainvoke.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_returns_complete_when_max_exchanges_reached(self, temp_db):
         """Should bypass LLM and return complete when max exchanges reached."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -357,7 +346,6 @@ class TestQuickEvaluate:
         assert "Max exchanges" in result["leaf_evaluation"].reason
         mock_llm.with_structured_output.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_returns_partial_when_no_summaries(self, temp_db):
         """Should return partial when there are no summaries yet."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -382,7 +370,6 @@ class TestQuickEvaluate:
 class TestUpdateCoverageStatus:
     """Tests for update_coverage_status node."""
 
-    @pytest.mark.asyncio
     async def test_returns_empty_when_all_leaves_done(self):
         """Should return is_successful when active_leaf_id is None."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -393,7 +380,6 @@ class TestUpdateCoverageStatus:
 
         assert result == {"is_successful": True}
 
-    @pytest.mark.asyncio
     async def test_signals_set_covered_at_when_complete(self):
         """Should return set_covered_at=True when evaluation is complete."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -411,7 +397,6 @@ class TestUpdateCoverageStatus:
         assert result["completed_leaf_id"] == leaf_id
         assert result["set_covered_at"] is True
 
-    @pytest.mark.asyncio
     async def test_signals_set_covered_at_when_skipped(self):
         """Should return set_covered_at=True when evaluation is skipped."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -429,7 +414,6 @@ class TestUpdateCoverageStatus:
         assert result["completed_leaf_id"] == leaf_id
         assert result["set_covered_at"] is True
 
-    @pytest.mark.asyncio
     async def test_returns_empty_when_partial(self):
         """Should return empty dict when evaluation is partial."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -445,7 +429,6 @@ class TestUpdateCoverageStatus:
 
         assert result == {}
 
-    @pytest.mark.asyncio
     async def test_does_not_write_to_db(self, temp_db):
         """DB should NOT be updated by update_coverage_status (deferred to save_history)."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -475,7 +458,6 @@ class TestUpdateCoverageStatus:
 class TestSelectNextLeaf:
     """Tests for select_next_leaf node."""
 
-    @pytest.mark.asyncio
     async def test_returns_empty_when_all_done(self):
         """Should return is_successful when active_leaf_id is None."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -485,7 +467,6 @@ class TestSelectNextLeaf:
 
         assert result == {"is_successful": True}
 
-    @pytest.mark.asyncio
     async def test_stays_on_current_when_partial(self):
         """Should stay on current leaf when evaluation is partial."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -500,7 +481,6 @@ class TestSelectNextLeaf:
 
         assert result["completed_leaf_path"] is None
 
-    @pytest.mark.asyncio
     async def test_moves_to_next_uncovered_leaf(self, temp_db):
         """Should move to next uncovered leaf, skipping the just-completed one.
 
@@ -534,7 +514,6 @@ class TestSelectNextLeaf:
 class TestGenerateLeafResponse:
     """Tests for generate_leaf_response node."""
 
-    @pytest.mark.asyncio
     async def test_bails_out_on_prior_failure(self):
         """Should return empty dict when is_successful is False."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -546,7 +525,6 @@ class TestGenerateLeafResponse:
         assert result == {}
         mock_llm.ainvoke.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_generates_completion_when_all_done(self):
         """Should generate completion message when all leaves done."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -563,7 +541,6 @@ class TestGenerateLeafResponse:
         assert isinstance(result["messages"][0], AIMessage)
         assert result["is_successful"] is True
 
-    @pytest.mark.asyncio
     async def test_generates_question_for_new_leaf(self, temp_db):
         """Should generate initial question for a new leaf."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -598,7 +575,6 @@ class TestGenerateLeafResponse:
 class TestSaveHistoryLeafPersistence:
     """Tests for deferred leaf persistence in save_history."""
 
-    @pytest.mark.asyncio
     async def test_sets_covered_at_on_completion(self, temp_db):
         """Should set covered_at on completed leaf."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -618,7 +594,6 @@ class TestSaveHistoryLeafPersistence:
         updated = await db.LifeAreasManager.get_by_id(leaf_id)
         assert updated.covered_at is not None
 
-    @pytest.mark.asyncio
     async def test_saves_turn_summary(self, temp_db):
         """Should save turn summary and return pending_summary_id."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -647,7 +622,6 @@ class TestSaveHistoryLeafPersistence:
         assert "pending_summary_id" in result
         assert result["pending_summary_id"] == summaries[0].id
 
-    @pytest.mark.asyncio
     async def test_question_id_not_off_by_one_when_ai_message_in_same_save(
         self, temp_db
     ):
@@ -681,7 +655,6 @@ class TestSaveHistoryLeafPersistence:
         assert len(summaries) == 1
         assert summaries[0].question_id == question_hist_id
 
-    @pytest.mark.asyncio
     async def test_saves_summary_and_covered_at_together(self, temp_db):
         """Should save summary and set covered_at atomically on completion."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -705,7 +678,6 @@ class TestSaveHistoryLeafPersistence:
         assert len(summaries) == 1
         assert summaries[0].summary_text == "User discussed their career goals."
 
-    @pytest.mark.asyncio
     async def test_no_leaf_writes_without_completion(self, temp_db):
         """Should skip leaf writes when no completion data is present."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -724,7 +696,6 @@ class TestSaveHistoryLeafPersistence:
         unchanged = await db.LifeAreasManager.get_by_id(leaf_id)
         assert unchanged.covered_at is None
 
-    @pytest.mark.asyncio
     async def test_skips_covered_at_when_flag_false(self, temp_db):
         """Should skip setting covered_at when set_covered_at=False."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()
@@ -743,7 +714,6 @@ class TestSaveHistoryLeafPersistence:
         unchanged = await db.LifeAreasManager.get_by_id(leaf_id)
         assert unchanged.covered_at is None
 
-    @pytest.mark.asyncio
     async def test_transaction_rollback_on_failure(self, temp_db):
         """Should roll back all writes if an inner save step raises."""
         user_id, area_id, leaf_id = new_id(), new_id(), new_id()

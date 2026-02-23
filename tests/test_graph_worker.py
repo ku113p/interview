@@ -4,7 +4,6 @@ import asyncio
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from src.domain import ClientMessage
 from src.infrastructure.db import managers as db
 from src.processes.interview import ChannelRequest, run_graph_pool
@@ -36,7 +35,6 @@ def _mock_graph_response(content: str):
 class TestGraphWorker:
     """Test the graph worker functionality."""
 
-    @pytest.mark.asyncio
     async def test_worker_processes_request_and_sends_response(self, temp_db):
         """Should process a request and send response with matching correlation_id."""
         user_id = await _create_test_user(temp_db)
@@ -57,7 +55,6 @@ class TestGraphWorker:
             assert response.correlation_id == corr_id
             assert response.response_text == "Response text"
 
-    @pytest.mark.asyncio
     async def test_worker_handles_multiple_requests(self, temp_db):
         """Should process multiple requests and match responses by correlation_id."""
         user_id = await _create_test_user(temp_db)
@@ -91,7 +88,6 @@ class TestGraphWorker:
             assert corr_ids[0] in resp_by_id
             assert corr_ids[1] in resp_by_id
 
-    @pytest.mark.asyncio
     async def test_worker_handles_error_gracefully(self, temp_db):
         """Should send error response when processing fails."""
         user_id = await _create_test_user(temp_db)

@@ -49,7 +49,6 @@ class TestValidateUuid:
 class TestSetCurrentArea:
     """Test the set_current_area tool."""
 
-    @pytest.mark.asyncio
     async def test_set_current_area_success(self, temp_db, sample_user):
         """Setting current area should update user record."""
         # Arrange - create user in DB
@@ -82,7 +81,6 @@ class TestSetCurrentArea:
         assert updated_user is not None
         assert updated_user.current_area_id == area_id
 
-    @pytest.mark.asyncio
     async def test_set_current_area_invalid_area(self, temp_db, sample_user):
         """Should raise KeyError for non-existent area."""
         # Arrange - create user in DB
@@ -102,7 +100,6 @@ class TestSetCurrentArea:
         with pytest.raises(KeyError):
             await CurrentAreaMethods.set_current(str(sample_user.id), str(fake_area_id))
 
-    @pytest.mark.asyncio
     async def test_set_current_area_wrong_user(self, temp_db, sample_user):
         """Should raise KeyError when area belongs to different user."""
         # Arrange - create user in DB
@@ -142,7 +139,6 @@ class TestSetCurrentArea:
         with pytest.raises(KeyError):
             await CurrentAreaMethods.set_current(str(sample_user.id), str(area_id))
 
-    @pytest.mark.asyncio
     async def test_set_current_area_resolves_to_root(self, temp_db, sample_user):
         """Setting a sub-area as current should resolve to its root area."""
         # Arrange - create user in DB
@@ -194,7 +190,6 @@ class TestSetCurrentArea:
 class TestCreateSubtree:
     """Test the create_subtree tool."""
 
-    @pytest.mark.asyncio
     async def test_create_subtree_success(self, temp_db, sample_user):
         """Creating subtree should create nested hierarchy."""
         # Arrange - create user in DB
@@ -250,7 +245,6 @@ class TestCreateSubtree:
         resp = next(a for a in result if a.title == "Responsibilities")
         assert resp.parent_id == google.id
 
-    @pytest.mark.asyncio
     async def test_create_subtree_invalid_parent(self, temp_db, sample_user):
         """Should raise KeyError for non-existent parent."""
         # Arrange - create user in DB
@@ -273,7 +267,6 @@ class TestCreateSubtree:
                 str(sample_user.id), str(fake_parent_id), subtree
             )
 
-    @pytest.mark.asyncio
     async def test_create_subtree_empty_list(self, temp_db, sample_user):
         """Empty subtree should return empty list."""
         # Arrange - create user in DB
@@ -305,7 +298,6 @@ class TestCreateSubtree:
         # Assert
         assert result == []
 
-    @pytest.mark.asyncio
     async def test_create_subtree_wrong_user(self, temp_db, sample_user):
         """Should raise KeyError when parent belongs to different user."""
         # Arrange - create user in DB
@@ -349,7 +341,6 @@ class TestCreateSubtree:
                 str(sample_user.id), str(parent_id), subtree
             )
 
-    @pytest.mark.asyncio
     async def test_create_subtree_deep_nesting(self, temp_db, sample_user):
         """Should handle 3+ levels of nesting."""
         # Arrange - create user in DB
@@ -409,7 +400,6 @@ class TestCreateSubtree:
         assert level2.parent_id == level1.id
         assert level3.parent_id == level2.id
 
-    @pytest.mark.asyncio
     async def test_create_subtree_depth_limit_exceeded(self, temp_db, sample_user):
         """Should raise ValueError when depth limit exceeded."""
         # Arrange - create user in DB
@@ -453,7 +443,6 @@ class TestCreateSubtree:
                 str(sample_user.id), str(parent_id), subtree
             )
 
-    @pytest.mark.asyncio
     async def test_create_subtree_invalid_node_type(self, temp_db, sample_user):
         """Should raise TypeError for invalid node types."""
         # Arrange - create user in DB

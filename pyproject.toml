@@ -48,6 +48,9 @@ max-statements = 15
 max-nested-blocks = 3
 
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
 [tool.vulture]
 min_confidence = 80
 paths = ["src"]

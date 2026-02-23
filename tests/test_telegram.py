@@ -20,7 +20,6 @@ def _make_network_error(msg: str = "network error") -> TelegramNetworkError:
 class TestRetrySend:
     """Tests for _retry_send function."""
 
-    @pytest.mark.asyncio
     async def test_succeeds_on_first_attempt(self):
         """Should return immediately when coro succeeds."""
         coro_factory = AsyncMock()
@@ -29,7 +28,6 @@ class TestRetrySend:
 
         assert coro_factory.call_count == 1
 
-    @pytest.mark.asyncio
     async def test_retries_on_network_error(self):
         """Should retry when TelegramNetworkError occurs."""
         coro_factory = AsyncMock(side_effect=[_make_network_error(), None])
@@ -39,7 +37,6 @@ class TestRetrySend:
 
         assert coro_factory.call_count == 2
 
-    @pytest.mark.asyncio
     async def test_raises_after_max_retries(self):
         """Should raise TelegramNetworkError after max attempts."""
         coro_factory = AsyncMock(side_effect=_make_network_error())
@@ -50,7 +47,6 @@ class TestRetrySend:
 
         assert coro_factory.call_count == SEND_RETRY_ATTEMPTS
 
-    @pytest.mark.asyncio
     async def test_exponential_backoff_delays(self):
         """Should use exponential backoff between retries."""
         coro_factory = AsyncMock(
@@ -74,7 +70,6 @@ class TestRetrySend:
 class TestSafeReply:
     """Tests for _safe_reply function."""
 
-    @pytest.mark.asyncio
     async def test_sends_reply_successfully(self):
         """Should call message.reply with text."""
         message = AsyncMock()
@@ -83,7 +78,6 @@ class TestSafeReply:
 
         message.reply.assert_called_once_with("test message")
 
-    @pytest.mark.asyncio
     async def test_logs_warning_on_network_error(self):
         """Should log warning when network is unavailable."""
         message = AsyncMock()

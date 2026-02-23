@@ -1,6 +1,5 @@
 """Unit tests for CLI transport and graph worker helpers."""
 
-import pytest
 from src.domain import ClientMessage, User
 from src.domain.models import InputMode
 from src.infrastructure.db import managers as db
@@ -12,7 +11,6 @@ from src.shared.ids import new_id
 class TestGetOrCreateUser:
     """Test the get_or_create_user function."""
 
-    @pytest.mark.asyncio
     async def test_returns_existing_user(self, temp_db):
         """Should return existing user from database."""
         # Arrange - create user in DB
@@ -34,7 +32,6 @@ class TestGetOrCreateUser:
         assert user.id == user_id
         assert user.mode == InputMode.auto
 
-    @pytest.mark.asyncio
     async def test_creates_new_user(self, temp_db):
         """Should create new user if not exists."""
         # Arrange - new user_id that doesn't exist
@@ -56,7 +53,6 @@ class TestGetOrCreateUser:
 class TestInitGraphState:
     """Test the _init_graph_state function."""
 
-    @pytest.mark.asyncio
     async def test_uses_current_area_id_when_set(self, temp_db):
         """Should use user's current_area_id when set."""
         user_id = new_id()
@@ -90,7 +86,6 @@ class TestInitGraphState:
         assert state.area_id == area_id
         assert len(temp_files) == 2
 
-    @pytest.mark.asyncio
     async def test_generates_new_area_id_when_not_set(self, temp_db):
         """Should generate new area_id when no current_area_id."""
         user_id = new_id()
@@ -112,7 +107,6 @@ class TestInitGraphState:
         assert state.area_id is not None
         assert len(temp_files) == 2
 
-    @pytest.mark.asyncio
     async def test_generates_new_area_id_for_missing_user(self, temp_db):
         """Should generate new area_id when user not in database."""
         user_id = new_id()

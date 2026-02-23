@@ -76,7 +76,6 @@ class TestIsRetryableException:
 class TestInvokeWithRetry:
     """Tests for invoke_with_retry function."""
 
-    @pytest.mark.asyncio
     async def test_returns_result_on_success(self):
         async def success_fn():
             return "success"
@@ -84,7 +83,6 @@ class TestInvokeWithRetry:
         result = await invoke_with_retry(success_fn)
         assert result == "success"
 
-    @pytest.mark.asyncio
     async def test_retries_on_connection_error(self):
         call_count = 0
 
@@ -101,7 +99,6 @@ class TestInvokeWithRetry:
         assert result == "recovered"
         assert call_count == 2
 
-    @pytest.mark.asyncio
     async def test_retries_on_timeout_error(self):
         call_count = 0
 
@@ -118,7 +115,6 @@ class TestInvokeWithRetry:
         assert result == "recovered"
         assert call_count == 2
 
-    @pytest.mark.asyncio
     async def test_retries_on_rate_limit(self):
         call_count = 0
 
@@ -139,7 +135,6 @@ class TestInvokeWithRetry:
         assert result == "recovered"
         assert call_count == 2
 
-    @pytest.mark.asyncio
     async def test_raises_after_max_attempts(self):
         call_count = 0
 
@@ -153,7 +148,6 @@ class TestInvokeWithRetry:
 
         assert call_count == 3
 
-    @pytest.mark.asyncio
     async def test_retries_on_structured_output_error(self):
         call_count = 0
 
@@ -173,7 +167,6 @@ class TestInvokeWithRetry:
         assert result == "recovered"
         assert call_count == 2
 
-    @pytest.mark.asyncio
     async def test_does_not_retry_non_retryable_exception(self):
         call_count = 0
 
@@ -189,7 +182,6 @@ class TestInvokeWithRetry:
 
         assert call_count == 1  # No retries for ValueError
 
-    @pytest.mark.asyncio
     async def test_does_not_retry_bad_request(self):
         call_count = 0
 

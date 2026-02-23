@@ -54,7 +54,6 @@ def fresh_db(tmp_path):
 class TestMigrationRunner:
     """Test the schema migration runner."""
 
-    @pytest.mark.asyncio
     async def test_fresh_db_records_all_migrations(self, fresh_db):
         """Fresh DB should have all migration versions recorded."""
         conn = await _open_conn(fresh_db)
@@ -65,7 +64,6 @@ class TestMigrationRunner:
         finally:
             await conn.close()
 
-    @pytest.mark.asyncio
     async def test_migrations_are_idempotent(self, fresh_db):
         """Re-initializing should not duplicate migration rows."""
         conn = await _open_conn(fresh_db)
@@ -85,7 +83,6 @@ class TestMigrationRunner:
         finally:
             await conn.close()
 
-    @pytest.mark.asyncio
     async def test_skips_already_applied(self, fresh_db):
         """Pre-inserted version rows should not trigger their migration again."""
         await _seed_version_row(fresh_db)
@@ -104,7 +101,6 @@ class TestMigrationRunner:
         finally:
             await conn.close()
 
-    @pytest.mark.asyncio
     async def test_partial_failure_preserves_earlier_migrations(self, fresh_db):
         """If migration N fails, migrations 1..N-1 should be durably recorded."""
         failing = AsyncMock(side_effect=RuntimeError("boom"))

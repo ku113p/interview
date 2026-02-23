@@ -9,7 +9,6 @@ from src.workflows.subgraphs.area_loop.methods import LifeAreaMethods
 class TestGetDescendants:
     """Test the get_descendants recursive CTE query."""
 
-    @pytest.mark.asyncio
     async def test_get_descendants_empty(self, temp_db):
         """Should return empty list when area has no children."""
         # Arrange
@@ -24,7 +23,6 @@ class TestGetDescendants:
         # Assert
         assert descendants == []
 
-    @pytest.mark.asyncio
     async def test_get_descendants_direct_children(self, temp_db):
         """Should return direct children of the area."""
         # Arrange
@@ -56,7 +54,6 @@ class TestGetDescendants:
         assert "Child A" in titles
         assert "Child B" in titles
 
-    @pytest.mark.asyncio
     async def test_get_descendants_nested_hierarchy(self, temp_db):
         """Should return all descendants recursively at any depth."""
         # Arrange: Create a 3-level hierarchy
@@ -100,7 +97,6 @@ class TestGetDescendants:
         assert "Child2" in titles
         assert "Grandchild1" in titles
 
-    @pytest.mark.asyncio
     async def test_get_descendants_ordered_by_id(self, temp_db):
         """Should return descendants sorted by UUID7 (creation order)."""
         # Arrange
@@ -126,7 +122,6 @@ class TestGetDescendants:
         titles = [d.title for d in descendants]
         assert titles == ["Zebra", "Apple", "Mango"]
 
-    @pytest.mark.asyncio
     async def test_get_descendants_does_not_include_parent(self, temp_db):
         """Should not include the parent area itself in results."""
         # Arrange
@@ -151,7 +146,6 @@ class TestGetDescendants:
         assert descendants[0].id == child_id
         assert parent_id not in [d.id for d in descendants]
 
-    @pytest.mark.asyncio
     async def test_get_descendants_does_not_include_siblings(self, temp_db):
         """Should only return descendants, not siblings or other branches."""
         # Arrange: Create two separate branches
@@ -201,7 +195,6 @@ class TestGetDescendants:
 class TestGetAncestors:
     """Test the get_ancestors recursive CTE query."""
 
-    @pytest.mark.asyncio
     async def test_get_ancestors_empty_for_root(self, temp_db):
         """Should return empty list for root area (no parent)."""
         # Arrange
@@ -216,7 +209,6 @@ class TestGetAncestors:
         # Assert
         assert ancestors == []
 
-    @pytest.mark.asyncio
     async def test_get_ancestors_returns_parent(self, temp_db):
         """Should return direct parent."""
         # Arrange
@@ -240,7 +232,6 @@ class TestGetAncestors:
         assert len(ancestors) == 1
         assert ancestors[0].id == parent_id
 
-    @pytest.mark.asyncio
     async def test_get_ancestors_full_chain(self, temp_db):
         """Should return full ancestor chain from leaf to root."""
         # Arrange: Grandparent -> Parent -> Child
@@ -277,7 +268,6 @@ class TestGetAncestors:
 class TestWouldCreateCycle:
     """Test the would_create_cycle validation method."""
 
-    @pytest.mark.asyncio
     async def test_self_reference_is_cycle(self, temp_db):
         """Setting parent to self should be detected as cycle."""
         # Arrange
@@ -292,7 +282,6 @@ class TestWouldCreateCycle:
         # Assert
         assert is_cycle is True
 
-    @pytest.mark.asyncio
     async def test_descendant_as_parent_is_cycle(self, temp_db):
         """Setting child as parent of its ancestor should be cycle."""
         # Arrange: Parent -> Child
@@ -316,7 +305,6 @@ class TestWouldCreateCycle:
         # Assert
         assert is_cycle is True
 
-    @pytest.mark.asyncio
     async def test_valid_parent_is_not_cycle(self, temp_db):
         """Setting a non-descendant as parent should not be cycle."""
         # Arrange: Two separate areas
@@ -344,7 +332,6 @@ class TestWouldCreateCycle:
 class TestLifeAreaMethodsCreate:
     """Test parent validation in LifeAreaMethods.create."""
 
-    @pytest.mark.asyncio
     async def test_create_with_valid_parent(self, temp_db, sample_user):
         """Should create area when parent exists and belongs to user."""
         # Arrange
@@ -359,7 +346,6 @@ class TestLifeAreaMethodsCreate:
         assert child.parent_id == parent.id
         assert child.user_id == sample_user.id
 
-    @pytest.mark.asyncio
     async def test_create_with_nonexistent_parent_fails(self, temp_db, sample_user):
         """Should raise KeyError when parent doesn't exist."""
         fake_parent_id = str(new_id())
@@ -367,7 +353,6 @@ class TestLifeAreaMethodsCreate:
         with pytest.raises(KeyError, match="not found"):
             await LifeAreaMethods.create(str(sample_user.id), "Child", fake_parent_id)
 
-    @pytest.mark.asyncio
     async def test_create_with_other_users_parent_fails(self, temp_db, sample_user):
         """Should raise KeyError when parent belongs to different user."""
         # Arrange - create area for different user
@@ -387,7 +372,6 @@ class TestLifeAreaMethodsCreate:
 class TestLifeAreaMethodsUpdate:
     """Test LifeAreaMethods.update with cycle validation."""
 
-    @pytest.mark.asyncio
     async def test_update_title_success(self, temp_db, sample_user):
         """Should update area title."""
         area = await LifeAreaMethods.create(str(sample_user.id), "Original")
@@ -399,7 +383,6 @@ class TestLifeAreaMethodsUpdate:
         assert updated.title == "New Title"
         assert updated.id == area.id
 
-    @pytest.mark.asyncio
     async def test_update_parent_success(self, temp_db, sample_user):
         """Should update area parent when valid."""
         parent = await LifeAreaMethods.create(str(sample_user.id), "Parent")
@@ -412,7 +395,6 @@ class TestLifeAreaMethodsUpdate:
 
         assert updated.parent_id == parent.id
 
-    @pytest.mark.asyncio
     async def test_update_parent_cycle_fails(self, temp_db, sample_user):
         """Should raise ValueError when update would create cycle."""
         # Arrange: Parent -> Child
@@ -427,7 +409,6 @@ class TestLifeAreaMethodsUpdate:
                 str(sample_user.id), str(parent.id), parent_id=str(child.id)
             )
 
-    @pytest.mark.asyncio
     async def test_update_self_parent_fails(self, temp_db, sample_user):
         """Should raise ValueError when setting self as parent."""
         area = await LifeAreaMethods.create(str(sample_user.id), "Area")
@@ -437,7 +418,6 @@ class TestLifeAreaMethodsUpdate:
                 str(sample_user.id), str(area.id), parent_id=str(area.id)
             )
 
-    @pytest.mark.asyncio
     async def test_update_grandchild_as_parent_fails(self, temp_db, sample_user):
         """Should detect cycle through grandchild."""
         # Arrange: Grandparent -> Parent -> Child
@@ -455,7 +435,6 @@ class TestLifeAreaMethodsUpdate:
                 str(sample_user.id), str(grandparent.id), parent_id=str(child.id)
             )
 
-    @pytest.mark.asyncio
     async def test_update_other_users_area_fails(self, temp_db, sample_user):
         """Should raise KeyError when updating another user's area."""
         other_user_id = new_id()

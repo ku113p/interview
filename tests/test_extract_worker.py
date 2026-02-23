@@ -3,7 +3,6 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from src.infrastructure.db import managers as db
 from src.processes.extract import ExtractTask, run_extract_pool
 from src.runtime import Channels, run_worker_pool
@@ -18,7 +17,6 @@ from src.workflows.subgraphs.knowledge_extraction.knowledge_nodes import (
 class TestExtractWorker:
     """Test the extract worker functionality."""
 
-    @pytest.mark.asyncio
     async def test_worker_processes_task(self):
         """Should process a task from the extract queue."""
         channels = Channels()
@@ -47,7 +45,6 @@ class TestExtractWorker:
 
             mock_graph.ainvoke.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_worker_handles_exception(self):
         """Should continue processing after an exception."""
         channels = Channels()
@@ -78,7 +75,6 @@ class TestExtractWorker:
 
             assert mock_graph.ainvoke.call_count == 2
 
-    @pytest.mark.asyncio
     async def test_worker_invokes_with_correct_state(self):
         """Should invoke graph with KnowledgeExtractionState containing summary_id."""
         channels = Channels()
@@ -177,7 +173,6 @@ async def _verify_extraction_results(area_id, user_id, summary_id):
 class TestFullSummaryExtractionFlow:
     """Integration tests for the complete per-summary extraction flow."""
 
-    @pytest.mark.asyncio
     async def test_full_summary_extraction_flow(self, temp_db):
         """Integration test: summary saved → extract queued → knowledge extracted."""
         user_id, area_id = new_id(), new_id()
@@ -193,7 +188,6 @@ class TestFullSummaryExtractionFlow:
 class TestWorkerPool:
     """Test the worker pool functionality."""
 
-    @pytest.mark.asyncio
     async def test_pool_spawns_multiple_workers(self):
         """Should spawn multiple workers that can process tasks concurrently."""
         processed = []

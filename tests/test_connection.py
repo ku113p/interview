@@ -17,7 +17,6 @@ from src.shared.ids import new_id
 class TestTransaction:
     """Test the transaction context manager."""
 
-    @pytest.mark.asyncio
     async def test_transaction_commits_on_success(self, temp_db):
         """Transaction should commit changes when no exception occurs."""
         user_id = new_id()
@@ -31,7 +30,6 @@ class TestTransaction:
         assert result is not None
         assert result.name == "test"
 
-    @pytest.mark.asyncio
     async def test_transaction_rolls_back_on_exception(self, temp_db):
         """Transaction should rollback changes when an exception occurs."""
         user_id = new_id()
@@ -54,7 +52,6 @@ class TestTransaction:
         result = await db.UsersManager.get_by_id(user_id)
         assert result is None
 
-    @pytest.mark.asyncio
     async def test_transaction_multiple_operations_rollback(self, temp_db):
         """Multiple operations should all rollback on exception."""
         user_id = new_id()
@@ -83,7 +80,6 @@ class TestTransaction:
 class TestGetConnection:
     """Test the get_connection context manager."""
 
-    @pytest.mark.asyncio
     async def test_connection_auto_commits_without_conn_param(self, temp_db):
         """Manager should auto-commit when no connection is provided."""
         user_id = new_id()
@@ -98,7 +94,6 @@ class TestGetConnection:
         result = await db.UsersManager.get_by_id(user_id)
         assert result is not None
 
-    @pytest.mark.asyncio
     async def test_connection_requires_explicit_commit(self, temp_db):
         """When conn is provided, caller must commit explicitly."""
         user_id = new_id()
@@ -117,7 +112,6 @@ class TestGetConnection:
         result = await db.UsersManager.get_by_id(user_id)
         assert result is not None
 
-    @pytest.mark.asyncio
     async def test_wal_mode_enabled(self, temp_db):
         """WAL journal mode should be enabled."""
         async with get_connection() as conn:
@@ -125,7 +119,6 @@ class TestGetConnection:
             row = await cursor.fetchone()
             assert row[0].lower() == "wal"
 
-    @pytest.mark.asyncio
     async def test_busy_timeout_set(self, temp_db):
         """Busy timeout should be set to 30 seconds."""
         async with get_connection() as conn:
@@ -166,7 +159,6 @@ class TestIsSqliteBusyError:
 class TestExecuteWithRetry:
     """Test the execute_with_retry function."""
 
-    @pytest.mark.asyncio
     async def test_returns_result_on_success(self):
         """Should return result when function succeeds."""
         mock_fn = AsyncMock(return_value="success")
@@ -174,7 +166,6 @@ class TestExecuteWithRetry:
         assert result == "success"
         mock_fn.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_retries_on_busy_error(self):
         """Should retry on BUSY error and succeed on subsequent attempt."""
         mock_fn = AsyncMock(
@@ -187,7 +178,6 @@ class TestExecuteWithRetry:
         assert result == "success"
         assert mock_fn.call_count == 2
 
-    @pytest.mark.asyncio
     async def test_retries_multiple_times(self):
         """Should retry multiple times before succeeding."""
         mock_fn = AsyncMock(
@@ -202,7 +192,6 @@ class TestExecuteWithRetry:
         assert result == "success"
         assert mock_fn.call_count == 4
 
-    @pytest.mark.asyncio
     async def test_raises_after_max_attempts(self):
         """Should raise exception after exhausting retries."""
         mock_fn = AsyncMock(side_effect=sqlite3.OperationalError("database is locked"))
@@ -212,7 +201,6 @@ class TestExecuteWithRetry:
             )
         assert mock_fn.call_count == 3
 
-    @pytest.mark.asyncio
     async def test_does_not_retry_non_busy_error(self):
         """Should not retry on non-busy/locked errors."""
         mock_fn = AsyncMock(side_effect=sqlite3.OperationalError("no such table: foo"))
@@ -220,7 +208,6 @@ class TestExecuteWithRetry:
             await execute_with_retry(mock_fn, initial_wait=0.01)
         mock_fn.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_does_not_retry_non_operational_error(self):
         """Should not retry on non-OperationalError exceptions."""
         mock_fn = AsyncMock(side_effect=ValueError("some error"))

@@ -4,7 +4,6 @@ import time
 import uuid
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from src.domain.models import InputMode, User
 from src.infrastructure.db import managers as db
@@ -18,7 +17,6 @@ from src.workflows.nodes.processing.load_history import (
 class TestGetFormattedHistory:
     """Test the get_formatted_history function."""
 
-    @pytest.mark.asyncio
     async def test_ai_message_without_tool_calls(self):
         """AI message without tool_calls key should create AIMessage with empty tool_calls.
 
@@ -50,7 +48,6 @@ class TestGetFormattedHistory:
         assert messages[0].content == "Hello, I'm an AI!"
         assert messages[0].tool_calls == []  # Should be empty list, not None
 
-    @pytest.mark.asyncio
     async def test_ai_message_with_tool_calls(self):
         """AI message with tool_calls should preserve the tool_calls list."""
         # Arrange
@@ -90,7 +87,6 @@ class TestGetFormattedHistory:
         assert len(messages[0].tool_calls) == 1
         assert messages[0].tool_calls[0]["name"] == "list_life_areas"
 
-    @pytest.mark.asyncio
     async def test_ai_message_with_empty_tool_calls(self):
         """AI message with empty tool_calls list should preserve the empty list."""
         # Arrange
@@ -121,7 +117,6 @@ class TestGetFormattedHistory:
         assert messages[0].content == "No tools needed"
         assert messages[0].tool_calls == []
 
-    @pytest.mark.asyncio
     async def test_human_message(self):
         """User role message should create HumanMessage."""
         # Arrange
@@ -147,7 +142,6 @@ class TestGetFormattedHistory:
         assert isinstance(messages[0], HumanMessage)
         assert messages[0].content == "Hello, AI!"
 
-    @pytest.mark.asyncio
     async def test_tool_message(self):
         """Tool role message should create ToolMessage with correct attributes."""
         # Arrange
@@ -180,7 +174,6 @@ class TestGetFormattedHistory:
         assert messages[0].tool_call_id == "tool_123"
         assert messages[0].name == "search_function"
 
-    @pytest.mark.asyncio
     async def test_tool_message_with_defaults(self):
         """Tool message without optional fields should use default values."""
         # Arrange
@@ -212,7 +205,6 @@ class TestGetFormattedHistory:
         assert messages[0].tool_call_id == "history"
         assert messages[0].name == "history"
 
-    @pytest.mark.asyncio
     async def test_unsupported_role(self):
         """Unknown role should be skipped with a warning (not raise)."""
         # Arrange
@@ -236,7 +228,6 @@ class TestGetFormattedHistory:
         # Assert - message with unknown role is skipped
         assert messages == []
 
-    @pytest.mark.asyncio
     async def test_limit_parameter_default(self):
         """Should respect default limit of 15 messages (HISTORY_LIMIT_GLOBAL)."""
         # Arrange
@@ -265,7 +256,6 @@ class TestGetFormattedHistory:
         assert messages[0].content == "Message 5"
         assert messages[-1].content == "Message 19"
 
-    @pytest.mark.asyncio
     async def test_limit_parameter_custom(self):
         """Should respect custom limit parameter."""
         # Arrange
@@ -292,7 +282,6 @@ class TestGetFormattedHistory:
         assert messages[0].content == "Message 7"
         assert messages[-1].content == "Message 9"
 
-    @pytest.mark.asyncio
     async def test_message_ordering(self):
         """Messages should be sorted by created_ts."""
         # Arrange
@@ -333,7 +322,6 @@ class TestGetFormattedHistory:
         assert messages[1].content == "Second"
         assert messages[2].content == "Third"
 
-    @pytest.mark.asyncio
     async def test_mixed_message_types(self):
         """Should handle a mix of different message types correctly."""
         # Arrange
@@ -397,7 +385,6 @@ class TestGetFormattedHistory:
 class TestLoadHistoryAsync:
     """Test the async load_history function."""
 
-    @pytest.mark.asyncio
     async def test_load_history_returns_messages(self):
         """load_history should return dict with messages key."""
         # Arrange
@@ -426,7 +413,6 @@ class TestLoadHistoryAsync:
         assert isinstance(result["messages"][0], HumanMessage)
         assert result["messages"][0].content == "Test message"
 
-    @pytest.mark.asyncio
     async def test_load_history_with_empty_history(self):
         """load_history should handle empty history gracefully."""
         # Arrange

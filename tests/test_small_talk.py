@@ -2,7 +2,6 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from src.config.settings import HISTORY_LIMIT_EXTRACT_TARGET
 from src.domain import ClientMessage, InputMode, User
@@ -55,7 +54,6 @@ def _create_leaf_interview_state(
 class TestSmallTalkResponse:
     """Tests for the small_talk_response node."""
 
-    @pytest.mark.asyncio
     async def test_returns_ai_message(self):
         """Verify node returns an AI message."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -74,7 +72,6 @@ class TestSmallTalkResponse:
         assert isinstance(result["messages"][0], AIMessage)
         assert result["messages"][0].content == "Hi! I'm an interview assistant."
 
-    @pytest.mark.asyncio
     async def test_sets_success_flag(self):
         """Verify is_successful is set to True."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -90,7 +87,6 @@ class TestSmallTalkResponse:
 
         assert result["is_successful"] is True
 
-    @pytest.mark.asyncio
     async def test_populates_messages_to_save(self):
         """Verify messages_to_save contains the AI response."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -111,7 +107,6 @@ class TestSmallTalkResponse:
         assert len(bucket) == 1
         assert bucket[0].content == "Hello!"
 
-    @pytest.mark.asyncio
     async def test_uses_system_prompt(self):
         """Verify LLM is called with the small talk system prompt."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -130,7 +125,6 @@ class TestSmallTalkResponse:
         # First message should be system prompt
         assert call_args[0].content == PROMPT_SMALL_TALK
 
-    @pytest.mark.asyncio
     async def test_limits_history(self):
         """Verify history is limited to HISTORY_LIMIT_EXTRACT_TARGET messages."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -219,7 +213,6 @@ class TestRouteAfterContextLoad:
 class TestCompletedAreaResponse:
     """Tests for the completed_area_response node."""
 
-    @pytest.mark.asyncio
     async def test_returns_ai_message(self, sample_user):
         """Verify node returns an AI message."""
         area_id = new_id()
@@ -242,7 +235,6 @@ class TestCompletedAreaResponse:
         assert isinstance(result["messages"][0], AIMessage)
         assert result["messages"][0].content == "This area has already been documented."
 
-    @pytest.mark.asyncio
     async def test_sets_success_flag(self, sample_user):
         """Verify is_successful is set to True."""
         state = _create_leaf_interview_state(
@@ -260,7 +252,6 @@ class TestCompletedAreaResponse:
 
         assert result["is_successful"] is True
 
-    @pytest.mark.asyncio
     async def test_populates_messages_to_save(self, sample_user):
         """Verify messages_to_save contains the AI response."""
         state = _create_leaf_interview_state(
@@ -282,7 +273,6 @@ class TestCompletedAreaResponse:
         assert len(bucket) == 1
         assert bucket[0].content == "Already documented!"
 
-    @pytest.mark.asyncio
     async def test_prompt_includes_area_id(self, sample_user):
         """Verify prompt includes the area ID for reset command."""
         area_id = new_id()

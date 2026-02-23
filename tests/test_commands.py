@@ -4,7 +4,6 @@ import secrets
 import time
 import uuid
 
-import pytest
 from langchain_core.messages import AIMessage
 from src.domain import InputMode, User
 from src.infrastructure.db import managers as db
@@ -47,13 +46,11 @@ def _make_mock_state(user: User, text: str, command_response: str | None = None)
 class TestHandleHelp:
     """Tests for /help command."""
 
-    @pytest.mark.asyncio
     async def test_returns_help_text(self):
         """Help handler should return the help text."""
         result = await handle_help()
         assert result == HELP_TEXT
 
-    @pytest.mark.asyncio
     async def test_help_text_contains_commands(self):
         """Help text should list available commands."""
         result = await handle_help()
@@ -66,13 +63,11 @@ class TestHandleHelp:
 class TestHandleClear:
     """Tests for /clear command."""
 
-    @pytest.mark.asyncio
     async def test_clear_no_history(self, temp_db, sample_user):
         """Clear with no history should return appropriate message."""
         result = await handle_clear(sample_user.id)
         assert "No conversation history" in result
 
-    @pytest.mark.asyncio
     async def test_clear_with_history(self, temp_db, sample_user):
         """Clear should delete all histories and return count."""
         # Arrange - create histories
@@ -97,7 +92,6 @@ class TestHandleClear:
 class TestHandleDeleteInit:
     """Tests for /delete command initialization."""
 
-    @pytest.mark.asyncio
     async def test_generates_token(self, sample_user):
         """Delete init should generate and store a token."""
         # Clear any existing tokens
@@ -110,7 +104,6 @@ class TestHandleDeleteInit:
         assert "/delete_" in result
         assert sample_user.id in _delete_tokens
 
-    @pytest.mark.asyncio
     async def test_token_in_response(self, sample_user):
         """Token in response should match stored token."""
         _delete_tokens.clear()
@@ -120,7 +113,6 @@ class TestHandleDeleteInit:
         stored_token, _ = _delete_tokens[sample_user.id]
         assert f"/delete_{stored_token}" in result
 
-    @pytest.mark.asyncio
     async def test_token_expires_message(self, sample_user):
         """Response should mention token expiration."""
         _delete_tokens.clear()
@@ -133,7 +125,6 @@ class TestHandleDeleteInit:
 class TestHandleDeleteConfirm:
     """Tests for /delete_<token> confirmation."""
 
-    @pytest.mark.asyncio
     async def test_no_pending_deletion(self, sample_user):
         """Confirm without init should fail."""
         _delete_tokens.clear()
@@ -142,7 +133,6 @@ class TestHandleDeleteConfirm:
 
         assert "No pending deletion" in result
 
-    @pytest.mark.asyncio
     async def test_wrong_token(self, sample_user):
         """Confirm with wrong token should fail."""
         _delete_tokens.clear()
@@ -152,7 +142,6 @@ class TestHandleDeleteConfirm:
 
         assert "Invalid token" in result
 
-    @pytest.mark.asyncio
     async def test_expired_token(self, sample_user):
         """Expired token should be rejected."""
         _delete_tokens.clear()
@@ -164,7 +153,6 @@ class TestHandleDeleteConfirm:
 
         assert "No pending deletion" in result
 
-    @pytest.mark.asyncio
     async def test_successful_deletion(self, temp_db, sample_user):
         """Successful deletion should remove all user data."""
         # Arrange - create user and data
@@ -204,7 +192,6 @@ class TestHandleDeleteConfirm:
 class TestHandleModeShow:
     """Tests for /mode command (show current mode)."""
 
-    @pytest.mark.asyncio
     async def test_shows_auto_mode(self):
         """Should show auto mode description."""
         user = User(id=new_id(), mode=InputMode.auto)
@@ -214,7 +201,6 @@ class TestHandleModeShow:
         assert "auto" in result
         assert "Current mode" in result
 
-    @pytest.mark.asyncio
     async def test_shows_interview_mode(self):
         """Should show interview mode description."""
         user = User(id=new_id(), mode=InputMode.conduct_interview)
@@ -223,7 +209,6 @@ class TestHandleModeShow:
 
         assert "interview" in result
 
-    @pytest.mark.asyncio
     async def test_shows_areas_mode(self):
         """Should show areas mode description."""
         user = User(id=new_id(), mode=InputMode.manage_areas)
@@ -236,7 +221,6 @@ class TestHandleModeShow:
 class TestHandleModeSet:
     """Tests for /mode <name> command."""
 
-    @pytest.mark.asyncio
     async def test_set_auto_mode(self, temp_db, sample_user):
         """Should set mode to auto."""
         # Arrange
@@ -258,7 +242,6 @@ class TestHandleModeSet:
         db_user = await db.UsersManager.get_by_id(sample_user.id)
         assert db_user.mode == InputMode.auto.value
 
-    @pytest.mark.asyncio
     async def test_set_interview_mode(self, temp_db, sample_user):
         """Should set mode to interview."""
         await db.UsersManager.create(
@@ -277,7 +260,6 @@ class TestHandleModeSet:
         db_user = await db.UsersManager.get_by_id(sample_user.id)
         assert db_user.mode == InputMode.conduct_interview.value
 
-    @pytest.mark.asyncio
     async def test_set_areas_mode(self, temp_db, sample_user):
         """Should set mode to areas."""
         await db.UsersManager.create(
@@ -296,7 +278,6 @@ class TestHandleModeSet:
         db_user = await db.UsersManager.get_by_id(sample_user.id)
         assert db_user.mode == InputMode.manage_areas.value
 
-    @pytest.mark.asyncio
     async def test_invalid_mode(self, temp_db, sample_user):
         """Should reject invalid mode names."""
         await db.UsersManager.create(
@@ -314,7 +295,6 @@ class TestHandleModeSet:
         assert "Unknown mode" in result
         assert "auto" in result  # Should list valid modes
 
-    @pytest.mark.asyncio
     async def test_case_insensitive(self, temp_db, sample_user):
         """Mode names should be case insensitive."""
         await db.UsersManager.create(
@@ -335,31 +315,26 @@ class TestHandleModeSet:
 class TestProcessCommand:
     """Tests for the main command dispatcher."""
 
-    @pytest.mark.asyncio
     async def test_non_command_returns_none(self, sample_user):
         """Regular text should return None."""
         result = await process_command("hello world", sample_user)
         assert result is None
 
-    @pytest.mark.asyncio
     async def test_help_command(self, sample_user):
         """Should dispatch /help."""
         result = await process_command("/help", sample_user)
         assert result == HELP_TEXT
 
-    @pytest.mark.asyncio
     async def test_help_case_insensitive(self, sample_user):
         """Commands should be case insensitive."""
         result = await process_command("/HELP", sample_user)
         assert result == HELP_TEXT
 
-    @pytest.mark.asyncio
     async def test_mode_without_arg(self, sample_user):
         """Should show mode when no argument."""
         result = await process_command("/mode", sample_user)
         assert "Current mode" in result
 
-    @pytest.mark.asyncio
     async def test_mode_with_arg(self, temp_db, sample_user):
         """Should set mode when argument provided."""
         await db.UsersManager.create(
@@ -375,20 +350,17 @@ class TestProcessCommand:
         result = await process_command("/mode interview", sample_user)
         assert "interview" in result
 
-    @pytest.mark.asyncio
     async def test_unknown_command_returns_none(self, sample_user):
         """Unknown commands should return None."""
         result = await process_command("/unknown", sample_user)
         assert result is None
 
-    @pytest.mark.asyncio
     async def test_delete_init(self, sample_user):
         """Should dispatch /delete."""
         _delete_tokens.clear()
         result = await process_command("/delete", sample_user)
         assert "WARNING" in result
 
-    @pytest.mark.asyncio
     async def test_delete_with_token(self, sample_user):
         """Should dispatch /delete_<token>."""
         _delete_tokens.clear()
@@ -399,7 +371,6 @@ class TestProcessCommand:
 class TestDeleteUserDataCascade:
     """Tests for cascading user data deletion."""
 
-    @pytest.mark.asyncio
     async def test_deletes_all_user_data(self, temp_db, sample_user):
         """Deletion should remove all related data including API keys."""
         # Arrange - create user
@@ -468,7 +439,6 @@ class TestDeleteUserDataCascade:
 class TestHandleCommandNode:
     """Tests for the handle_command graph node."""
 
-    @pytest.mark.asyncio
     async def test_returns_none_for_regular_text(self, sample_user):
         """Non-command text should return command_response=None."""
         state = _make_mock_state(sample_user, "hello world")
@@ -478,7 +448,6 @@ class TestHandleCommandNode:
         assert result["command_response"] is None
         assert "messages" not in result
 
-    @pytest.mark.asyncio
     async def test_returns_response_for_valid_command(self, sample_user):
         """Valid command should return response and add to messages."""
         state = _make_mock_state(sample_user, "/help")
@@ -491,7 +460,6 @@ class TestHandleCommandNode:
         assert isinstance(result["messages"][0], AIMessage)
         assert result["messages"][0].content == HELP_TEXT
 
-    @pytest.mark.asyncio
     async def test_returns_none_for_unknown_command(self, sample_user):
         """Unknown command should return command_response=None."""
         state = _make_mock_state(sample_user, "/unknowncommand")
@@ -501,7 +469,6 @@ class TestHandleCommandNode:
         assert result["command_response"] is None
         assert "messages" not in result
 
-    @pytest.mark.asyncio
     async def test_strips_whitespace(self, sample_user):
         """Command should work with leading/trailing whitespace."""
         state = _make_mock_state(sample_user, "  /help  ")
@@ -542,7 +509,6 @@ class TestRouteOnCommand:
 class TestDeleteTokenIsolation:
     """Tests for multi-user token isolation."""
 
-    @pytest.mark.asyncio
     async def test_user_cannot_use_another_users_token(self):
         """User A should not be able to confirm User B's deletion."""
         _delete_tokens.clear()
@@ -561,7 +527,6 @@ class TestDeleteTokenIsolation:
         # User A's token should still be valid
         assert user_a.id in _delete_tokens
 
-    @pytest.mark.asyncio
     async def test_tokens_are_user_specific(self):
         """Each user should have their own independent token."""
         _delete_tokens.clear()
@@ -585,19 +550,16 @@ class TestDeleteTokenIsolation:
 class TestHandleResetAreaInit:
     """Tests for /reset-area_<id> command initialization."""
 
-    @pytest.mark.asyncio
     async def test_invalid_area_id(self, sample_user):
         """Invalid UUID should return error."""
         result = await handle_reset_area_init(sample_user.id, "not-a-uuid")
         assert "Invalid area ID" in result
 
-    @pytest.mark.asyncio
     async def test_area_not_found(self, temp_db, sample_user):
         """Non-existent area should return error."""
         result = await handle_reset_area_init(sample_user.id, str(new_id()))
         assert "Area not found" in result
 
-    @pytest.mark.asyncio
     async def test_wrong_user(self, temp_db, sample_user):
         """User cannot reset another user's area."""
         # Create area for different user
@@ -616,7 +578,6 @@ class TestHandleResetAreaInit:
         result = await handle_reset_area_init(sample_user.id, str(area_id))
         assert "permission" in result.lower()
 
-    @pytest.mark.asyncio
     async def test_generates_token(self, temp_db, sample_user):
         """Reset init should generate and store a token."""
         _reset_area_tokens.clear()
@@ -644,7 +605,6 @@ class TestHandleResetAreaInit:
 class TestHandleResetAreaConfirm:
     """Tests for /reset-area_<token> confirmation."""
 
-    @pytest.mark.asyncio
     async def test_invalid_token(self, sample_user):
         """Invalid token should fail."""
         _reset_area_tokens.clear()
@@ -654,7 +614,6 @@ class TestHandleResetAreaConfirm:
 
         assert "Invalid or expired" in result
 
-    @pytest.mark.asyncio
     async def test_expired_token(self, temp_db, sample_user):
         """Expired token should be rejected."""
         _reset_area_tokens.clear()
@@ -668,7 +627,6 @@ class TestHandleResetAreaConfirm:
 
         assert "Invalid or expired" in result
 
-    @pytest.mark.asyncio
     async def test_successful_reset(self, temp_db, sample_user):
         """Successful reset should clear extraction data."""
         _reset_area_tokens.clear()
@@ -715,7 +673,6 @@ class TestHandleResetAreaConfirm:
 class TestProcessCommandResetArea:
     """Tests for reset-area dispatch in process_command."""
 
-    @pytest.mark.asyncio
     async def test_reset_area_with_uuid(self, temp_db, sample_user):
         """Should dispatch /reset-area_<uuid> to init."""
         area_id = new_id()
@@ -733,7 +690,6 @@ class TestProcessCommandResetArea:
 
         assert "delete extracted knowledge" in result.lower()
 
-    @pytest.mark.asyncio
     async def test_reset_area_with_token(self, sample_user):
         """Should dispatch /reset-area_<token> to confirm."""
         _reset_area_tokens.clear()
@@ -747,14 +703,12 @@ class TestProcessCommandResetArea:
 class TestProcessCommandResetAreaCurrent:
     """Tests for /reset_area (no ID — resets current area)."""
 
-    @pytest.mark.asyncio
     async def test_no_current_area(self, sample_user):
         """Should return helpful message when no current area is set."""
         result = await process_command("/reset_area", sample_user)
         assert result is not None
         assert "No current area set" in result
 
-    @pytest.mark.asyncio
     async def test_with_current_area(self, temp_db, sample_user):
         """Should initiate reset for the user's current area."""
         area_id = new_id()
@@ -778,7 +732,6 @@ class TestProcessCommandResetAreaCurrent:
 class TestResetAreaTokenIsolation:
     """Tests for multi-user reset-area token isolation."""
 
-    @pytest.mark.asyncio
     async def test_user_cannot_use_another_users_token(self, temp_db):
         """User A should not be able to use User B's reset token."""
         _reset_area_tokens.clear()
@@ -814,13 +767,11 @@ class TestResetAreaTokenIsolation:
 class TestMcpKeysCommand:
     """Tests for /mcp_keys subcommands."""
 
-    @pytest.mark.asyncio
     async def test_keys_list_empty(self, temp_db, sample_user):
         """List with no keys should show help message."""
         result = await handle_keys_command(sample_user.id, None)
         assert "No API keys" in result
 
-    @pytest.mark.asyncio
     async def test_keys_create_and_list(self, temp_db, sample_user):
         """Create a key then list should show the key prefix."""
         result = await handle_keys_command(sample_user.id, "create my-tool")
@@ -830,7 +781,6 @@ class TestMcpKeysCommand:
         listing = await handle_keys_command(sample_user.id, None)
         assert "my-tool" in listing
 
-    @pytest.mark.asyncio
     async def test_keys_revoke(self, temp_db, sample_user):
         """Revoke by prefix should delete the key."""
         create_result = await handle_keys_command(sample_user.id, "create to-revoke")
@@ -845,19 +795,16 @@ class TestMcpKeysCommand:
         listing = await handle_keys_command(sample_user.id, None)
         assert "No API keys" in listing
 
-    @pytest.mark.asyncio
     async def test_keys_revoke_prefix_too_short(self, temp_db, sample_user):
         """Revoke with too-short prefix should fail."""
         result = await handle_keys_command(sample_user.id, "revoke abc")
         assert "at least 8 characters" in result
 
-    @pytest.mark.asyncio
     async def test_keys_revoke_not_found(self, temp_db, sample_user):
         """Revoke with non-matching prefix should report not found."""
         result = await handle_keys_command(sample_user.id, "revoke abcdef1234")
         assert "No key matching" in result
 
-    @pytest.mark.asyncio
     async def test_keys_create_whitespace_label(self, temp_db, sample_user):
         """Whitespace-only label should not create a key."""
         result = await handle_keys_command(sample_user.id, "create    ")
@@ -866,7 +813,6 @@ class TestMcpKeysCommand:
         listing = await handle_keys_command(sample_user.id, None)
         assert "No API keys" in listing
 
-    @pytest.mark.asyncio
     async def test_keys_create_long_label_truncated(self, temp_db, sample_user):
         """Label longer than 64 chars should be truncated in listing."""
         long_label = "a" * 100
@@ -877,7 +823,6 @@ class TestMcpKeysCommand:
         assert "a" * 64 in listing
         assert "a" * 65 not in listing
 
-    @pytest.mark.asyncio
     async def test_keys_unknown_subcommand(self, temp_db, sample_user):
         """Unknown subcommand should show usage."""
         result = await handle_keys_command(sample_user.id, "foobar")

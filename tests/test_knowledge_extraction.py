@@ -21,7 +21,6 @@ from src.workflows.subgraphs.knowledge_extraction.state import KnowledgeExtracti
 class TestLoadSummary:
     """Test the load_summary function."""
 
-    @pytest.mark.asyncio
     async def test_load_summary_found(self):
         """Should return summary_text, summary_content, and area_id when found."""
         summary_id = new_id()
@@ -45,7 +44,6 @@ class TestLoadSummary:
         assert result["summary_content"] == "I'm a software engineer."
         assert result["area_id"] == area_id
 
-    @pytest.mark.asyncio
     async def test_load_summary_not_found(self):
         """Should return is_successful=False when summary not found."""
         summary_id = new_id()
@@ -63,7 +61,6 @@ class TestLoadSummary:
 class TestVectorizeSummary:
     """Test the vectorize_summary function."""
 
-    @pytest.mark.asyncio
     async def test_vectorize_summary_success(self):
         """Should return summary_vector on success."""
         summary_id = new_id()
@@ -84,7 +81,6 @@ class TestVectorizeSummary:
         assert result == {"summary_vector": [0.1, 0.2, 0.3]}
         mock_embed_client.aembed_query.assert_called_once_with("I know Python.")
 
-    @pytest.mark.asyncio
     async def test_vectorize_summary_embedding_failure(self):
         """Should return empty dict when embedding fails."""
         summary_id = new_id()
@@ -108,7 +104,6 @@ class TestVectorizeSummary:
 class TestExtractKnowledge:
     """Test the extract_knowledge function."""
 
-    @pytest.mark.asyncio
     async def test_extract_knowledge_skips_when_no_content(self):
         """Should skip extraction when no summary content."""
         state = KnowledgeExtractionState(
@@ -122,7 +117,6 @@ class TestExtractKnowledge:
         assert result == {"extracted_knowledge": []}
         mock_llm.with_structured_output.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_extract_knowledge_success(self):
         """Should extract knowledge items from summary."""
         state = KnowledgeExtractionState(
@@ -151,7 +145,6 @@ class TestExtractKnowledge:
         assert result["extracted_knowledge"][0]["content"] == "Python programming"
         assert result["extracted_knowledge"][0]["kind"] == "skill"
 
-    @pytest.mark.asyncio
     async def test_extract_knowledge_handles_exception(self):
         """Should return empty list on LLM exception."""
         state = KnowledgeExtractionState(
@@ -173,7 +166,6 @@ class TestExtractKnowledge:
 class TestPersistExtraction:
     """Test the persist_extraction function."""
 
-    @pytest.mark.asyncio
     async def test_persist_extraction_saves_vector_and_knowledge(self, temp_db):
         """Should write vector to summary and save knowledge items."""
         area_id = uuid.uuid4()
@@ -211,7 +203,6 @@ class TestPersistExtraction:
         assert len(all_knowledge) == 2
         assert all(k.summary_id == summary_id for k in all_knowledge)
 
-    @pytest.mark.asyncio
     async def test_persist_extraction_skips_knowledge_when_no_area_id(self, temp_db):
         """Should skip knowledge save when area_id is None."""
         area_id = uuid.uuid4()
@@ -242,7 +233,6 @@ class TestPersistExtraction:
         all_knowledge = await db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 0
 
-    @pytest.mark.asyncio
     async def test_persist_extraction_rolls_back_on_failure(self, temp_db):
         """Should roll back all writes if update_vector fails."""
         area_id = uuid.uuid4()
@@ -307,7 +297,6 @@ def _create_knowledge_mock_llm():
 class TestKnowledgeExtractionGraphIntegration:
     """Integration tests for the full knowledge_extraction graph."""
 
-    @pytest.mark.asyncio
     async def test_full_graph_extracts_and_saves_data(self, temp_db):
         """Test full graph flow: load_summary → vectorize → extract → persist."""
         from src.workflows.subgraphs.knowledge_extraction.graph import (
@@ -345,7 +334,6 @@ class TestKnowledgeExtractionGraphIntegration:
         assert len(all_knowledge) == 3
         assert all(k.summary_id == summary_id for k in all_knowledge)
 
-    @pytest.mark.asyncio
     async def test_graph_handles_embedding_failure_gracefully(self, temp_db):
         """Test that graph continues extracting knowledge when embedding fails."""
         from src.workflows.subgraphs.knowledge_extraction.graph import (
@@ -381,7 +369,6 @@ class TestKnowledgeExtractionGraphIntegration:
         all_knowledge = await db.UserKnowledgeManager.list()
         assert len(all_knowledge) == 3
 
-    @pytest.mark.asyncio
     async def test_graph_skips_when_summary_not_found(self, temp_db):
         """Test that graph exits early when summary_id is not in DB."""
         from src.workflows.subgraphs.knowledge_extraction.graph import (
