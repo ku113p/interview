@@ -191,7 +191,7 @@ The application is organized into 3 independent async processes that communicate
 
 ┌─────────────┐
 │ MCP Server  │  Standalone process (Streamable HTTP on :8080)
-│ (read-only) │  Auth via Bearer API key → user_id in contextvars
+│ (read-only) │  Auth via Bearer API key on tool calls → user_id in contextvars
 └─────────────┘
 ```
 
@@ -428,6 +428,8 @@ Merge function uses SHA-256 hash of (type, content, tool_calls) to prevent dupli
 | quick_evaluate | gpt-5.1-codex-mini | Evaluate coverage using accumulated summaries |
 | generate_leaf_response | gpt-5.1-codex-mini | Generate focused questions |
 | create_turn_summary | gpt-5.1-codex-mini | Extract per-turn summary from user answer |
+| small_talk_response | gpt-5.1-codex-mini | Greetings, app questions, casual chat |
+| completed_area_response | gpt-5.1-codex-mini | Response when area already extracted |
 | area_chat | gpt-5.1-codex-mini | Tool-based area management |
 | knowledge_extraction | gpt-5.1-codex-mini | Knowledge extraction |
 | transcribe | gemini-2.5-flash-lite | Audio transcription |

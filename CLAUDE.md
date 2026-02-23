@@ -39,8 +39,8 @@ See `ARCHITECTURE.md` for detailed documentation of:
 
 ### Key Files
 - `ARCHITECTURE.md` - Full architecture documentation
-- `src/application/graph.py` - Main LangGraph workflow
-- `src/application/state.py` - Central state model
+- `src/processes/interview/graph.py` - Main LangGraph workflow
+- `src/processes/interview/state.py` - Central state model
 - `src/config/settings.py` - Model assignments, token limits
 - `src/infrastructure/db/managers.py` - Database access layer (async)
 

@@ -20,23 +20,33 @@ def get_user_id() -> uuid.UUID:
     return uid
 
 
+async def _resolve_user_id(context: MiddlewareContext) -> uuid.UUID:
+    """Extract and validate the Bearer API key, return the user_id."""
+    ctx = context.fastmcp_context
+    if not (ctx and ctx.request_context and ctx.request_context.request):
+        raise PermissionError("No request context available")
+
+    auth = ctx.request_context.request.headers.get("Authorization")
+    if not auth or not auth.startswith("Bearer "):
+        raise PermissionError("Missing Authorization: Bearer <key>")
+    key = auth.removeprefix("Bearer ").strip()
+    api_key = await ApiKeysManager.get_by_key(key)
+    if api_key is None:
+        raise PermissionError("Invalid API key")
+    return api_key.user_id
+
+
 class AuthMiddleware(Middleware):
-    """Validate Bearer API key and set user_id in contextvars."""
+    """Validate Bearer API key on tool calls and set user_id in contextvars."""
+
+    _AUTH_METHODS = {"tools/call"}
 
     async def __call__(self, context: MiddlewareContext, call_next):
-        ctx = context.fastmcp_context
-        if not (ctx and ctx.request_context and ctx.request_context.request):
-            raise PermissionError("No request context available")
+        if context.method not in self._AUTH_METHODS:
+            return await call_next(context)
 
-        auth = ctx.request_context.request.headers.get("Authorization")
-        if not auth or not auth.startswith("Bearer "):
-            raise PermissionError("Missing Authorization: Bearer <key>")
-        key = auth.removeprefix("Bearer ").strip()
-        api_key = await ApiKeysManager.get_by_key(key)
-        if api_key is None:
-            raise PermissionError("Invalid API key")
-
-        token = _current_user_id.set(api_key.user_id)
+        user_id = await _resolve_user_id(context)
+        token = _current_user_id.set(user_id)
         try:
             return await call_next(context)
         finally:
