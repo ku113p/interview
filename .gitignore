@@ -15,6 +15,7 @@ wheels/
 
 # SQLite database files
 interview.db*
+test-interview.db*  # Test database files
 
 # MCP client config (contains API keys)
 .mcp.json

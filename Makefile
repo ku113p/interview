@@ -4,7 +4,7 @@ KERNEL_NAME := langgraph-agent
 # Avoid parentheses here to prevent shell expansion issues in some environments
 DISPLAY_NAME := "Python-LangGraph-Agent"
 
-.PHONY: help install run-cli run-telegram-polling run-telegram-webhook run-mcp dev-setup jupyter clean test test-cov
+.PHONY: help install run-cli run-telegram-polling run-telegram-webhook run-mcp dev-setup jupyter clean test test-cov clean-test-db
 
 install: ## Install production dependencies
 	uv sync
@@ -41,6 +41,9 @@ test: ## Run all tests
 test-cov: ## Run tests with coverage report
 	uv run pytest tests/ --cov=src --cov-report=term-missing --cov-report=html -v
 	@echo "Coverage report saved to htmlcov/index.html"
+
+clean-test-db: ## Remove test database and related files
+	./scripts/cleanup_test_db.sh --force
 
 clean: ## Remove virtual environment and cached files
 	rm -rf .venv

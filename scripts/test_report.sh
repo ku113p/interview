@@ -10,6 +10,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Use test database by default, allow override via INTERVIEW_DB_PATH
+: "${INTERVIEW_DB_PATH:=test-interview.db}"
+export INTERVIEW_DB_PATH
+
 # Load environment
 if [ -f .env ]; then
     source .env
@@ -84,7 +88,7 @@ for RUN in $(seq 1 $REPEAT); do
     echo ""
 
     # Query counts
-    read AREAS SUB_AREAS SUMMARIES KNOWLEDGE <<< $(sqlite3 interview.db "
+    read AREAS SUB_AREAS SUMMARIES KNOWLEDGE <<< $(sqlite3 "$INTERVIEW_DB_PATH" "
         SELECT
             (SELECT COUNT(*) FROM life_areas WHERE user_id = '$USER_ID'),
             (SELECT COUNT(*) FROM life_areas WHERE parent_id IS NOT NULL AND user_id = '$USER_ID'),
@@ -127,19 +131,19 @@ for RUN in $(seq 1 $REPEAT); do
     echo ""
 
     echo "Life Areas:"
-    sqlite3 -header -column interview.db "SELECT id, title, parent_id FROM life_areas WHERE user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
+    sqlite3 -header -column "$INTERVIEW_DB_PATH" "SELECT id, title, parent_id FROM life_areas WHERE user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
 
     echo ""
     echo "Sub-Areas (life_areas with parent):"
-    sqlite3 -header -column interview.db "SELECT id, title, parent_id FROM life_areas WHERE parent_id IS NOT NULL AND user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
+    sqlite3 -header -column "$INTERVIEW_DB_PATH" "SELECT id, title, parent_id FROM life_areas WHERE parent_id IS NOT NULL AND user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
 
     echo ""
     echo "Summaries:"
-    sqlite3 -header -column interview.db "SELECT s.id, la.title, substr(s.summary_text, 1, 60) as summary_preview FROM summaries s JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
+    sqlite3 -header -column "$INTERVIEW_DB_PATH" "SELECT s.id, la.title, substr(s.summary_text, 1, 60) as summary_preview FROM summaries s JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
 
     echo ""
     echo "Knowledge:"
-    sqlite3 -header -column interview.db "SELECT uk.id, uk.description, uk.kind FROM user_knowledge uk JOIN summaries s ON uk.summary_id = s.id JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
+    sqlite3 -header -column "$INTERVIEW_DB_PATH" "SELECT uk.id, uk.description, uk.kind FROM user_knowledge uk JOIN summaries s ON uk.summary_id = s.id JOIN life_areas la ON s.area_id = la.id WHERE la.user_id = '$USER_ID'" 2>/dev/null || echo "  (none)"
 
     # Keep log for inspection
     echo ""

@@ -7,6 +7,12 @@ $ARGUMENTS: SQL query string
 
 ## Instructions
 
+Query test database (default for skills):
+```bash
+sqlite3 -header -column test-interview.db "$ARGUMENTS"
+```
+
+Query production database:
 ```bash
 sqlite3 -header -column interview.db "$ARGUMENTS"
 ```
@@ -75,5 +81,7 @@ SELECT id, created_at FROM users ORDER BY created_at DESC LIMIT 10
 ## Notes
 
 - Use single quotes for string values
-- Database: `interview.db` in project root
+- Test database: `test-interview.db` in project root (default for `/_test:*` skills)
+- Production database: `interview.db` in project root
 - Results displayed with headers and columns
+- To query production DB, explicitly use: `sqlite3 -header -column interview.db "..."`
