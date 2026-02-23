@@ -10,6 +10,21 @@ import pytest_asyncio
 from src.domain.models import InputMode, User
 
 
+@pytest.fixture(autouse=True)
+def _fast_test_timeouts(monkeypatch):
+    """Speed up tests by reducing timeout constants.
+
+    Applied automatically to all tests.
+    """
+    # Fast worker polling for responsive test shutdown
+    monkeypatch.setattr("src.config.settings.WORKER_POLL_TIMEOUT", 0.01)
+    monkeypatch.setattr("src.config.settings.WORKER_SHUTDOWN_CHECK_INTERVAL", 0.01)
+
+    # Fast retry for testing failure scenarios
+    monkeypatch.setattr("src.config.settings.RETRY_INITIAL_WAIT", 0.01)
+    monkeypatch.setattr("src.config.settings.RETRY_MAX_WAIT", 0.1)
+
+
 @pytest.fixture
 def sample_user() -> User:
     """Create a sample user for testing."""

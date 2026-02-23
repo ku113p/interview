@@ -7,7 +7,7 @@ import tempfile
 from functools import partial
 from typing import Any
 
-from src.config.settings import WORKER_POOL_GRAPH
+from src.config.settings import WORKER_POLL_TIMEOUT, WORKER_POOL_GRAPH
 from src.domain import ClientMessage, InputMode, User
 from src.infrastructure.db import managers as db
 from src.processes.extract.interfaces import ExtractTask
@@ -126,7 +126,9 @@ async def _graph_worker_loop(worker_id: int, graph, channels: Channels) -> None:
     """Process messages through the main graph."""
     while not channels.shutdown.is_set():
         try:
-            request = await asyncio.wait_for(channels.requests.get(), timeout=0.5)
+            request = await asyncio.wait_for(
+                channels.requests.get(), timeout=WORKER_POLL_TIMEOUT
+            )
         except asyncio.TimeoutError:
             continue
         try:

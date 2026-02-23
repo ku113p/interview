@@ -13,6 +13,12 @@ from tenacity import (
     wait_exponential,
 )
 
+from src.config.settings import (
+    RETRY_INITIAL_WAIT,
+    RETRY_MAX_ATTEMPTS,
+    RETRY_MAX_WAIT,
+)
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
@@ -55,28 +61,33 @@ def _log_retry(retry_state: RetryCallState) -> None:
 
 async def invoke_with_retry(
     invoke_fn: Callable[[], Awaitable[T]],
-    max_attempts: int = 3,
-    initial_wait: float = 1.0,
-    max_wait: float = 10.0,
+    max_attempts: int = RETRY_MAX_ATTEMPTS,
+    initial_wait: float = RETRY_INITIAL_WAIT,
+    max_wait: float = RETRY_MAX_WAIT,
 ) -> T:
     """Invoke an async LLM call with exponential backoff retry.
 
     Args:
         invoke_fn: Async callable that performs the LLM invocation
-        max_attempts: Maximum number of retry attempts (default: 3)
-        initial_wait: Initial wait time in seconds (default: 1.0)
-        max_wait: Maximum wait time in seconds (default: 10.0)
+        max_attempts: Maximum number of retry attempts (default: RETRY_MAX_ATTEMPTS)
+        initial_wait: Initial wait time in seconds, also used as exponential backoff
+            multiplier (default: RETRY_INITIAL_WAIT)
+        max_wait: Maximum wait time in seconds (default: RETRY_MAX_WAIT)
 
     Returns:
         The result from the successful invocation
 
     Raises:
         The last exception if all retries fail
+
+    Note:
+        Default values are defined in src.config.settings and can be overridden
+        via environment variables (RETRY_MAX_ATTEMPTS, RETRY_INITIAL_WAIT, RETRY_MAX_WAIT).
     """
 
     @retry(
         stop=stop_after_attempt(max_attempts),
-        wait=wait_exponential(multiplier=1, min=initial_wait, max=max_wait),
+        wait=wait_exponential(multiplier=initial_wait, min=initial_wait, max=max_wait),
         retry=retry_if_exception(_is_retryable_exception),
         before_sleep=_log_retry,
         reraise=True,

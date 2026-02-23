@@ -1,5 +1,22 @@
 import os
 
+
+def _parse_float(value_str: str, name: str) -> float:
+    """Parse float from env var with validation."""
+    try:
+        return float(value_str)
+    except ValueError as e:
+        raise RuntimeError(f"{name} must be a valid float, got: {value_str}") from e
+
+
+def _parse_int(value_str: str, name: str) -> int:
+    """Parse int from env var with validation."""
+    try:
+        return int(value_str)
+    except ValueError as e:
+        raise RuntimeError(f"{name} must be a valid integer, got: {value_str}") from e
+
+
 # API Configuration
 API_KEY_ENV = "OPENROUTER_API_KEY"
 API_KEY_PREFIX = "sk-or-v1-"
@@ -8,6 +25,13 @@ MIN_API_KEY_LENGTH = 20
 # Database Configuration
 DB_PATH_ENV = "INTERVIEW_DB_PATH"
 DEFAULT_DB_PATH = "interview.db"
+
+# Configuration Override Environment Variables
+WORKER_POLL_TIMEOUT_ENV = "WORKER_POLL_TIMEOUT"
+WORKER_SHUTDOWN_CHECK_INTERVAL_ENV = "WORKER_SHUTDOWN_CHECK_INTERVAL"
+RETRY_MAX_ATTEMPTS_ENV = "RETRY_MAX_ATTEMPTS"
+RETRY_INITIAL_WAIT_ENV = "RETRY_INITIAL_WAIT"
+RETRY_MAX_WAIT_ENV = "RETRY_MAX_WAIT"
 
 # Model Configuration (OpenRouter model identifiers - verified 2026-02)
 MODEL_NAME_CODEX_MINI = "openai/gpt-5.1-codex-mini"
@@ -55,6 +79,15 @@ MAX_TOKENS_QUICK_EVALUATE = 1024  # Reasoning model needs headroom beyond output
 MAX_TOKENS_LEAF_RESPONSE = 1024  # Short focused questions/responses
 MAX_TOKENS_LEAF_SUMMARY = 512  # Brief summary extraction
 
+# Retry Configuration
+RETRY_MAX_ATTEMPTS = _parse_int(
+    os.getenv(RETRY_MAX_ATTEMPTS_ENV, "3"), RETRY_MAX_ATTEMPTS_ENV
+)
+RETRY_INITIAL_WAIT = _parse_float(
+    os.getenv(RETRY_INITIAL_WAIT_ENV, "1.0"), RETRY_INITIAL_WAIT_ENV
+)
+RETRY_MAX_WAIT = _parse_float(os.getenv(RETRY_MAX_WAIT_ENV, "10.0"), RETRY_MAX_WAIT_ENV)
+
 # Embedding Configuration
 EMBEDDING_MODEL = "openai/text-embedding-3-small"  # Via OpenRouter
 EMBEDDING_DIMENSIONS = 1536
@@ -63,6 +96,13 @@ EMBEDDING_DIMENSIONS = 1536
 WORKER_POOL_GRAPH = 2  # Concurrent graph workers
 WORKER_POOL_EXTRACT = 2  # Concurrent extract workers
 WORKER_POOL_LEAF_EXTRACT = 2  # Concurrent leaf extraction workers
+WORKER_POLL_TIMEOUT = _parse_float(
+    os.getenv(WORKER_POLL_TIMEOUT_ENV, "0.5"), WORKER_POLL_TIMEOUT_ENV
+)
+WORKER_SHUTDOWN_CHECK_INTERVAL = _parse_float(
+    os.getenv(WORKER_SHUTDOWN_CHECK_INTERVAL_ENV, "0.5"),
+    WORKER_SHUTDOWN_CHECK_INTERVAL_ENV,
+)
 
 # Leaf Extraction Configuration
 LEAF_EXTRACT_POLL_INTERVAL = 1.0  # Seconds between queue polls

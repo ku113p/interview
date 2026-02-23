@@ -4,6 +4,8 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
+from src.config.settings import WORKER_SHUTDOWN_CHECK_INTERVAL
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +34,9 @@ async def run_worker_pool(
         # Check shutdown periodically
         while not shutdown.is_set():
             done, pending = await asyncio.wait(
-                tasks, timeout=0.5, return_when=asyncio.FIRST_COMPLETED
+                tasks,
+                timeout=WORKER_SHUTDOWN_CHECK_INTERVAL,
+                return_when=asyncio.FIRST_COMPLETED,
             )
             if done:
                 # A worker exited (crashed or finished)

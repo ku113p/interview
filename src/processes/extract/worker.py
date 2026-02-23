@@ -7,6 +7,7 @@ from functools import partial
 from src.config.settings import (
     MAX_TOKENS_KNOWLEDGE,
     MODEL_KNOWLEDGE_EXTRACTION,
+    WORKER_POLL_TIMEOUT,
     WORKER_POOL_EXTRACT,
 )
 from src.infrastructure.ai import LLMClientBuilder
@@ -49,7 +50,9 @@ async def _extract_worker_loop(worker_id: int, graph, channels: Channels) -> Non
     """Process knowledge extraction tasks."""
     while not channels.shutdown.is_set():
         try:
-            task = await asyncio.wait_for(channels.extract.get(), timeout=0.5)
+            task = await asyncio.wait_for(
+                channels.extract.get(), timeout=WORKER_POLL_TIMEOUT
+            )
         except asyncio.TimeoutError:
             continue
         try:

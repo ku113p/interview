@@ -387,6 +387,29 @@ The `transaction()` context manager also uses an in-process `asyncio.Lock` for f
 
 All ORM methods (`get_by_id`, `list`, `create`, `update`, `delete`) are async.
 
+### Worker Pool Configuration
+
+Worker pools use configurable timeouts and retry settings:
+
+| Setting | Default | Environment Variable | Purpose |
+|---------|---------|---------------------|---------|
+| Worker poll timeout | 0.5s | `WORKER_POLL_TIMEOUT` | Max wait for queue items before checking shutdown |
+| Shutdown check interval | 0.5s | `WORKER_SHUTDOWN_CHECK_INTERVAL` | Pool manager check frequency |
+| Retry max attempts | 3 | `RETRY_MAX_ATTEMPTS` | Maximum LLM call retries |
+| Retry initial wait | 1.0s | `RETRY_INITIAL_WAIT` | Exponential backoff multiplier |
+| Retry max wait | 10.0s | `RETRY_MAX_WAIT` | Maximum retry delay cap |
+
+**Configuration:**
+- Defined in `src/config/settings.py`
+- Applies to all worker pools (auth, interview, extract)
+- Overridable via environment variables for production debugging
+- Test suite uses monkeypatched values (0.01s) for fast execution
+
+**Implementation:**
+- Worker loops: `src/processes/{auth,interview,extract}/worker.py`
+- Pool manager: `src/runtime/pool.py`
+- Retry logic: `src/shared/retry.py` (uses `tenacity` library)
+
 ## State Models
 
 ### Main Graph State

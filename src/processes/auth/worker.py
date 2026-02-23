@@ -5,6 +5,7 @@ import logging
 import uuid
 from functools import partial
 
+from src.config.settings import WORKER_POLL_TIMEOUT
 from src.infrastructure.db import managers as db
 from src.processes.auth.interfaces import AuthRequest
 from src.runtime import Channels, run_worker_pool
@@ -43,7 +44,9 @@ async def _auth_worker_loop(worker_id: int, channels: Channels) -> None:
     """Exchange external user ID for internal user_id."""
     while not channels.shutdown.is_set():
         try:
-            request = await asyncio.wait_for(channels.auth_requests.get(), timeout=0.5)
+            request = await asyncio.wait_for(
+                channels.auth_requests.get(), timeout=WORKER_POLL_TIMEOUT
+            )
         except asyncio.TimeoutError:
             continue
         try:
