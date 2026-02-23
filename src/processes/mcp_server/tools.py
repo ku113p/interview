@@ -70,7 +70,10 @@ async def get_summaries(area_id: str | None = None) -> list[dict]:
     """Get all summaries, optionally filtered by area_id."""
     user_id = get_user_id()
     if area_id is not None:
-        parsed = uuid.UUID(area_id)
+        try:
+            parsed = uuid.UUID(area_id)
+        except ValueError:
+            return []
         area = await db.LifeAreasManager.get_by_id(parsed)
         if area is None or area.user_id != user_id:
             return []

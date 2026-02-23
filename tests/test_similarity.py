@@ -24,6 +24,11 @@ class TestCosineSimilarity:
         other = [1.0, 2.0, 3.0]
         assert cosine_similarity(zero, other) == 0.0
 
+    def test_mismatched_lengths_raises(self):
+        """Mismatched vector lengths should raise ValueError."""
+        with pytest.raises(ValueError):
+            cosine_similarity([1.0, 2.0], [1.0, 2.0, 3.0])
+
 
 class TestFindTopK:
     """Tests for find_top_k."""
