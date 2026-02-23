@@ -80,7 +80,7 @@ Add to `.mcp.json` in the project root or `~/.claude/mcp.json` globally:
 {
   "mcpServers": {
     "interview": {
-      "type": "streamable-http",
+      "type": "http",
       "url": "http://localhost:8080/mcp",
       "headers": {
         "Authorization": "Bearer <your-api-key>"
