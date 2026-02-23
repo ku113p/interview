@@ -24,6 +24,33 @@ Automated testing for the interview assistant using Claude Code skills.
 
 # Run single test via script
 ./scripts/test_report.sh .claude/commands/_test/cases/1-crud.json
+
+# Clean up test database
+./scripts/cleanup_test_db.sh
+# Or via make
+make clean-test-db
+
+# View test database statistics
+make test-db-stats
+```
+
+## Test Database
+
+Tests use `test-interview.db` for isolation from production data:
+- Separate from production `interview.db`
+- Data persists between runs for debugging
+- View stats: `make test-db-stats`
+- Clean up: `./scripts/cleanup_test_db.sh` or `make clean-test-db`
+- All WAL/SHM/lock files removed during cleanup
+
+### Override Database Path
+
+To use a custom database (e.g., for debugging):
+```bash
+INTERVIEW_DB_PATH=custom.db ./scripts/test_report.sh <case_file>
+
+# Or use production database
+INTERVIEW_DB_PATH=interview.db ./scripts/test_report.sh <case_file>
 ```
 
 ## Test Cases
