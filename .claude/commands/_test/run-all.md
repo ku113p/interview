@@ -23,6 +23,11 @@ Run all test cases in `.claude/commands/_test/cases/` with parallel agents.
    - Update Results table with actual/expected values
    - Add timestamp to Last Run column
 
+5. **Clean up test database (optional):**
+   - After running tests, clean up accumulated test data
+   - Run: `./scripts/cleanup_test_db.sh`
+   - Or use: `make clean-test-db`
+
 ## Results Table Format
 
 Use this exact format for the results table:
