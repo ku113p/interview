@@ -1,9 +1,9 @@
 """Pytest fixtures for testing."""
 
 import os
-import tempfile
 import uuid
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -20,40 +20,27 @@ def sample_user() -> User:
 
 
 @pytest_asyncio.fixture
-async def temp_db() -> AsyncGenerator[str, None]:
-    """Create a temporary database for testing.
+async def temp_db(tmp_path: Path) -> AsyncGenerator[str, None]:
+    """Isolated test database in a temp directory.
 
-    Yields:
-        str: Path to temporary database file
+    Uses tmp_path so WAL, SHM, and lock files are all auto-cleaned.
     """
-    # Create a temporary file
-    fd, db_path = tempfile.mkstemp(suffix=".db")
-    os.close(fd)
+    from src.infrastructure.db.connection import get_connection
+    from src.infrastructure.db.schema import _db_initialized_paths
 
-    # Set the environment variable so get_connection uses this db
+    db_path = str(tmp_path / "test.db")
     old_db_path = os.environ.get("INTERVIEW_DB_PATH")
     os.environ["INTERVIEW_DB_PATH"] = db_path
-
     try:
-        # Initialize the schema
-        from src.infrastructure.db.connection import get_connection
-
         async with get_connection():
-            pass  # Schema is auto-initialized
-
+            pass  # Schema auto-initialized
         yield db_path
     finally:
-        # Restore original environment
+        _db_initialized_paths.discard(db_path)
         if old_db_path is not None:
             os.environ["INTERVIEW_DB_PATH"] = old_db_path
         elif "INTERVIEW_DB_PATH" in os.environ:
             del os.environ["INTERVIEW_DB_PATH"]
-
-        # Clean up the temp file
-        try:
-            os.unlink(db_path)
-        except OSError:
-            pass
 
 
 @pytest.fixture
