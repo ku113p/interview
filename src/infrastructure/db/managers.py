@@ -3,6 +3,9 @@
 This module provides a single import point for all database entities.
 """
 
+# API Key Managers
+from .api_managers import ApiKeysManager
+
 # Core Managers
 from .core_managers import (
     HistoriesManager,
@@ -21,6 +24,7 @@ from .knowledge_managers import (
     UserKnowledgeManager,
 )
 from .models import (
+    ApiKey,
     History,
     LifeArea,
     Summary,
@@ -30,12 +34,14 @@ from .models import (
 
 __all__ = [
     # Models
+    "ApiKey",
     "History",
     "LifeArea",
     "Summary",
     "User",
     "UserKnowledge",
     # Managers
+    "ApiKeysManager",
     "HistoriesManager",
     "LeafHistoryManager",
     "LifeAreasManager",

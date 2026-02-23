@@ -4,7 +4,7 @@ KERNEL_NAME := langgraph-agent
 # Avoid parentheses here to prevent shell expansion issues in some environments
 DISPLAY_NAME := "Python-LangGraph-Agent"
 
-.PHONY: help install run-cli run-telegram-polling run-telegram-webhook dev-setup jupyter clean test test-cov
+.PHONY: help install run-cli run-telegram-polling run-telegram-webhook run-mcp dev-setup jupyter clean test test-cov
 
 install: ## Install production dependencies
 	uv sync
@@ -17,6 +17,9 @@ run-telegram-polling: ## Run Telegram bot in polling mode
 
 run-telegram-webhook: ## Run Telegram bot in webhook mode
 	@TELEGRAM_MODE=webhook $(PYTHON) main.py --transport telegram
+
+run-mcp: ## Run MCP server (Streamable HTTP)
+	@$(PYTHON) mcp_server.py
 
 %:
 	@:

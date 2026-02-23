@@ -1,5 +1,6 @@
 """Unit tests for command handlers."""
 
+import secrets
 import time
 import uuid
 
@@ -7,11 +8,13 @@ import pytest
 from langchain_core.messages import AIMessage
 from src.domain import InputMode, User
 from src.infrastructure.db import managers as db
+from src.infrastructure.db.api_managers import hash_key
 from src.shared.ids import new_id
 from src.workflows.nodes.commands import handlers
 from src.workflows.nodes.commands.handle_command import handle_command
 from src.workflows.nodes.commands.handlers import (
     HELP_TEXT,
+    MIN_KEY_PREFIX,
     _delete_tokens,
     _reset_area_token_lookup,
     _reset_area_tokens,
@@ -19,6 +22,7 @@ from src.workflows.nodes.commands.handlers import (
     handle_delete_confirm,
     handle_delete_init,
     handle_help,
+    handle_keys_command,
     handle_mode_set,
     handle_mode_show,
     handle_reset_area_confirm,
@@ -397,7 +401,7 @@ class TestDeleteUserDataCascade:
 
     @pytest.mark.asyncio
     async def test_deletes_all_user_data(self, temp_db, sample_user):
-        """Deletion should remove all related data."""
+        """Deletion should remove all related data including API keys."""
         # Arrange - create user
         await db.UsersManager.create(
             sample_user.id,
@@ -434,6 +438,18 @@ class TestDeleteUserDataCascade:
         )
         await db.LeafHistoryManager.link(area_id, history_id)
 
+        # Create an API key
+        raw_key = secrets.token_hex(32)
+        api_key = db.ApiKey(
+            id=new_id(),
+            key_hash=hash_key(raw_key),
+            key_prefix=raw_key[:8],
+            user_id=sample_user.id,
+            label="test-key",
+            created_at=time.time(),
+        )
+        await db.ApiKeysManager.create(api_key.id, api_key)
+
         # Set up valid token and confirm deletion
         _delete_tokens.clear()
         token = "delete_token"
@@ -446,6 +462,7 @@ class TestDeleteUserDataCascade:
         assert await db.UsersManager.get_by_id(sample_user.id) is None
         assert len(await db.LifeAreasManager.list_by_user(sample_user.id)) == 0
         assert len(await db.HistoriesManager.list_by_user(sample_user.id)) == 0
+        assert len(await db.ApiKeysManager.list_by_user(sample_user.id)) == 0
 
 
 class TestHandleCommandNode:
@@ -792,3 +809,76 @@ class TestResetAreaTokenIsolation:
         assert "Invalid or expired" in result
         # Token should still be valid for user A
         assert (user_a.id, area_id) in _reset_area_tokens
+
+
+class TestMcpKeysCommand:
+    """Tests for /mcp_keys subcommands."""
+
+    @pytest.mark.asyncio
+    async def test_keys_list_empty(self, temp_db, sample_user):
+        """List with no keys should show help message."""
+        result = await handle_keys_command(sample_user.id, None)
+        assert "No API keys" in result
+
+    @pytest.mark.asyncio
+    async def test_keys_create_and_list(self, temp_db, sample_user):
+        """Create a key then list should show the key prefix."""
+        result = await handle_keys_command(sample_user.id, "create my-tool")
+        assert "Created API key" in result
+        assert "my-tool" in result
+
+        listing = await handle_keys_command(sample_user.id, None)
+        assert "my-tool" in listing
+
+    @pytest.mark.asyncio
+    async def test_keys_revoke(self, temp_db, sample_user):
+        """Revoke by prefix should delete the key."""
+        create_result = await handle_keys_command(sample_user.id, "create to-revoke")
+        # Extract raw key from create result (second line)
+        raw_key = create_result.split("\n")[1]
+
+        revoke_result = await handle_keys_command(
+            sample_user.id, f"revoke {raw_key[:MIN_KEY_PREFIX]}"
+        )
+        assert "Revoked key" in revoke_result
+
+        listing = await handle_keys_command(sample_user.id, None)
+        assert "No API keys" in listing
+
+    @pytest.mark.asyncio
+    async def test_keys_revoke_prefix_too_short(self, temp_db, sample_user):
+        """Revoke with too-short prefix should fail."""
+        result = await handle_keys_command(sample_user.id, "revoke abc")
+        assert "at least 8 characters" in result
+
+    @pytest.mark.asyncio
+    async def test_keys_revoke_not_found(self, temp_db, sample_user):
+        """Revoke with non-matching prefix should report not found."""
+        result = await handle_keys_command(sample_user.id, "revoke abcdef1234")
+        assert "No key matching" in result
+
+    @pytest.mark.asyncio
+    async def test_keys_create_whitespace_label(self, temp_db, sample_user):
+        """Whitespace-only label should not create a key."""
+        result = await handle_keys_command(sample_user.id, "create    ")
+        assert "Usage" in result
+
+        listing = await handle_keys_command(sample_user.id, None)
+        assert "No API keys" in listing
+
+    @pytest.mark.asyncio
+    async def test_keys_create_long_label_truncated(self, temp_db, sample_user):
+        """Label longer than 64 chars should be truncated in listing."""
+        long_label = "a" * 100
+        result = await handle_keys_command(sample_user.id, f"create {long_label}")
+        assert "Created API key" in result
+
+        listing = await handle_keys_command(sample_user.id, None)
+        assert "a" * 64 in listing
+        assert "a" * 65 not in listing
+
+    @pytest.mark.asyncio
+    async def test_keys_unknown_subcommand(self, temp_db, sample_user):
+        """Unknown subcommand should show usage."""
+        result = await handle_keys_command(sample_user.id, "foobar")
+        assert "Unknown subcommand" in result
