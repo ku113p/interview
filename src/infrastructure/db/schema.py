@@ -143,12 +143,29 @@ async def _migration_005(conn: aiosqlite.Connection) -> None:
         await conn.execute(f"DROP TABLE IF EXISTS {table}")
 
 
+async def _migration_006(conn: aiosqlite.Connection) -> None:
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id TEXT PRIMARY KEY,
+            key_hash TEXT NOT NULL UNIQUE,
+            key_prefix TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            label TEXT NOT NULL,
+            created_at REAL NOT NULL
+        )
+    """)
+    await conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)"
+    )
+
+
 _MIGRATIONS: list[Migration] = [
     Migration(1, "Add current_area_id to users", _migration_001),
     Migration(2, "Add covered_at to life_areas", _migration_002),
     Migration(3, "Add summary_id + index to user_knowledge", _migration_003),
     Migration(4, "Drop extracted_at from life_areas", _migration_004),
     Migration(5, "Drop deprecated tables", _migration_005),
+    Migration(6, "Create api_keys table", _migration_006),
 ]
 
 

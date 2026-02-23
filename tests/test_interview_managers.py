@@ -137,6 +137,76 @@ class TestSummariesManager:
         assert result.question_id == question_id
         assert result.answer_id == answer_id
 
+    @pytest.mark.asyncio
+    async def test_list_by_user(self, temp_db):
+        """Should list summaries for a user via area join."""
+        user_id = new_id()
+        other_user_id = new_id()
+        now = get_timestamp()
+
+        # Create areas for two users
+        area_id = new_id()
+        other_area_id = new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(id=area_id, title="My Area", parent_id=None, user_id=user_id),
+        )
+        await db.LifeAreasManager.create(
+            other_area_id,
+            db.LifeArea(
+                id=other_area_id,
+                title="Other Area",
+                parent_id=None,
+                user_id=other_user_id,
+            ),
+        )
+
+        # Create summaries
+        await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="Mine 1.", created_at=now
+        )
+        await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="Mine 2.", created_at=now + 1
+        )
+        await db.SummariesManager.create_summary(
+            area_id=other_area_id, summary_text="Theirs.", created_at=now
+        )
+
+        results = await db.SummariesManager.list_by_user(user_id)
+        assert len(results) == 2
+        texts = {r.summary_text for r in results}
+        assert "Mine 1." in texts
+        assert "Mine 2." in texts
+
+    @pytest.mark.asyncio
+    async def test_list_vectors_by_user(self, temp_db):
+        """Should return only vectorized summaries for the user."""
+        user_id = new_id()
+        now = get_timestamp()
+
+        area_id = new_id()
+        await db.LifeAreasManager.create(
+            area_id,
+            db.LifeArea(id=area_id, title="Area", parent_id=None, user_id=user_id),
+        )
+
+        # Create two summaries, vectorize only one
+        id1 = await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="With vector.", created_at=now
+        )
+        await db.SummariesManager.create_summary(
+            area_id=area_id, summary_text="No vector.", created_at=now + 1
+        )
+
+        vec = [0.1, 0.2, 0.3]
+        await db.SummariesManager.update_vector(id1, vec)
+
+        results = await db.SummariesManager.list_vectors_by_user(user_id)
+        assert len(results) == 1
+        result_id, result_vec = results[0]
+        assert result_id == str(id1)
+        assert result_vec == vec
+
 
 class TestLeafHistoryManager:
     """Tests for LeafHistoryManager."""

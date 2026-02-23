@@ -13,7 +13,8 @@ src/
 │   ├── auth/           # Auth worker (external ID → UUID)
 │   ├── transport/      # CLI + Telegram transports
 │   ├── interview/      # Main interview graph worker
-│   └── extract/        # Knowledge extraction worker
+│   ├── extract/        # Knowledge extraction worker
+│   └── mcp_server/     # Read-only MCP server (Streamable HTTP)
 ├── runtime/            # Shared runtime infrastructure
 ├── config/             # Settings & model assignments
 ├── domain/             # Core business models
@@ -117,6 +118,9 @@ Commands are handled in the graph via `handle_command` node, making them transpo
 | `/reset_area` | Start reset for current area (returns confirmation token) |
 | `/reset_area_<id>` | Start reset for a specific area by ID (returns confirmation token) |
 | `/reset_area_<token>` | Confirm reset (deletes summaries/knowledge, clears covered_at) |
+| `/mcp_keys` | List API keys for MCP server |
+| `/mcp_keys create <label>` | Create a new API key |
+| `/mcp_keys revoke <prefix>` | Revoke API key by prefix (min 8 chars) |
 | `/exit`, `/exit_N` | CLI-only: Exit process (handled in transport) |
 
 ### Deletion Order (FK-safe)
@@ -126,7 +130,8 @@ When deleting a user, data is removed in this order:
 2. Per-area: `summaries`, `leaf_history`
 3. `life_areas`
 4. `histories`
-5. `users`
+5. `api_keys`
+6. `users`
 
 ### Token Storage
 
@@ -183,6 +188,11 @@ The application is organized into 3 independent async processes that communicate
        │                  │                  │                  │
        └──────────────────┴──────────────────┴──────────────────┘
                               Channels (shared)
+
+┌─────────────┐
+│ MCP Server  │  Standalone process (Streamable HTTP on :8080)
+│ (read-only) │  Auth via Bearer API key → user_id in contextvars
+└─────────────┘
 ```
 
 ### Process Modules
@@ -193,6 +203,7 @@ The application is organized into 3 independent async processes that communicate
 | transport | `src/processes/transport/` | CLI and Telegram transports | `run_cli`, `run_telegram`, `parse_user_id` |
 | interview | `src/processes/interview/` | Main graph worker for message processing | `run_graph_pool`, `get_graph`, `State`, `Target` |
 | extract | `src/processes/extract/` | Per-summary knowledge extraction | `run_extract_pool`, `ExtractTask` |
+| mcp_server | `src/processes/mcp_server/` | Read-only MCP data server (Streamable HTTP) | `run_server` |
 
 ### Runtime Infrastructure
 
@@ -275,6 +286,9 @@ Key: Each process only imports **interfaces** from other processes, never implem
 | `workflows/subgraphs/leaf_interview/nodes.py` | Leaf interview node implementations |
 | `runtime/channels.py` | Channel types and Channels dataclass |
 | `runtime/pool.py` | Generic `run_worker_pool()` utility |
+| `processes/mcp_server/auth.py` | API key auth middleware (contextvars) |
+| `processes/mcp_server/tools.py` | Read-only MCP tools (summaries, knowledge, areas) |
+| `processes/mcp_server/server.py` | Streamable HTTP entry point |
 
 ## Transports
 
@@ -314,6 +328,7 @@ User ID mapping uses deterministic UUID5 from Telegram user ID, ensuring the sam
 | `leaf_history` | Join table linking leaves to their conversation messages |
 | `summaries` | Per-turn summaries (summary_text, question_id, answer_id, vector) |
 | `user_knowledge` | Skills/facts extracted (linked to summaries via summary_id) |
+| `api_keys` | MCP server API keys (key, user_id, label) |
 
 ORM pattern: `ORMBase[T]` with managers per table. Database managers are exported from `src/infrastructure/db/managers.py`.
 

@@ -50,3 +50,13 @@ class Summary:
     question_id: uuid.UUID | None = None
     answer_id: uuid.UUID | None = None
     vector: list[float] | None = None
+
+
+@dataclass
+class ApiKey:
+    id: uuid.UUID
+    key_hash: str
+    key_prefix: str
+    user_id: uuid.UUID
+    label: str
+    created_at: float

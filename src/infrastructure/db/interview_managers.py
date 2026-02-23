@@ -109,6 +109,43 @@ class SummariesManager(ORMBase[Summary]):
             if conn is None:
                 await c.commit()
 
+    @classmethod
+    async def list_by_user(
+        cls, user_id: uuid.UUID, conn: aiosqlite.Connection | None = None
+    ) -> list[Summary]:
+        """All summaries for a user via summaries -> life_areas join."""
+        query = """
+            SELECT s.id, s.area_id, s.summary_text, s.question_id,
+                   s.answer_id, s.vector, s.created_at
+            FROM summaries s
+            JOIN life_areas la ON s.area_id = la.id
+            WHERE la.user_id = ?
+            ORDER BY s.created_at DESC
+        """
+        async with _with_conn(conn) as c:
+            cursor = await c.execute(query, (str(user_id),))
+            rows = await cursor.fetchall()
+        return [cls._row_to_obj(row) for row in rows]
+
+    @classmethod
+    async def list_vectors_by_user(
+        cls, user_id: uuid.UUID, conn: aiosqlite.Connection | None = None
+    ) -> list[tuple[str, list[float]]]:
+        """Return (id, vector) pairs for all vectorized summaries owned by user.
+
+        Only loads id and vector columns to avoid fetching full summary text.
+        """
+        query = """
+            SELECT s.id, s.vector
+            FROM summaries s
+            JOIN life_areas la ON s.area_id = la.id
+            WHERE la.user_id = ? AND s.vector IS NOT NULL
+        """
+        async with _with_conn(conn) as c:
+            cursor = await c.execute(query, (str(user_id),))
+            rows = await cursor.fetchall()
+        return [(row["id"], json.loads(row["vector"])) for row in rows]
+
 
 class LeafHistoryManager:
     """Manager for leaf_history join table.
