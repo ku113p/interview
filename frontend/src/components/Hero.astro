@@ -1,0 +1,74 @@
+---
+import CTAButton from './CTAButton.astro';
+import HeroIllustration from './HeroIllustration.astro';
+import VideoEmbed from './VideoEmbed.astro';
+
+interface Props {
+  headline: string;
+  subheadline: string;
+  cta: string;
+  socialProof: string;
+  videoId: string;
+  heroImage?: string;
+}
+
+const { headline, subheadline, cta, socialProof, videoId, heroImage } =
+  Astro.props;
+const showIllustration = !!heroImage;
+---
+
+<section class="relative overflow-hidden bg-obsidian-900 py-24 sm:py-32">
+  <!-- Radial gold glow -->
+  <div class="pointer-events-none absolute inset-0" aria-hidden="true">
+    <div
+      class="glow-pulse absolute left-1/2 top-1/3 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold-500/[0.07] blur-[120px]"
+    >
+    </div>
+  </div>
+
+  <div class="relative mx-auto max-w-6xl px-4 text-center">
+    <!-- Decorative diamonds -->
+    <div
+      class="hero-animate mb-8 flex items-center justify-center gap-2"
+      style="animation-delay: 0s"
+    >
+      <span class="h-1.5 w-1.5 rotate-45 bg-gold-400/60"></span>
+      <span class="h-2 w-2 rotate-45 bg-gold-400"></span>
+      <span class="h-1.5 w-1.5 rotate-45 bg-gold-400/60"></span>
+    </div>
+
+    <h1
+      class="hero-animate mx-auto max-w-5xl font-display text-4xl font-extrabold tracking-tight text-ink-50 sm:text-5xl lg:text-6xl"
+      style="animation-delay: 0.1s"
+      set:html={headline}
+    />
+
+    <p
+      class="hero-animate mx-auto mt-6 max-w-2xl text-lg text-ink-300 sm:text-xl"
+      style="animation-delay: 0.2s"
+    >
+      {subheadline}
+    </p>
+
+    <div class="hero-animate mt-10" style="animation-delay: 0.3s">
+      <CTAButton href="#signup" event="CTA Click">{cta} &rarr;</CTAButton>
+    </div>
+
+    <p
+      class="hero-animate mt-4 text-sm text-ink-500"
+      style="animation-delay: 0.4s"
+    >
+      {socialProof}
+    </p>
+
+    <div class="hero-animate mt-14" style="animation-delay: 0.5s">
+      {
+        showIllustration ? (
+          <HeroIllustration />
+        ) : (
+          <VideoEmbed videoId={videoId} title="Product demo" />
+        )
+      }
+    </div>
+  </div>
+</section>

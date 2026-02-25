@@ -1,0 +1,180 @@
+---
+// Product mockup: real chat conversation → real resume output
+---
+
+<div class="mx-auto max-w-5xl px-4" dir="ltr">
+  <div
+    class="relative mx-auto flex items-start justify-center gap-4 sm:gap-6 lg:gap-10"
+  >
+    <!-- Chat panel -->
+    <div
+      class="w-[48%] overflow-hidden rounded-2xl border border-ink-700/40 bg-obsidian-800 shadow-2xl shadow-obsidian-950/60"
+    >
+      <!-- Header -->
+      <div
+        class="flex items-center gap-2 border-b border-ink-700/30 px-4 py-3 sm:px-5"
+      >
+        <div class="h-3 w-3 rounded-full bg-gold-400"></div>
+        <span class="text-xs font-medium text-ink-400 sm:text-sm"
+          >Interview Assistant</span
+        >
+      </div>
+
+      <div class="space-y-3 p-4 sm:space-y-4 sm:p-5">
+        <!-- AI message 1 -->
+        <div class="flex gap-2.5">
+          <div
+            class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold-400/20 sm:h-7 sm:w-7"
+          >
+            <svg
+              class="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"
+              ></path>
+            </svg>
+          </div>
+          <p class="text-[11px] leading-relaxed text-ink-200 sm:text-sm">
+            What was your biggest achievement at your last role?
+          </p>
+        </div>
+
+        <!-- User message 1 -->
+        <div class="ml-auto max-w-[88%]">
+          <div class="rounded-xl rounded-br-sm bg-gold-400/12 px-3 py-2.5">
+            <p class="text-[11px] leading-relaxed text-gold-200 sm:text-sm">
+              I led the migration of our payment system to microservices. Took 8
+              months with a team of 12.
+            </p>
+          </div>
+        </div>
+
+        <!-- AI message 2 -->
+        <div class="flex gap-2.5">
+          <div
+            class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold-400/20 sm:h-7 sm:w-7"
+          >
+            <svg
+              class="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"
+              ></path>
+            </svg>
+          </div>
+          <p class="text-[11px] leading-relaxed text-ink-200 sm:text-sm">
+            Impressive! What was the measurable impact on uptime or revenue?
+          </p>
+        </div>
+
+        <!-- User message 2 -->
+        <div class="ml-auto max-w-[88%]">
+          <div class="rounded-xl rounded-br-sm bg-gold-400/12 px-3 py-2.5">
+            <p class="text-[11px] leading-relaxed text-gold-200 sm:text-sm">
+              99.99% uptime, up from 99.2%. Saved roughly $400K/year in downtime
+              costs.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow connector -->
+    <div class="flex shrink-0 flex-col items-center self-center">
+      <svg
+        class="h-7 w-7 text-gold-400/60 sm:h-10 sm:w-10"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"></path>
+      </svg>
+    </div>
+
+    <!-- Resume panel -->
+    <div
+      class="w-[48%] overflow-hidden rounded-2xl border border-sand-200 bg-white shadow-2xl shadow-obsidian-950/40"
+    >
+      <!-- Header bar -->
+      <div
+        class="flex items-center justify-between border-b border-sand-200 px-4 py-3 sm:px-5"
+      >
+        <span class="text-xs font-medium text-ink-600 sm:text-sm"
+          >Generated Resume</span
+        >
+        <div
+          class="rounded-full bg-positive/15 px-2 py-0.5 text-[9px] font-semibold text-positive sm:text-xs"
+        >
+          ATS Ready
+        </div>
+      </div>
+
+      <div class="p-4 sm:p-5">
+        <!-- Name + title -->
+        <div class="mb-3">
+          <p class="text-sm font-bold text-ink-900 sm:text-lg">Alex Morgan</p>
+          <p class="text-[11px] text-ink-500 sm:text-sm">
+            Senior Software Engineer
+          </p>
+        </div>
+
+        <!-- Gold divider -->
+        <div class="mb-3 h-px bg-gradient-to-r from-gold-400 to-transparent">
+        </div>
+
+        <!-- Experience -->
+        <div class="mb-3">
+          <p
+            class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gold-600 sm:text-xs"
+          >
+            Experience
+          </p>
+          <p class="text-[11px] font-semibold text-ink-800 sm:text-sm">
+            Lead Engineer &middot; Acme Corp
+          </p>
+          <p
+            class="mt-0.5 text-[10px] leading-relaxed text-ink-600 sm:text-[13px]"
+          >
+            Led 12-person team in payment system migration to microservices.
+            Achieved 99.99% uptime, saving $400K/year.
+          </p>
+        </div>
+
+        <!-- Skills -->
+        <div>
+          <p
+            class="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gold-600 sm:text-xs"
+          >
+            Skills
+          </p>
+          <div class="flex flex-wrap gap-1 sm:gap-1.5">
+            <span
+              class="rounded-full bg-gold-400/10 px-2 py-0.5 text-[9px] text-gold-700 sm:text-[11px]"
+              >Microservices</span
+            >
+            <span
+              class="rounded-full bg-gold-400/10 px-2 py-0.5 text-[9px] text-gold-700 sm:text-[11px]"
+              >Python</span
+            >
+            <span
+              class="rounded-full bg-gold-400/10 px-2 py-0.5 text-[9px] text-gold-700 sm:text-[11px]"
+              >AWS</span
+            >
+            <span
+              class="rounded-full bg-gold-400/10 px-2 py-0.5 text-[9px] text-gold-700 sm:text-[11px]"
+              >Team Lead</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

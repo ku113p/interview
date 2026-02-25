@@ -1,0 +1,99 @@
+---
+import LanguageSwitcher from './LanguageSwitcher.astro';
+import type { Locale } from '../i18n/config';
+import type { UiStrings } from '../content/types';
+
+interface Props {
+  altLink?: { href: string; label: string };
+  locale: Locale;
+  ui: UiStrings;
+}
+
+const { altLink, locale, ui } = Astro.props;
+---
+
+<header
+  class="sticky top-0 z-50 border-b border-ink-800/30 bg-obsidian-900/80 backdrop-blur-xl"
+>
+  <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+    <a href="/" class="font-display text-xl font-bold text-gold-400">
+      {ui.header.logo}
+    </a>
+
+    <!-- Desktop nav -->
+    <div class="hidden items-center gap-6 sm:flex">
+      {
+        altLink && (
+          <a
+            href={altLink.href}
+            class="text-sm font-medium text-ink-300 transition-colors hover:text-gold-400"
+          >
+            {altLink.label}
+          </a>
+        )
+      }
+      <LanguageSwitcher locale={locale} />
+      <a
+        href="#signup"
+        class="rounded-full bg-gold-400 px-5 py-2 text-sm font-semibold text-obsidian-950 transition-all hover:bg-gold-300 hover:shadow-[0_0_20px_rgba(232,196,104,0.3)]"
+      >
+        {ui.header.cta}
+      </a>
+    </div>
+
+    <!-- Mobile menu button -->
+    <button
+      class="js-menu-toggle flex items-center sm:hidden"
+      aria-label={ui.header.menuToggle}
+      aria-expanded="false"
+    >
+      <svg
+        class="h-6 w-6 text-ink-200"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+    </button>
+  </nav>
+
+  <!-- Mobile nav -->
+  <div
+    class="js-mobile-menu hidden border-t border-ink-800/30 px-4 pb-4 sm:hidden"
+  >
+    <div class="flex flex-col gap-3 pt-3">
+      {
+        altLink && (
+          <a
+            href={altLink.href}
+            class="text-sm font-medium text-ink-300 transition-colors hover:text-gold-400"
+          >
+            {altLink.label}
+          </a>
+        )
+      }
+      <LanguageSwitcher locale={locale} />
+      <a
+        href="#signup"
+        class="rounded-full bg-gold-400 px-5 py-2 text-center text-sm font-semibold text-obsidian-950 transition-all hover:bg-gold-300"
+      >
+        {ui.header.cta}
+      </a>
+    </div>
+  </div>
+</header>
+
+<script>
+  const toggle = document.querySelector('.js-menu-toggle');
+  const menu = document.querySelector('.js-mobile-menu');
+  toggle?.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!expanded));
+    menu?.classList.toggle('hidden');
+  });
+</script>

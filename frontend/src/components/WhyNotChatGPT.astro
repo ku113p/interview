@@ -1,0 +1,57 @@
+---
+interface Props {
+  heading: string;
+  description: string;
+  before: { label: string; text: string };
+  after: { label: string; text: string };
+  closing: string;
+}
+
+const { heading, description, before, after, closing } = Astro.props;
+const paragraphs = description.split('\n\n');
+---
+
+<section class="bg-obsidian-800 py-24">
+  <div class="mx-auto max-w-6xl px-4">
+    <h2
+      class="reveal text-center font-display text-3xl font-bold text-ink-50 sm:text-4xl"
+      set:html={heading}
+    />
+    <div
+      class="reveal mx-auto mt-8 max-w-3xl space-y-4 text-center text-lg text-ink-300"
+      style="transition-delay: 0.1s"
+    >
+      {paragraphs.map((p) => <p>{p}</p>)}
+    </div>
+    <div class="mx-auto mt-14 grid max-w-4xl gap-6 sm:grid-cols-2">
+      <div
+        class="reveal rounded-2xl border border-negative/20 bg-negative/5 p-7"
+        style="transition-delay: 0.15s"
+      >
+        <p class="text-xs font-bold uppercase tracking-widest text-negative">
+          {before.label}
+        </p>
+        <p class="mt-4 text-lg italic leading-relaxed text-ink-200">
+          &ldquo;{before.text}&rdquo;
+        </p>
+      </div>
+      <div
+        class="reveal rounded-2xl border border-gold-400/20 bg-gold-400/5 p-7"
+        style="transition-delay: 0.25s"
+      >
+        <p class="text-xs font-bold uppercase tracking-widest text-gold-400">
+          {after.label}
+        </p>
+        <p class="mt-4 text-lg italic leading-relaxed text-ink-200">
+          &ldquo;{after.text}&rdquo;
+        </p>
+      </div>
+    </div>
+    <p
+      class="reveal mx-auto mt-12 max-w-2xl text-center text-lg font-medium text-gold-300"
+      style="transition-delay: 0.3s"
+    >
+      {closing}
+    </p>
+  </div>
+</section>

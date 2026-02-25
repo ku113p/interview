@@ -1,0 +1,12 @@
+---
+import ThanksPage from '../../partials/ThanksPage.astro';
+import { nonDefaultLocales, type Locale } from '../../i18n/config';
+
+export function getStaticPaths() {
+  return nonDefaultLocales.map((locale) => ({ params: { locale } }));
+}
+
+const { locale } = Astro.params as { locale: Locale };
+---
+
+<ThanksPage locale={locale} />

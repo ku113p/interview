@@ -1,0 +1,99 @@
+---
+import { locales, localePath, type Locale } from '../i18n/config';
+
+interface Props {
+  title: string;
+  description: string;
+  locale: Locale;
+  ogImage?: string;
+  canonicalPath?: string;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  noindex?: boolean;
+}
+
+const {
+  title,
+  description,
+  locale,
+  ogImage = '/og-image-cv.png',
+  canonicalPath = '',
+  jsonLd,
+  noindex = false,
+} = Astro.props;
+
+const siteUrl = Astro.site?.origin ?? 'https://interviewassistant.ai';
+const canonicalUrl = `${siteUrl}${canonicalPath}`;
+const ogImageUrl = `${siteUrl}${ogImage}`;
+
+// Build hreflang links for all locales + x-default
+const hreflangs: { rel: string; hreflang: string; href: string }[] =
+  locales.map((l) => ({
+    rel: 'alternate',
+    hreflang: l as string,
+    href: `${siteUrl}${localePath(l, canonicalPath)}`,
+  }));
+hreflangs.push({
+  rel: 'alternate',
+  hreflang: 'x-default',
+  href: `${siteUrl}${localePath('en', canonicalPath)}`,
+});
+
+const needsArabicFont = locale === 'ar';
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="generator" content={Astro.generator} />
+
+<title>{title}</title>
+<meta name="description" content={description} />
+{noindex && <meta name="robots" content="noindex, nofollow" />}
+<link rel="canonical" href={canonicalUrl} />
+
+{
+  hreflangs.map((link) => (
+    <link rel={link.rel} hreflang={link.hreflang} href={link.href} />
+  ))
+}
+
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content={canonicalUrl} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImageUrl} />
+<meta property="og:locale" content={locale} />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImageUrl} />
+
+<!-- Google Fonts: Bricolage Grotesque (display) + Outfit (body) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Outfit:wght@300;400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
+{
+  needsArabicFont && (
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  )
+}
+
+{
+  jsonLd && (
+    <script
+      is:inline
+      type="application/ld+json"
+      set:html={JSON.stringify(Array.isArray(jsonLd) ? jsonLd : [jsonLd])}
+    />
+  )
+}

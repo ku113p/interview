@@ -1,0 +1,51 @@
+---
+interface BenefitColumn {
+  title: string;
+  items: readonly string[];
+}
+
+interface Props {
+  columns: readonly BenefitColumn[];
+}
+
+const { columns } = Astro.props;
+---
+
+<section class="bg-obsidian-800 py-24">
+  <div class="mx-auto max-w-6xl px-4">
+    <div class="grid gap-6 sm:grid-cols-3">
+      {
+        columns.map((col, i) => (
+          <div
+            class="reveal rounded-2xl border border-ink-700/30 bg-obsidian-700/50 p-7 backdrop-blur-sm"
+            style={`transition-delay: ${i * 0.1}s`}
+          >
+            <h3 class="font-display text-xl font-bold text-ink-50">
+              {col.title}
+            </h3>
+            <ul class="mt-5 space-y-3">
+              {col.items.map((item) => (
+                <li class="flex items-start gap-3 text-ink-300">
+                  <svg
+                    class="mt-1 h-5 w-5 shrink-0 text-gold-400"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

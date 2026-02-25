@@ -1,0 +1,134 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Obsidian — dark surfaces */
+  --color-obsidian-950: #06060b;
+  --color-obsidian-900: #0c0c14;
+  --color-obsidian-800: #14141f;
+  --color-obsidian-700: #1c1c2e;
+  --color-obsidian-600: #28283e;
+
+  /* Sand — warm light surfaces */
+  --color-sand-50: #faf9f6;
+  --color-sand-100: #f4f2ed;
+  --color-sand-200: #e8e4dc;
+  --color-sand-300: #d4cfc4;
+
+  /* Gold — accent / CTA */
+  --color-gold-200: #f5e6b8;
+  --color-gold-300: #f0d68a;
+  --color-gold-400: #e8c468;
+  --color-gold-500: #d4a853;
+  --color-gold-600: #b8903d;
+  --color-gold-700: #96742e;
+
+  /* Ink — text */
+  --color-ink-950: #0e0e18;
+  --color-ink-900: #1a1a2e;
+  --color-ink-800: #2a2a3e;
+  --color-ink-700: #3a3a4e;
+  --color-ink-600: #4a4a5e;
+  --color-ink-500: #5a5a6e;
+  --color-ink-400: #7a7a8e;
+  --color-ink-300: #9a9aae;
+  --color-ink-200: #b8b8c8;
+  --color-ink-100: #d4d4de;
+  --color-ink-50: #f0ece4;
+
+  /* Semantic */
+  --color-positive: #4ecf8d;
+  --color-negative: #e85d6f;
+
+  /* Typography */
+  --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Noise grain overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Scroll reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Gold shimmer text */
+.text-shimmer {
+  background: linear-gradient(
+    135deg,
+    #f0ece4 0%,
+    #e8c468 40%,
+    #f0ece4 60%,
+    #d4a853 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hero entrance animation */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-animate {
+  animation: hero-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Gold glow pulse */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.07;
+  }
+  50% {
+    opacity: 0.12;
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+/* Arabic font override */
+[lang='ar'] {
+  --font-display: 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background-color: #e8c46840;
+  color: inherit;
+}

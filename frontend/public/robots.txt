@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://interviewassistant.ai/sitemap-index.xml

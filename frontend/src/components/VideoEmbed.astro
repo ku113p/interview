@@ -1,0 +1,65 @@
+---
+interface Props {
+  videoId: string;
+  title?: string;
+}
+
+const { videoId, title = 'Demo video' } = Astro.props;
+const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+---
+
+<div
+  class="relative mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-2xl border border-ink-700/30 shadow-2xl shadow-obsidian-950/50"
+>
+  <button
+    class="js-video-play group relative h-full w-full cursor-pointer"
+    aria-label={`Play ${title}`}
+    data-video-id={videoId}
+    data-video-title={title}
+  >
+    <img
+      src={thumbnailUrl}
+      alt={title}
+      class="h-full w-full object-cover"
+      loading="lazy"
+    />
+    <div
+      class="absolute inset-0 flex items-center justify-center bg-obsidian-950/40 transition-all duration-300 group-hover:bg-obsidian-950/50"
+    >
+      <div
+        class="flex h-18 w-18 items-center justify-center rounded-full border-2 border-gold-400/60 bg-obsidian-950/60 backdrop-blur-sm transition-all duration-300 group-hover:border-gold-400 group-hover:shadow-[0_0_30px_rgba(232,196,104,0.3)]"
+      >
+        <svg
+          class="ml-1 h-8 w-8 text-gold-400"
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path d="M8 5v14l11-7z"></path>
+        </svg>
+      </div>
+    </div>
+  </button>
+</div>
+
+<script>
+  document.querySelectorAll('.js-video-play').forEach((btn) => {
+    btn.addEventListener(
+      'click',
+      () => {
+        const videoId = btn.getAttribute('data-video-id');
+        const title = btn.getAttribute('data-video-title');
+        const container = btn.parentElement!;
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`;
+        iframe.title = title ?? 'Video';
+        iframe.allow =
+          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+        iframe.allowFullscreen = true;
+        iframe.className = 'absolute inset-0 h-full w-full';
+        container.innerHTML = '';
+        container.appendChild(iframe);
+      },
+      { once: true },
+    );
+  });
+</script>

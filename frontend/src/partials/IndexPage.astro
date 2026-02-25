@@ -1,0 +1,80 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import ProblemSection from '../components/ProblemSection.astro';
+import WhyNotChatGPT from '../components/WhyNotChatGPT.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import Benefits from '../components/Benefits.astro';
+import Pricing from '../components/Pricing.astro';
+import EmailSignup from '../components/EmailSignup.astro';
+import FAQ from '../components/FAQ.astro';
+import { localePath, type Locale } from '../i18n/config';
+import { getVersionA, getUi } from '../i18n/content';
+import { site } from '../content/constants';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const content = getVersionA(locale);
+const ui = getUi(locale);
+const siteUrl = Astro.site?.origin ?? site.url;
+
+const thanksUrl = `${siteUrl}${localePath(locale, '/thanks')}`;
+const canonicalPath = localePath(locale, '/');
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: site.name,
+    description: content.meta.description,
+    offers: content.pricing.tiers.map((tier) => ({
+      '@type': 'Offer',
+      price: String(tier.price ?? 0),
+      priceCurrency: 'USD',
+      description: `${tier.name} — ${tier.description}`,
+    })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: content.faq.items.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title={content.meta.title}
+  description={content.meta.description}
+  ogImage={content.meta.ogImage}
+  canonicalPath={canonicalPath}
+  jsonLd={jsonLd}
+  altLink={{
+    href: localePath(locale, '/developers'),
+    label: ui.nav.forDevelopers,
+  }}
+  locale={locale}
+  ui={ui}
+>
+  <Hero {...content.hero} />
+  <ProblemSection {...content.problem} />
+  <WhyNotChatGPT {...content.whyNotChatGPT} />
+  <HowItWorks {...content.howItWorks} />
+  <Benefits columns={content.benefits.columns} />
+  <Pricing
+    heading={content.pricing.heading}
+    tiers={content.pricing.tiers}
+    paymentNote={ui.pricing.paymentNote}
+  />
+  <FAQ items={content.faq.items} heading={ui.faq.heading} />
+  <EmailSignup {...content.emailSignup} thanksUrl={thanksUrl} />
+</BaseLayout>

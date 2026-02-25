@@ -8,6 +8,8 @@ Monorepo containing an interactive interview assistant backend and a frontend la
 
 ## Commands
 
+### Backend
+
 All backend commands run from the `backend/` directory:
 
 ```bash
@@ -29,6 +31,31 @@ cd backend && uv run ruff format .               # Format
 ```
 
 **Required:** Set `OPENROUTER_API_KEY` environment variable before running.
+
+### Frontend
+
+All frontend commands run from the `frontend/` directory:
+
+```bash
+# Install dependencies
+cd frontend && pnpm install
+
+# Development server (localhost:4321)
+cd frontend && pnpm dev
+
+# Build static site
+cd frontend && pnpm build
+
+# Preview production build
+cd frontend && pnpm preview
+
+# Type checking
+cd frontend && pnpm check
+
+# Format code
+cd frontend && pnpm format
+cd frontend && pnpm format:check
+```
 
 ## Architecture
 

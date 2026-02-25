@@ -23,4 +23,5 @@ test-interview.db*  # Test database files
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.astro/
 frontend/.env

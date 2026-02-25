@@ -1,0 +1,30 @@
+---
+const isProd = import.meta.env.PROD;
+---
+
+{
+  isProd && (
+    <script
+      is:inline
+      defer
+      data-domain="interviewassistant.ai"
+      src="https://plausible.io/js/script.js"
+    />
+  )
+}
+
+<script>
+  declare global {
+    interface Window {
+      plausible: (
+        event: string,
+        options?: { props?: Record<string, string> },
+      ) => void;
+    }
+  }
+  window.plausible =
+    window.plausible ||
+    function () {
+      /* no-op until Plausible loads */
+    };
+</script>

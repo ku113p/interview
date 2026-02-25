@@ -1,0 +1,107 @@
+---
+interface Props {
+  heading: string;
+  subheading: string;
+  placeholder: string;
+  cta: string;
+  disclaimer: string;
+  formAction: string;
+  thanksUrl?: string;
+}
+
+const {
+  heading,
+  subheading,
+  placeholder,
+  cta,
+  disclaimer,
+  formAction,
+  thanksUrl,
+} = Astro.props;
+
+const redirectUrl =
+  thanksUrl ??
+  `${Astro.site?.origin ?? 'https://interviewassistant.ai'}/thanks`;
+---
+
+<section
+  id="signup"
+  class="relative overflow-hidden bg-gradient-to-br from-gold-500 via-gold-400 to-gold-600 py-24"
+>
+  <!-- Subtle pattern overlay -->
+  <div class="pointer-events-none absolute inset-0" aria-hidden="true">
+    <div
+      class="absolute -right-20 -top-20 h-[400px] w-[400px] rounded-full bg-white/[0.08] blur-[80px]"
+    >
+    </div>
+    <div
+      class="absolute -bottom-20 -left-20 h-[300px] w-[300px] rounded-full bg-obsidian-950/[0.06] blur-[60px]"
+    >
+    </div>
+  </div>
+
+  <div class="relative mx-auto max-w-2xl px-4 text-center">
+    <div class="reveal">
+      <!-- Decorative diamonds -->
+      <div class="mb-6 flex items-center justify-center gap-2">
+        <span class="h-1 w-1 rotate-45 bg-obsidian-950/30"></span>
+        <span class="h-1.5 w-1.5 rotate-45 bg-obsidian-950/50"></span>
+        <span class="h-1 w-1 rotate-45 bg-obsidian-950/30"></span>
+      </div>
+
+      <h2 class="font-display text-3xl font-bold text-obsidian-950 sm:text-4xl">
+        {heading}
+      </h2>
+      <p class="mt-4 text-lg text-obsidian-950/70">{subheading}</p>
+    </div>
+
+    <form
+      id="signup-form"
+      action={formAction}
+      method="POST"
+      class="reveal mt-8 flex flex-col gap-3 sm:flex-row sm:gap-0"
+      style="transition-delay: 0.1s"
+    >
+      <input
+        type="email"
+        name="email"
+        required
+        placeholder={placeholder}
+        class="flex-1 rounded-full bg-obsidian-900 px-6 py-4 text-ink-50 outline-none placeholder:text-ink-500 focus:ring-2 focus:ring-obsidian-700 sm:rounded-r-none"
+      />
+      <input type="hidden" name="utm_source" id="utm_source" />
+      <input type="hidden" name="utm_campaign" id="utm_campaign" />
+      <input type="hidden" name="intent" value="free" />
+      <input type="hidden" name="_next" value={redirectUrl} />
+      <button
+        type="submit"
+        class="rounded-full bg-obsidian-900 px-8 py-4 font-semibold text-gold-400 transition-all duration-300 hover:bg-obsidian-800 hover:shadow-lg sm:rounded-l-none"
+      >
+        {cta}
+      </button>
+    </form>
+    <p
+      class="reveal mt-4 text-sm text-obsidian-950/50"
+      style="transition-delay: 0.2s"
+    >
+      {disclaimer}
+    </p>
+  </div>
+</section>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const source = document.getElementById('utm_source') as HTMLInputElement;
+  const campaign = document.getElementById('utm_campaign') as HTMLInputElement;
+  if (source) source.value = params.get('utm_source') ?? '';
+  if (campaign) campaign.value = params.get('utm_campaign') ?? '';
+
+  document.getElementById('signup-form')?.addEventListener('submit', () => {
+    window.plausible('Email Submitted', {
+      props: {
+        source: params.get('utm_source') ?? 'direct',
+        campaign: params.get('utm_campaign') ?? 'none',
+      },
+    });
+  });
+</script>

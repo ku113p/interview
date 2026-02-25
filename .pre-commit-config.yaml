@@ -29,3 +29,8 @@ repos:
         language: system
         types: [python]
         files: ^backend/src/
+      - id: prettier-frontend
+        name: prettier (frontend)
+        entry: bash -c 'cd frontend && pnpm exec prettier --check "${@/#frontend\//}"' --
+        language: system
+        files: ^frontend/src/.*\.(astro|ts|css)$

@@ -1,0 +1,75 @@
+---
+import Head from '../components/Head.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Analytics from '../components/Analytics.astro';
+import { isRtl, type Locale } from '../i18n/config';
+import type { UiStrings } from '../content/types';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  locale: Locale;
+  ui: UiStrings;
+  ogImage?: string;
+  canonicalPath?: string;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  altLink?: { href: string; label: string };
+  noindex?: boolean;
+}
+
+const {
+  title,
+  description,
+  locale,
+  ui,
+  ogImage,
+  canonicalPath,
+  jsonLd,
+  altLink,
+  noindex,
+} = Astro.props;
+
+const dir = isRtl(locale) ? 'rtl' : 'ltr';
+---
+
+<!doctype html>
+<html lang={locale} dir={dir}>
+  <head>
+    <Head
+      title={title}
+      description={description}
+      locale={locale}
+      ogImage={ogImage}
+      canonicalPath={canonicalPath}
+      jsonLd={jsonLd}
+      noindex={noindex}
+    />
+    <Analytics />
+  </head>
+  <body class="min-h-screen bg-obsidian-950 font-sans text-ink-50 antialiased">
+    <Header altLink={altLink} locale={locale} ui={ui} />
+    <main>
+      <slot />
+    </main>
+    <Footer altLink={altLink} ui={ui} />
+
+    <script>
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.1, rootMargin: '0px 0px -40px 0px' },
+      );
+      document
+        .querySelectorAll('.reveal')
+        .forEach((el) => observer.observe(el));
+    </script>
+  </body>
+</html>

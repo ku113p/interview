@@ -5,7 +5,7 @@ Monorepo for the Interview assistant project.
 ## Structure
 
 - **[backend/](backend/README.md)** — Python backend: conversational interview engine, LangGraph workflows, SQLite storage, MCP server
-- **[frontend/](frontend/README.md)** — Landing page for demand validation (coming soon)
+- **[frontend/](frontend/README.md)** — Astro landing page for demand validation (Version A: CV/Career, Version B: MCP/Technical)
 - **[business-plan/](business-plan/)** — Market research, monetization strategy, and validation plans
 
 ## Quick Start

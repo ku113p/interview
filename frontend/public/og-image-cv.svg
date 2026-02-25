@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#e8c468" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#0c0c14" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#0c0c14"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <text x="600" y="260" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="56" fill="#f0ece4">Your AI Career Coach</text>
+  <text x="600" y="340" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="56" fill="#e8c468">Perfect Resume in 15 Minutes</text>
+  <text x="600" y="410" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="400" font-size="24" fill="#9a9aae">Interview-based extraction. Not another ChatGPT wrapper.</text>
+  <text x="600" y="530" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="700" font-size="22" fill="#e8c468" letter-spacing="2">INTERVIEW ASSISTANT</text>
+</svg>

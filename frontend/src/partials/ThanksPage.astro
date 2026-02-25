@@ -1,0 +1,107 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { localePath, type Locale } from '../i18n/config';
+import { getUi } from '../i18n/content';
+import { site } from '../content/constants';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const ui = getUi(locale);
+const siteUrl = Astro.site?.origin ?? site.url;
+const canonicalPath = localePath(locale, '/thanks');
+---
+
+<BaseLayout
+  title={ui.thanks.title}
+  description={ui.thanks.message}
+  canonicalPath={canonicalPath}
+  noindex
+  locale={locale}
+  ui={ui}
+>
+  <section
+    class="relative flex min-h-[60vh] items-center justify-center overflow-hidden py-24"
+  >
+    <!-- Subtle glow -->
+    <div class="pointer-events-none absolute inset-0" aria-hidden="true">
+      <div
+        class="absolute left-1/2 top-1/2 h-[300px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold-500/[0.06] blur-[100px]"
+      >
+      </div>
+    </div>
+
+    <div class="relative mx-auto max-w-xl px-4 text-center">
+      <div
+        class="hero-animate mx-auto flex h-18 w-18 items-center justify-center rounded-full border-2 border-gold-400 bg-gold-400/10"
+      >
+        <svg
+          class="h-8 w-8 text-gold-400"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+
+      <h1
+        class="hero-animate mt-8 font-display text-4xl font-bold text-ink-50"
+        style="animation-delay: 0.1s"
+      >
+        {ui.thanks.heading}
+      </h1>
+
+      <p
+        class="hero-animate mt-4 text-lg text-ink-300"
+        style="animation-delay: 0.2s"
+      >
+        {ui.thanks.message}
+      </p>
+      <p class="hero-animate mt-2 text-ink-400" style="animation-delay: 0.25s">
+        {ui.thanks.sharePrompt}
+      </p>
+
+      <div
+        class="hero-animate mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
+        style="animation-delay: 0.3s"
+      >
+        <button
+          id="copy-link"
+          data-label={ui.thanks.copyLink}
+          data-copied={ui.thanks.copied}
+          class="rounded-full border border-gold-500/40 px-6 py-3 font-semibold text-gold-400 transition-all duration-300 hover:border-gold-400 hover:bg-gold-400/10"
+        >
+          {ui.thanks.copyLink}
+        </button>
+        <a
+          href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(ui.thanks.tweetText)}&url=${encodeURIComponent(siteUrl)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="rounded-full bg-gold-400 px-6 py-3 font-semibold text-obsidian-950 transition-all duration-300 hover:bg-gold-300 hover:shadow-[0_0_20px_rgba(232,196,104,0.3)]"
+        >
+          {ui.thanks.shareOnX}
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  document.getElementById('copy-link')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const label = btn.dataset.label ?? 'Copy Link';
+    const copied = btn.dataset.copied ?? 'Copied!';
+    await navigator.clipboard.writeText(window.location.origin);
+    btn.textContent = copied;
+    setTimeout(() => {
+      btn.textContent = label;
+    }, 2000);
+  });
+</script>

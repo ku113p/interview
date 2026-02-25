@@ -1,0 +1,93 @@
+---
+import { locales, localeNames, localePath, type Locale } from '../i18n/config';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+
+// Determine current page path (without locale prefix) for building switch links
+const url = Astro.url;
+const segments = url.pathname.split('/').filter(Boolean);
+const firstSegment = segments[0] ?? '';
+const isLocalePrefix = (locales as readonly string[]).includes(firstSegment);
+const pagePath = isLocalePrefix
+  ? '/' + segments.slice(1).join('/')
+  : url.pathname;
+---
+
+<div class="lang-switcher relative">
+  <button
+    class="js-lang-toggle flex items-center gap-1.5 text-sm text-ink-300 transition-colors hover:text-gold-400"
+    aria-expanded="false"
+    aria-haspopup="listbox"
+  >
+    <!-- Globe icon -->
+    <svg
+      class="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      viewBox="0 0 24 24"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3.6 9h16.8M3.6 15h16.8M12 3a14.5 14.5 0 0 1 4 9 14.5 14.5 0 0 1-4 9 14.5 14.5 0 0 1-4-9 14.5 14.5 0 0 1 4-9"
+      ></path>
+    </svg>
+    <span>{localeNames[locale]}</span>
+    <svg
+      class="h-3 w-3 transition-transform duration-200"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"
+      ></path>
+    </svg>
+  </button>
+
+  <ul
+    class="js-lang-menu absolute end-0 top-full z-50 mt-2 hidden min-w-[160px] overflow-hidden rounded-lg border border-ink-700/40 bg-obsidian-800 py-1 shadow-xl"
+    role="listbox"
+  >
+    {
+      locales.map((l) => (
+        <li role="option" aria-selected={l === locale}>
+          <a
+            href={localePath(l, pagePath)}
+            class:list={[
+              'block px-4 py-2 text-sm transition-colors hover:bg-obsidian-700',
+              l === locale ? 'font-semibold text-gold-400' : 'text-ink-200',
+            ]}
+          >
+            {localeNames[l]}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</div>
+
+<script>
+  document.querySelectorAll('.lang-switcher').forEach((switcher) => {
+    const toggle = switcher.querySelector('.js-lang-toggle');
+    const menu = switcher.querySelector('.js-lang-menu');
+    if (!toggle || !menu) return;
+
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = !menu.classList.contains('hidden');
+      menu.classList.toggle('hidden', open);
+      toggle.setAttribute('aria-expanded', String(!open));
+    });
+
+    document.addEventListener('click', () => {
+      menu.classList.add('hidden');
+      toggle.setAttribute('aria-expanded', 'false');
+    });
+  });
+</script>
