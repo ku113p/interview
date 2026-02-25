@@ -9,6 +9,11 @@ export const locales = [
   'ja',
   'ko',
   'ar',
+  'hi',
+  'id',
+  'tr',
+  'vi',
+  'pl',
 ] as const;
 
 export type Locale = (typeof locales)[number];
@@ -30,6 +35,11 @@ export const localeNames: Record<Locale, string> = {
   ja: '日本語',
   ko: '한국어',
   ar: 'العربية',
+  hi: 'हिन्दी',
+  id: 'Bahasa Indonesia',
+  tr: 'Türkçe',
+  vi: 'Tiếng Việt',
+  pl: 'Polski',
 };
 
 const rtlLocales = new Set<Locale>(['ar']);

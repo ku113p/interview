@@ -39,6 +39,7 @@ hreflangs.push({
 });
 
 const needsArabicFont = locale === 'ar';
+const needsHindiFont = locale === 'hi';
 ---
 
 <meta charset="utf-8" />
@@ -83,6 +84,14 @@ const needsArabicFont = locale === 'ar';
   needsArabicFont && (
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  )
+}
+{
+  needsHindiFont && (
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
   )

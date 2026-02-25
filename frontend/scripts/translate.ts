@@ -33,6 +33,11 @@ const LOCALE_NAMES: Record<string, string> = {
   ja: 'Japanese',
   ko: 'Korean',
   ar: 'Arabic',
+  hi: 'Hindi',
+  id: 'Indonesian',
+  tr: 'Turkish',
+  vi: 'Vietnamese',
+  pl: 'Polish',
 };
 
 const NON_DEFAULT_LOCALES = Object.keys(LOCALE_NAMES);

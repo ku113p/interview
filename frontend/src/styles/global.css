@@ -122,6 +122,12 @@ body::before {
   --font-sans: 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Hindi font override */
+[lang='hi'] {
+  --font-display: 'Noto Sans Devanagari', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Noto Sans Devanagari', ui-sans-serif, system-ui, sans-serif;
+}
+
 /* Smooth scroll */
 html {
   scroll-behavior: smooth;

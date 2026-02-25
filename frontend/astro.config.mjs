@@ -13,6 +13,11 @@ const locales = [
   'ja',
   'ko',
   'ar',
+  'hi',
+  'id',
+  'tr',
+  'vi',
+  'pl',
 ];
 
 export default defineConfig({
