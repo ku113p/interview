@@ -19,3 +19,8 @@ test-interview.db*  # Test database files
 
 # MCP client config (contains API keys)
 .mcp.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env

@@ -3,25 +3,29 @@ repos:
     rev: v0.6.9
     hooks:
       - id: ruff-format
+        files: ^backend/
       - id: ruff
         name: ruff-check
         args: ["check"]
+        files: ^backend/
       - id: ruff
         name: ruff-imports
         args: ["check", "--select", "I", "--fix"]
+        files: ^backend/
       - id: ruff
         name: ruff-unused
         args: ["check", "--select", "F"]
+        files: ^backend/
   - repo: https://github.com/jendrikseipp/vulture
     rev: v2.11
     hooks:
       - id: vulture
-        args: ["src"]
+        args: ["backend/src"]
   - repo: local
     hooks:
       - id: pylint-module-lines
         name: check module line count
-        entry: uv run pylint --disable=all --enable=C0302 --max-module-lines=500
+        entry: bash -c 'cd backend && uv run pylint --disable=all --enable=C0302 --max-module-lines=500 "${@/#backend\//}"' --
         language: system
         types: [python]
-        files: ^src/
+        files: ^backend/src/
