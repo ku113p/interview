@@ -1,12 +1,14 @@
 # Interview
 
-Monorepo for the Interview assistant project.
+Interactive interview assistant project.
 
 ## Structure
 
 - **[backend/](backend/README.md)** — Python backend: conversational interview engine, LangGraph workflows, SQLite storage, MCP server
 - **[frontend/](frontend/README.md)** — Astro landing page for demand validation (Version A: CV/Career, Version B: MCP/Technical)
 - **[business-plan/](business-plan/)** — Market research, monetization strategy, and validation plans
+
+Infrastructure and deploy scripts: [ku113p/infra](https://github.com/ku113p/infra)
 
 ## Quick Start
 

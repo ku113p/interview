@@ -1,8 +1,12 @@
-# MCP memory server: Python 3.12 + uv (no ffmpeg needed)
-# Usage: docker build -f Dockerfile.mcp -t interview-mcp .
-# (run from backend/ context, deploy script copies this file there)
+# Interview backend: Python 3.12 + uv + ffmpeg
+# Usage: docker build -f backend/Dockerfile -t interview-backend backend/
 
 FROM python:3.12-slim
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
@@ -27,4 +31,5 @@ ENV INTERVIEW_DB_PATH=/data/interview.db
 
 EXPOSE 8080
 
-CMD ["uv", "run", "python", "mcp_server.py", "--host", "0.0.0.0", "--port", "8080"]
+# Default: Telegram webhook mode (override via compose)
+CMD ["uv", "run", "python", "main.py", "--transport", "telegram"]

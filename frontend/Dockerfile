@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Multi-stage build: Astro static site → nginx
-# Usage: docker build -f docker/Dockerfile.frontend -t interview-promo frontend/
+# Usage: docker build -f frontend/Dockerfile -t interview-promo frontend/
 
 FROM node:20-alpine AS build
 

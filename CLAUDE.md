@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Monorepo containing an interactive interview assistant backend and a frontend landing page. The backend collects structured information through natural conversation, accepts text/audio/video input, maintains conversation history, asks follow-up questions based on sub-areas, and manages "life areas" (topics) to organize conversations.
+Interactive interview assistant with a Python backend and a frontend landing page. The backend collects structured information through natural conversation, accepts text/audio/video input, maintains conversation history, asks follow-up questions based on sub-areas, and manages "life areas" (topics) to organize conversations. Infrastructure and deploy scripts live in the separate [infra](https://github.com/ku113p/infra) repo.
 
 ## Commands
 

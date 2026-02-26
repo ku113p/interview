@@ -1,29 +1,24 @@
-# Python-generated files
+# Python
 __pycache__/
 *.py[oc]
-build/
-dist/
-wheels/
 *.egg-info
-.ipynb_checkpoints
+.venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+*.ipynb
 
-# Virtual environments
-.venv
-
-# Environment variables (all except .env.example)
+# Environment
 .env*
 !.env.example
 
-*.ipynb
+# Database
+*.db*
 
-# SQLite database files
-interview.db*
-test-interview.db*  # Test database files
-
-# MCP client config (contains API keys)
+# MCP client config
 .mcp.json
 
 # Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.astro/
+node_modules/
+dist/
+.astro/
