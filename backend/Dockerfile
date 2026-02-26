@@ -1,12 +1,10 @@
 # Interview backend: Python 3.12 + uv + ffmpeg
 # Usage: docker build -f backend/Dockerfile -t interview-backend backend/
 
-FROM python:3.12-slim
+FROM python:3.12-alpine
 
 # System dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ffmpeg
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
