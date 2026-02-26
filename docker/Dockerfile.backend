@@ -1,0 +1,36 @@
+# Interview backend: Python 3.12 + uv + ffmpeg
+# Usage: docker build -f Dockerfile -t interview-backend .
+# (run from backend/ context, deploy script copies this file there)
+
+FROM python:3.12-slim
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+WORKDIR /app
+
+# Copy dependency files first (layer caching)
+COPY pyproject.toml uv.lock ./
+
+# Install production dependencies only
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Copy source code
+COPY . .
+
+# Install the project itself
+RUN uv sync --frozen --no-dev
+
+# Persistent data directory
+RUN mkdir -p /data
+ENV INTERVIEW_DB_PATH=/data/interview.db
+
+EXPOSE 8080
+
+# Default: Telegram webhook mode (override via compose)
+CMD ["uv", "run", "python", "main.py", "--transport", "telegram"]

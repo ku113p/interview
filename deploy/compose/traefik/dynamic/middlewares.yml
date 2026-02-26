@@ -1,0 +1,23 @@
+http:
+  middlewares:
+    security-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        frameDeny: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        referrerPolicy: "strict-origin-when-cross-origin"
+    rate-limit-api:
+      rateLimit:
+        average: 100
+        burst: 200
+    gzip:
+      compress:
+        excludedContentTypes:
+          - "text/event-stream"
+    admin-auth:
+      basicAuth:
+        users:
+          - "overuse:$apr1$Hb.RQweY$iZ17xbM9Q.pNTfjBk1cGq."
