@@ -7,13 +7,18 @@ export const site = {
   url: 'https://interviewassistant.ai',
 } as const;
 
+const CONTACT_EMAIL =
+  import.meta.env.PUBLIC_CONTACT_EMAIL || 'hello@interviewassistant.ai';
+const CONTACT_TELEGRAM =
+  import.meta.env.PUBLIC_CONTACT_TELEGRAM || 'interview_assistant';
+
 export const contacts = {
-  email: 'hello@interviewassistant.ai',
-  telegram: 'https://t.me/interview_assistant', // TODO: replace with actual handle
-  telegramLabel: '@interview_assistant',
+  email: CONTACT_EMAIL,
+  telegram: `https://t.me/${CONTACT_TELEGRAM}`,
+  telegramLabel: `@${CONTACT_TELEGRAM}`,
 } as const;
 
-const FORMSPREE_ID = 'YOUR_FORM_ID'; // TODO: replace with actual Formspree form ID
+const FORMSPREE_ID = import.meta.env.PUBLIC_FORMSPREE_ID || 'demo'; // Load from env or use demo
 
 export const formspree = {
   id: FORMSPREE_ID,

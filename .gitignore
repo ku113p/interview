@@ -9,7 +9,10 @@ wheels/
 
 # Virtual environments
 .venv
-.env
+
+# Environment variables (all except .env.example)
+.env*
+!.env.example
 
 *.ipynb
 
@@ -24,4 +27,3 @@ test-interview.db*  # Test database files
 frontend/node_modules/
 frontend/dist/
 frontend/.astro/
-frontend/.env
