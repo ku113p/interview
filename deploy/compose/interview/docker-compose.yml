@@ -1,0 +1,85 @@
+services:
+  promo:
+    image: ghcr.io/ku113p/interview-promo:latest
+    container_name: interview-promo
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.interview-promo.rule=Host(`promo.interview.syncapp.tech`)"
+      - "traefik.http.routers.interview-promo.entrypoints=websecure"
+      - "traefik.http.routers.interview-promo.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.interview-promo.middlewares=security-headers@file,gzip@file"
+      - "traefik.http.services.interview-promo.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  backend:
+    image: ghcr.io/ku113p/interview-backend:latest
+    container_name: interview-backend
+    restart: unless-stopped
+    networks:
+      - proxy
+      - internal
+    env_file:
+      - .env
+    volumes:
+      - backend-data:/data
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.interview-api.rule=Host(`api.interview.syncapp.tech`)"
+      - "traefik.http.routers.interview-api.entrypoints=websecure"
+      - "traefik.http.routers.interview-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.interview-api.middlewares=security-headers@file,rate-limit-api@file,gzip@file"
+      - "traefik.http.services.interview-api.loadbalancer.server.port=8080"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  mcp:
+    image: ghcr.io/ku113p/interview-mcp:latest
+    container_name: interview-mcp
+    restart: unless-stopped
+    networks:
+      - proxy
+      - internal
+    env_file:
+      - .env
+    volumes:
+      - backend-data:/data
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.interview-mcp.rule=Host(`mcp.interview.syncapp.tech`)"
+      - "traefik.http.routers.interview-mcp.entrypoints=websecure"
+      - "traefik.http.routers.interview-mcp.tls.certresolver=letsencrypt"
+      - "traefik.http.services.interview-mcp.loadbalancer.server.port=8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+networks:
+  proxy:
+    external: true
+  internal:
+    name: interview-internal
+
+volumes:
+  backend-data:
+    name: interview-data
