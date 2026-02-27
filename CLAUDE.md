@@ -71,7 +71,7 @@ See `backend/ARCHITECTURE.md` for detailed documentation of:
 - `backend/src/processes/interview/graph.py` - Main LangGraph workflow
 - `backend/src/processes/interview/state.py` - Central state model
 - `backend/src/config/settings.py` - Model assignments, token limits
-- `backend/src/infrastructure/db/managers.py` - Database access layer (async)
+- `backend/src/infrastructure/db/managers.py` - Database access layer facade (re-exports from core/interview/knowledge/api managers)
 
 ## Project Rules
 
